@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A glowing portal ring: a cyan to violet to pink ring around a bright, luminous centre. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft glow outside the ring -->
+    <path android:pathData="M54,54m-33,0a33,33 0,1 1,66 0a33,33 0,1 1,-66 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="33">
+                <item android:color="#00000000" android:offset="0.6" />
+                <item android:color="#558A5CFF" android:offset="0.82" />
+                <item android:color="#00000000" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- The light inside the portal -->
+    <path android:pathData="M54,54m-21,0a21,21 0,1 1,42 0a21,21 0,1 1,-42 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="21">
+                <item android:color="#CCFFFFFF" android:offset="0" />
+                <item android:color="#668A9CFF" android:offset="0.45" />
+                <item android:color="#1A44D9FF" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- The ring -->
+    <path
+        android:pathData="M54,54m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0"
+        android:strokeWidth="7">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="sweep"
+                android:centerX="54"
+                android:centerY="54">
+                <item android:color="#FF44D9FF" android:offset="0" />
+                <item android:color="#FF8A5CFF" android:offset="0.34" />
+                <item android:color="#FFFF5FA8" android:offset="0.67" />
+                <item android:color="#FF44D9FF" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- A highlight along the top left of the ring -->
+    <path
+        android:pathData="M34.5,40.5A21,21 0,0 1,48,31.5"
+        android:strokeColor="#CCFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.4" />
+</vector>

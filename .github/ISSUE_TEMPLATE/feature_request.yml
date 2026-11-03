@@ -1,0 +1,35 @@
+name: Feature request
+description: An idea for Portal
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like, and what problem does it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried instead
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of Portal?
+      options:
+        - Home screen or app list
+        - Profiles or kids mode
+        - Settings
+        - Weather, radar or alerts
+        - Background video or shader
+        - Screen saver
+        - Videos
+        - Search or AI assistant
+        - Installing or updating
+        - Something new
+  - type: checkboxes
+    id: tv
+    attributes:
+      label: Notes
+      options:
+        - label: I'd use this on a TV remote (D-pad only), not a touch screen or mouse.

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A video card in the browser: no ring at rest (the space is kept so nothing shifts), a white ring on focus. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <stroke android:width="3dp" android:color="#FFFFFF" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <stroke android:width="3dp" android:color="#00FFFFFF" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</selector>

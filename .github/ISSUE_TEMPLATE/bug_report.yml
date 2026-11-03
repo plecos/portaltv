@@ -1,0 +1,69 @@
+name: Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't paste API keys, PINs, passwords or server addresses you want kept private.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Settings, Weather
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where did it happen?
+      options:
+        - Home screen or app list
+        - Profiles or sign-in
+        - Settings
+        - Weather, radar or alerts
+        - Background video or shader
+        - Screen saver
+        - Videos (search or download)
+        - Search or AI assistant
+        - Installing or updating
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Portal version
+      description: Settings, About Portal.
+      placeholder: "1.0.55"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: TV or emulator model
+      description: For example "TCL Google TV, Android 14" or "Android Studio Television_4K emulator".
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: How did you install Portal?
+      options:
+        - GitHub release APK
+        - Built from source
+        - Not sure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Screenshots or logs (optional)
+      description: "`adb logcat -d -s AndroidRuntime:E` shows crashes."
+      render: shell

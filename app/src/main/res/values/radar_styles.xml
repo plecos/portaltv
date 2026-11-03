@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A round icon button beside or over the radar -->
+    <style name="RadarButton">
+        <item name="android:layout_width">52dp</item>
+        <item name="android:layout_height">52dp</item>
+        <item name="android:layout_margin">6dp</item>
+        <item name="android:padding">13dp</item>
+        <item name="android:background">@drawable/bg_circle_button</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <!-- The same, drawn over the map in the full-screen view, with a dark backing so it shows on light maps -->
+    <style name="RadarButtonOverMap" parent="RadarButton">
+        <item name="android:background">@drawable/bg_radar_button_over_map</item>
+    </style>
+</resources>

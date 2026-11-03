@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Portal" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="android:textViewStyle">@style/PortalTextView</item>
+    </style>
+
+    <style name="Theme.Portal.Search" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+
+    <style name="Theme.Portal.About" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimAmount">0.7</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+
+    <!-- The look every Portal dialog shares: a transparent window the panel is drawn into, over a dimmed screen. -->
+    <style name="Theme.Portal.Dialog" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimAmount">0.7</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="colorControlActivated">@color/accent</item>
+    </style>
+
+    <style name="PortalTextView" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+</resources>

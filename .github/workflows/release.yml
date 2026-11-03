@@ -1,0 +1,76 @@
+name: Release
+
+# Every merge to main is tested and linted, then built, signed and published as a GitHub release.
+# The version is MAJOR.MINOR from gradle.properties plus the number of commits after the first, e.g. v1.0.42
+# (the first commit is v1.0.0). app/build.gradle.kts works it out the same way.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:   # the Run workflow button; releases whichever branch you pick
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Work out the version
+        run: |
+          major_minor=$(grep '^VERSION_MAJOR_MINOR=' gradle.properties | cut -d= -f2)
+          echo "VERSION=$major_minor.$(( $(git rev-list --count HEAD) - 1 ))" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Unit tests and lint
+        run: ./gradlew testDebugUnitTest lintDebug
+
+      # No Google credentials here on purpose: an APK can't keep a secret, and releases are public.
+      - name: Build the signed release APK
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_B64" ]; then
+            echo "::error::The RELEASE_KEYSTORE_B64 secret is not set, so the APK can't be signed."
+            exit 1
+          fi
+          echo "$RELEASE_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/portal-release.jks"
+          export RELEASE_STORE_FILE="$RUNNER_TEMP/portal-release.jks"
+          ./gradlew assembleRelease
+          rm -f "$RUNNER_TEMP/portal-release.jks"
+          cp app/build/outputs/apk/release/app-release.apk "portal-$VERSION.apk"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" "portal-$VERSION.apk" \
+            --target "$GITHUB_SHA" --title "Portal $VERSION" --generate-notes
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            app/build/reports/tests
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore

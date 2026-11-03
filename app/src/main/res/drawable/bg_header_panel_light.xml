@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Lighter panel with a thin edge, for very dark video backgrounds where the normal scrim vanishes -->
+    <solid android:color="#B8303048" />
+    <stroke android:width="1dp" android:color="#40FFFFFF" />
+    <corners android:radius="16dp" />
+</shape>

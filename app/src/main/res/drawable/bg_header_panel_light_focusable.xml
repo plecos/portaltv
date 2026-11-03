@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <layer-list>
+            <item android:drawable="@drawable/bg_header_panel_light" />
+            <item android:drawable="@drawable/bg_focus_glass" />
+        </layer-list>
+    </item>
+    <item android:drawable="@drawable/bg_header_panel_light" />
+</selector>

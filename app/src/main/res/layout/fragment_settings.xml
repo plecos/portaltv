@@ -1,0 +1,2011 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two panes: a category list on the left, the selected category's settings on the right. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:padding="48dp">
+
+    <LinearLayout
+        android:layout_width="260dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Settings"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/inter"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="20dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/cat_background"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Background"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_videos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Videos"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_apps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Apps"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Search"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_weather"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Weather"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_screensaver"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Screen Saver"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_family"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Family"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cat_system"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="System"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <ScrollView
+            android:id="@+id/page_background"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Background"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+                <TextView
+                    android:id="@+id/hint_background"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-16dp"
+                    android:layout_marginBottom="20dp"
+                    android:textSize="15sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+            <!-- Background Mode -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Type"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/opt_bg_off"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Off"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_bg_shader"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="Shader"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_bg_video"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="Video"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Speed: for the video and the shader -->
+            <LinearLayout
+                android:id="@+id/speed_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Speed"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/speed_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </LinearLayout>
+
+            <!-- Sound: for the video only -->
+            <LinearLayout
+                android:id="@+id/sound_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Sound"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/sound_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Follows the TV's volume. Silent while another app is playing sound."
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <!-- Where the video itself is chosen -->
+            <TextView
+                android:id="@+id/background_video_pointer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="Choose the video itself, and the holiday and birthday videos, under Videos."
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:visibility="gone" />
+
+            <!-- Shader color: only shown while the Shader background is selected -->
+            <LinearLayout
+                android:id="@+id/shader_color_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Shader Style"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/shader_style_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Shader Color"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/shader_color_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Color cycling"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/shader_cycle_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_videos"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Videos"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+                <TextView
+                    android:id="@+id/hint_videos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-16dp"
+                    android:layout_marginBottom="20dp"
+                    android:textSize="15sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+            <!-- The everyday video: Random, or one of the videos -->
+            <LinearLayout
+                android:id="@+id/video_choice_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Video (plays when the background is Video)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/video_choice_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:id="@+id/opt_get_videos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Search/Manage Videos…"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/holiday_toggle_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="Holiday videos (day before and day of)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/holiday_toggle_row"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/opt_holiday_on"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="On"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/opt_holiday_off"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="12dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="Off"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Which holiday video to use (shown while holiday videos are on) -->
+            <LinearLayout
+                android:id="@+id/holiday_video_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Holiday video (pick one, or Portal switches between them)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/holiday_video_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+            </LinearLayout>
+
+            <!-- Which birthday video to use (shown when there is more than one) -->
+            <LinearLayout
+                android:id="@+id/birthday_video_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="20dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Birthday video (pick one, or Portal switches between them)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/birthday_video_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+            </LinearLayout>
+
+
+            <!-- Which kids may pick their own video (shown to parents) -->
+            <LinearLayout
+                android:id="@+id/kids_video_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="32dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Kids who can choose their video (they can't search for more)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/kids_video_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_apps"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Apps"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+            <!-- Apps Layout -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Layout"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/opt_layout_tiles"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Icon + title"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_layout_icons"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="Icon only"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_layout_list"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="List"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Group Apps -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Grouping"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/opt_group_on"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Frequently used + all"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_group_off"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="One list"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Group Labels -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Group Labels"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/opt_labels_show"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Show titles"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_labels_hide"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="Hide titles"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+
+                <TextView
+                    android:id="@+id/label_manage_apps"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Manage apps (hold select on an app to hide or move it)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/row_manage_apps"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/opt_hidden_apps"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="Hidden apps"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/opt_reset_order"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="12dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="Reset order"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_search"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Search"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/hint_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:textSize="15sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+                <TextView
+                    android:id="@+id/label_spoken"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Speak the AI's replies"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/row_spoken"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+                <TextView
+                    android:id="@+id/label_voice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Voice"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <HorizontalScrollView
+                    android:id="@+id/scroll_voice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:clipToPadding="false">
+
+                    <LinearLayout
+                        android:id="@+id/row_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="AI server address"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_ai_url"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Model (optional)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_ai_model"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="API key (optional)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_ai_key"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Context size"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_ai_context"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="How much conversation your model can hold. Portal summarizes older messages before it fills."
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+                                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="28dp"
+                    android:text="Web search for the AI"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Lets the AI look things up. Not offered to kid profiles. The AI can also open apps on its own."
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Service"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_web_provider"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="SearXNG address"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_web_searxng"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Brave Search key"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_web_brave"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:minWidth="420dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/opt_ai_test"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="Test connection"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_primary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/ai_test_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Questions you ask are sent to this server. Any OpenAI-compatible address works, including one on your own network."
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_weather"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Weather"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+            <!-- Weather Units -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Units"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="32dp">
+
+                <TextView
+                    android:id="@+id/opt_metric"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Metric (°C, km/h)"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_imperial"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="Imperial (°F, mph)"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Weather alerts -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Weather alerts (US National Weather Service)"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="32dp">
+
+                <TextView
+                    android:id="@+id/opt_alerts_on"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Show"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_alerts_off"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="12dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Hide"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- Severe alerts over apps -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Severe alerts over apps (tornado and similar warnings)"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/opt_severe_on"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="On"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_severe_off"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="12dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Off"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/severe_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="32dp"
+                android:textSize="15sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary" />
+
+            <!-- Weather page background: a weather video or a drawn sky behind the weather page -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="32dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Background of the weather page (video or animated sky)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/opt_weatherbg_on"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="On"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/opt_weatherbg_off"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="12dp"
+                        android:gravity="center"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:text="Off"
+                        android:textSize="18sp"
+                        android:fontFamily="@font/inter"
+                        android:textColor="@color/text_secondary"
+                        android:background="@drawable/bg_settings_tile"
+                        android:focusable="true" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Weather Location -->
+            <TextView
+                android:id="@+id/label_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Location"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/row_location"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="32dp">
+
+                <TextView
+                    android:id="@+id/opt_loc_auto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Automatic"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/opt_loc_city"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:layout_marginStart="12dp"
+                    android:text="Choose city…"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_screensaver"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Screen Saver"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+                <TextView
+                    android:id="@+id/hint_screensaver"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-16dp"
+                    android:layout_marginBottom="20dp"
+                    android:textSize="15sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+            <!-- Screen Saver -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Start after"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/screensaver_idle_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="At night (10 pm to 6 am)"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/screensaver_night_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Videos"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp"
+                android:id="@+id/screensaver_videos_title" />
+
+            <TextView
+                android:id="@+id/screensaver_shader_note"
+                android:layout_marginTop="4dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="The screen saver shows your shader background, with the time and weather drifting over it."
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/opt_screensaver_videos"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/screensaver_sound_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Sound"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/screensaver_sound_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:id="@+id/screensaver_sound_note"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Follows the TV's volume. Silent overnight unless the night setting is Normal."
+                android:textSize="14sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary" />
+
+            <TextView
+                android:id="@+id/opt_screensaver_preview"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Preview screen saver"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Starts from the home screen. To use it while other apps are open too, choose Portal in your TV's Settings → Device Preferences → Screen saver."
+                android:textSize="14sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_family"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Family"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+            <!-- Birthdays -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Birthdays"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/birthday_list"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/opt_add_birthday"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Add birthday"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <!-- Parent PIN -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="Parent PIN"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/opt_pin"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Change PIN"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/opt_remove_pin"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Remove PIN"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Kids schedule (bedtime and daily limit)"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/kids_schedule_list"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/opt_overlay_permission"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:minHeight="48dp"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/overlay_permission_hint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Search for each profile"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/search_levels_list"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Kids start with search off. With Apps + AI, the AI is told the user is a child and to keep answers age appropriate. That helps, but it isn't a guarantee."
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_system"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="System"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:id="@+id/opt_system_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Open system settings"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/opt_setup"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Run setup again"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/opt_restore_launcher"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Restore the TV's own home screen"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/opt_about"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="About Portal"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+            </LinearLayout>
+        </ScrollView>
+
+    </FrameLayout>
+</LinearLayout>

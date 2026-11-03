@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- First-run setup: one step at a time, under the logo, on a field of stars. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_primary">
+
+    <!-- The night sky, the drifting stars over it, and the logo over them so no star crosses it. -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:src="@drawable/onboarding_sky" />
+
+    <com.portal.tv.ui.StarWarpView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:src="@drawable/onboarding_logo" />
+
+    <LinearLayout
+        android:layout_width="720dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="150dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/onboarding_step"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/onboarding_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:textColor="@color/text_primary"
+            android:textSize="36sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/onboarding_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/onboarding_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/onboarding_primary"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_app_tile_selected"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="200dp"
+                android:paddingStart="28dp"
+                android:paddingEnd="28dp"
+                android:textColor="@color/text_primary"
+                android:textSize="19sp" />
+
+            <TextView
+                android:id="@+id/onboarding_secondary"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:layout_marginStart="14dp"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true"
+                android:gravity="center"
+                android:paddingStart="28dp"
+                android:paddingEnd="28dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="19sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/onboarding_dots"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:orientation="horizontal" />
+    </LinearLayout>
+</FrameLayout>

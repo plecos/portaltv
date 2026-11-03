@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One list row: icon on the left, title beside it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="420dp"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
+    android:background="@drawable/bg_app_tile"
+    android:focusable="true">
+
+    <ImageView
+        android:id="@+id/app_icon"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="App icon" />
+
+    <TextView
+        android:id="@+id/app_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="16dp"
+        android:textSize="20sp"
+        android:fontFamily="@font/inter"
+        android:textColor="@color/text_primary"
+        android:shadowColor="#CC000000"
+        android:shadowDx="0"
+        android:shadowDy="2"
+        android:shadowRadius="6"
+        android:maxLines="1"
+        android:ellipsize="end" />
+</LinearLayout>
