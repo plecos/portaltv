@@ -1,15 +1,12 @@
 name: Release
 
-# Every merge to main is tested and linted, then built, signed and published as a GitHub release.
+# Releases are made by hand: Actions, Release, Run workflow, with main selected. Merging does not release.
+# The build is tested and linted, then built, signed and published as a GitHub release.
 # The version is MAJOR.MINOR from gradle.properties plus the number of commits after the first, e.g. v1.0.42
 # (the first commit is v1.0.0). app/build.gradle.kts works it out the same way.
 
 on:
-  push:
-    branches: [main]
-    # Docs, licenses, artwork, the website, install scripts and repository settings are not a new build.
-    paths-ignore: ['**.md', 'LICENSE', 'NOTICE', '.gitignore', 'branding/**', 'site/**', 'scripts/**', '.github/**']
-  workflow_dispatch:   # the Run workflow button; releases whichever branch you pick
+  workflow_dispatch:   # the Run workflow button
 
 concurrency:
   group: release
@@ -20,6 +17,8 @@ permissions:
 
 jobs:
   release:
+    # Only the repository owner, and only from main, so a release can't be started by anyone else or from a stray branch.
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
