@@ -70,6 +70,8 @@
   .btn.primary:hover { background: var(--accent-hover); color: #fff; }
   .btn.ghost { border-color: var(--line); color: var(--text); background: var(--bg-raised); }
   .btn.ghost:hover { border-color: var(--accent); color: var(--text); }
+  .pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; list-style: none; padding: 0; margin: 26px 0 0; }
+  .pills li { padding: 7px 18px; border-radius: 999px; font-weight: 650; font-size: 16px; border: 1px solid transparent; background: linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box, linear-gradient(90deg, var(--cyan), var(--violet), var(--pink)) border-box; }
   .fine { color: var(--muted); font-size: 14px; margin-top: 14px; }
   .tv { margin: 44px auto 0; max-width: 940px; border-radius: 18px; padding: 10px; background: #05050b; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 80px rgba(108, 99, 255, .2); }
   .tv img { border-radius: 10px; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; width: 100%; }
@@ -129,7 +131,7 @@
     <nav aria-label="Main">
       <ul>
         <li><a href="#features">Features</a></li>
-        <li><a href="#private">Privacy</a></li>
+        <li><a href="#private">No ads, no tracking</a></li>
         <li><a href="#install">Install</a></li>
         <li><a href="https://github.com/plecos/portaltv">GitHub</a></li>
       </ul>
@@ -146,7 +148,12 @@
         <a class="btn primary" href="https://github.com/plecos/portaltv/releases/latest">Download the latest release</a>
         <a class="btn ghost" href="#install">How to install</a>
       </div>
-      <p class="fine">Free for personal use &middot; Android 14 or newer &middot; No ads, no tracking</p>
+      <ul class="pills" aria-label="Portal's promises">
+        <li>No ads</li>
+        <li>No tracking</li>
+        <li>No account</li>
+      </ul>
+      <p class="fine">Unlike most stock TV launchers. Free for personal use &middot; Android 14 or newer</p>
       <div class="tv">
         <img src="img/home.jpg" width="1280" height="720" alt="Portal's home screen: a fireplace video plays behind the time and weather, a profile chip, and a list of apps.">
       </div>
@@ -196,11 +203,11 @@
   <section id="private">
     <div class="wrap split">
       <div>
-        <h2>Private by design</h2>
-        <p class="sub" style="margin-bottom:0">Your TV is in your living room. Portal treats it that way.</p>
+        <h2>No ads. No tracking.</h2>
+        <p class="sub" style="margin-bottom:0">Many stock TV launchers fill the home screen with sponsored rows and recommendations, and keep track of what you watch. Portal does neither. Your TV is in your living room, and Portal treats it that way.</p>
       </div>
       <ul>
-        <li><strong>No ads.</strong> Not now, not later.</li>
+        <li><strong>No ads.</strong> No sponsored rows, no promoted apps, no banners. Not now, not later.</li>
         <li><strong>No tracking.</strong> There are no analytics and no Portal account.</li>
         <li><strong>Your data stays on the TV.</strong> Profiles, settings and watch history are saved on the device, and API keys are stored encrypted.</li>
         <li><strong>You choose what it talks to.</strong> Portal reaches out only for features you use, such as weather, video downloads, or the AI server you set up.</li>
