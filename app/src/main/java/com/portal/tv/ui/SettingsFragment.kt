@@ -803,7 +803,7 @@ class SettingsFragment : Fragment() {
 
     /**
      * Screen saver options: idle time, what it does at night, which videos it plays, and a
-     * preview button. The system screen saver (chosen in the TV's own settings) reads the same
+     * preview button, and whether it also runs over other apps. That system screen saver reads the same
      * night and video options.
      */
     private fun setupScreensaver(view: View) {
@@ -893,6 +893,42 @@ class SettingsFragment : Fragment() {
 
         view.findViewById<TextView>(R.id.opt_screensaver_preview).setOnClickListener {
             (activity as? com.portal.tv.PortalActivity)?.startScreensaver(preview = true)
+        }
+
+        // Over other apps the system starts Portal's screen saver once the TV has been idle for its own screen saver
+        // time. Turning that on or off goes through Portal's connection to the TV's debug service.
+        val systemTile = view.findViewById<TextView>(R.id.opt_screensaver_system)
+        val systemNote = view.findViewById<TextView>(R.id.screensaver_system_note)
+        fun refreshSystem() {
+            val on = com.portal.tv.adb.SelfSetup.isSystemScreensaver(context)
+            systemTile.text = if (on) "Also over other apps: On" else "Also over other apps: Off"
+            style(systemTile, on)
+            systemNote.text = if (on) {
+                "Portal's screen saver also starts when another app has been idle for the TV's screen saver time. " +
+                    "Select to give the TV's own screen saver back."
+            } else {
+                "Without this the screen saver starts only from Portal's home screen. Select to turn it on. " +
+                    "It needs Wireless debugging on, and the TV may ask you to allow it."
+            }
+        }
+        refreshSystem()
+        systemTile.setOnClickListener {
+            val turnOn = !com.portal.tv.adb.SelfSetup.isSystemScreensaver(context)
+            val app = context.applicationContext
+            Toast.makeText(context, "Working…", Toast.LENGTH_SHORT).show()
+            viewLifecycleOwner.lifecycleScope.launch {
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    when (val c = com.portal.tv.adb.SelfSetup.connect(app)) {
+                        is com.portal.tv.adb.SelfSetup.Result.Failed -> c
+                        else -> if (turnOn) com.portal.tv.adb.SelfSetup.enableSystemScreensaver(app)
+                        else com.portal.tv.adb.SelfSetup.disableSystemScreensaver(app)
+                    }
+                }
+                refreshSystem()
+                if (result is com.portal.tv.adb.SelfSetup.Result.Failed) {
+                    Toast.makeText(context, "Couldn't change it: ${result.why}", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
