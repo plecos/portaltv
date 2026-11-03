@@ -98,6 +98,9 @@ dependencies {
     }
     implementation("com.github.MuntashirAkon:sun-security-android:1.1")  // makes the certificate adb pairing needs
     implementation("org.conscrypt:conscrypt-android:2.5.3")              // TLS 1.3 with the key export adb pairing needs
+    // libadb-android brings in Bouncy Castle 1.81. Keep it at 1.85 or newer, which fixes the Name Constraints, ASN.1 depth
+    // and LDAP advisories in older versions.
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.85")
     testImplementation(libs.junit)
     testImplementation("org.json:json:20260814")  // the real org.json, since android.jar's is a stub in unit tests
     androidTestImplementation(libs.androidx.espresso.core)
