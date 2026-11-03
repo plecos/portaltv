@@ -7,7 +7,7 @@ name: Release
 on:
   push:
     branches: [main]
-    # Docs, artwork and repository settings are not a new build.
+    # Docs, licenses, artwork, install scripts and repository settings are not a new build.
     paths-ignore: ['**.md', 'LICENSE', 'NOTICE', '.gitignore', 'branding/**', 'scripts/**', '.github/**']
   workflow_dispatch:   # the Run workflow button; releases whichever branch you pick
 
