@@ -12,7 +12,7 @@
 
 A home-screen launcher for Android TV and Google TV. It replaces the stock launcher with a clean home screen that has a live video background, the time and weather, your apps, per-person profiles, parental controls, a screen saver, and a search box that can find apps, chat with your own AI, and search the web.
 
-Android 14 or newer (`minSdk 34`). Package `com.portal.tv`. Project address: getportaltv.net (a website is planned). If Portal is useful to you, you can [buy me a coffee](https://buymeacoffee.com/portal.tv).
+Android 14 or newer (`minSdk 34`). Package `com.portal.tv`. Website: [getportaltv.net](https://getportaltv.net). If Portal is useful to you, you can [buy me a coffee](https://buymeacoffee.com/portal.tv).
 
 > **Source-available, not open source.** Portal is free for personal and other noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE). Commercial use needs a separate license: write to license@getportaltv.net. If you share it, modified or not, keep the notices in [NOTICE](NOTICE). See also [CONTRIBUTING](CONTRIBUTING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
@@ -38,7 +38,7 @@ scripts/install.sh 192.168.1.20
 .\scripts\install.ps1 192.168.1.20
 ```
 
-With no APK given they use a `portal*.apk` in the current folder, then your release build, then download the latest GitHub release (this needs the [GitHub CLI](https://cli.github.com) signed in, since the repository is private). Options:
+With no APK given they use a `portal*.apk` in the current folder, then your release build, then download the latest GitHub release (this needs the [GitHub CLI](https://cli.github.com) installed and signed in with `gh auth login`). Options:
 
 | Bash | PowerShell | |
 |---|---|---|
