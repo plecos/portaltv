@@ -82,6 +82,27 @@ android {
     }
 }
 
+// Android lint runs from its own tool classpath, which the buildscript constraints in the root build.gradle.kts don't
+// reach. It pulls in the same libraries with security advisories, so pin them here too. Build-time only, not in the
+// APK. Drop an entry when the Android Gradle plugin ships a version at or above it.
+val lintToolFixes = mapOf(
+    "com.google.guava:guava" to "33.7.2-jre",
+    "org.bouncycastle:bcprov-jdk18on" to "1.85",
+    "org.bouncycastle:bcpkix-jdk18on" to "1.85",
+    "org.apache.commons:commons-lang3" to "3.18.0",
+    "org.apache.httpcomponents:httpclient" to "4.5.14",
+)
+configurations.configureEach {
+    if (name == "androidLintTool") {
+        resolutionStrategy.eachDependency {
+            lintToolFixes["${requested.group}:${requested.name}"]?.let {
+                useVersion(it)
+                because("security advisories in the older version the lint tool brings")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
