@@ -178,8 +178,9 @@ The version is automatic. `versionName` is `VERSION_MAJOR_MINOR` from `gradle.pr
 
 GitHub Actions (`.github/workflows`):
 
-- **CI** runs the unit tests and lint on every pull request and on pushes to any branch except `main`.
-- **Release** runs on every push to `main` (except Markdown-only changes). It runs the tests and lint, builds and signs the release APK, and publishes it as a GitHub release tagged `v<version>`.
+- **CI** runs the unit tests and lint on every pull request.
+- **Release** runs only when the repository owner starts it by hand (Actions, Release, Run workflow, with `main` selected); merging to `main` never releases. It runs the tests and lint, builds and signs the release APK, and publishes it as a GitHub release tagged `v<version>`. The version comes from the commit count, so each run is the newest build so far.
+- **Website** publishes the `site/` folder to GitHub Pages when it changes on `main`.
 
 The release workflow needs these repository secrets (Settings, Secrets and variables, Actions): `RELEASE_KEYSTORE_B64` (the keystore, base64), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Releases carry no Google sign-in credentials, because an APK can't keep a secret.
 
