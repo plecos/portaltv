@@ -1,0 +1,27 @@
+# Portal
+
+> Portal is a home screen launcher for Android TV and Google TV. It replaces the TV's stock launcher with live video backgrounds, your apps, weather and radar, a screen saver, per-person profiles with kid time limits, and search that can use your own AI server. It has no ads, no tracking and no account. Free for personal and other noncommercial use; source-available under the PolyForm Noncommercial License 1.0.0 (not open source).
+
+Requires Android 14 or newer. Package name: com.portal.tv.
+
+## Key pages
+
+- [Website](https://getportaltv.net/): what Portal does, screenshots, install steps and a short FAQ
+- [Latest release](https://github.com/plecos/portaltv/releases/latest): download the signed APK
+- [README and install guide](https://github.com/plecos/portaltv#readme): features, install script, building from source, search and AI setup, known limits
+- [Source code](https://github.com/plecos/portaltv): the full app (Kotlin)
+
+## Policies
+
+- [License](https://github.com/plecos/portaltv/blob/main/LICENSE): PolyForm Noncommercial License 1.0.0; commercial use needs a license from license@getportaltv.net
+- [Security policy](https://github.com/plecos/portaltv/blob/main/SECURITY.md): report vulnerabilities privately to security@getportaltv.net
+- [Third-party notices](https://github.com/plecos/portaltv/blob/main/THIRD_PARTY_NOTICES.md)
+- [Contributing](https://github.com/plecos/portaltv/blob/main/CONTRIBUTING.md)
+
+## Facts
+
+- Platforms: Android TV and Google TV, Android 14 or newer
+- Price: free for noncommercial use
+- Data: no ads, no analytics, no Portal account; profiles and settings stay on the TV
+- Kid profiles: allowed apps only, daily time limit, bedtime, parent PIN; limits count apps opened from Portal
+- AI search: no built-in model; connects to any OpenAI-compatible server the user sets up

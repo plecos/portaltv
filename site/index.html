@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal: a home screen launcher for Android TV and Google TV</title>
+<meta name="description" content="Portal is a home screen launcher for Android TV and Google TV: live video backgrounds, profiles, kid time limits, weather and radar, a screen saver, and search with your own AI. No ads, no tracking.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0f0f1a">
+<link rel="canonical" href="https://getportaltv.net/">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Portal">
+<meta property="og:title" content="Portal: a home screen launcher for Android TV and Google TV">
+<meta property="og:description" content="A home screen launcher for Android TV and Google TV. Live video backgrounds, profiles, kid time limits, weather and radar. No ads, no tracking.">
+<meta property="og:url" content="https://getportaltv.net/">
+<meta property="og:image" content="https://getportaltv.net/img/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Portal's glowing ring icon beside the words Portal, a home screen for your TV">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Portal",
+  "alternateName": "Portal TV",
+  "description": "A home screen launcher for Android TV and Google TV with live video backgrounds, profiles, kid time limits, weather and radar, a screen saver, and search with your own AI. No ads, no tracking.",
+  "url": "https://getportaltv.net/",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Android TV, Google TV (Android 14 or newer)",
+  "downloadUrl": "https://github.com/plecos/portaltv/releases/latest",
+  "license": "https://polyformproject.org/licenses/noncommercial/1.0.0/",
+  "image": "https://getportaltv.net/img/social.png",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --bg-raised: #171728;
+    --bg-tile: #1c1c30;
+    --line: #2a2a44;
+    --text: #f2f2fa;
+    --muted: #a9a9c4;
+    --accent: #6c63ff;
+    --accent-hover: #8077ff;
+    --cyan: #44d9ff;
+    --violet: #8a5cff;
+    --pink: #ff5fa8;
+    --radius: 16px;
+    --max: 1120px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--cyan); }
+  a:hover { color: #8be9ff; }
+  :focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; border-radius: 4px; }
+  img { max-width: 100%; height: auto; display: block; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+  .skip { position: absolute; left: -999px; top: 8px; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 10; }
+  .skip:focus { left: 8px; }
+
+  /* header */
+  header.top { position: sticky; top: 0; z-index: 5; background: rgba(15, 15, 26, .86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 650; font-size: 20px; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  nav ul { display: flex; gap: 22px; list-style: none; margin: 0; padding: 0; }
+  nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  nav a:hover { color: var(--text); }
+
+  /* hero */
+  .hero { padding: 72px 0 40px; text-align: center; background:
+    radial-gradient(60% 50% at 50% 0%, rgba(138, 92, 255, .28), transparent 70%),
+    radial-gradient(40% 40% at 85% 10%, rgba(68, 217, 255, .12), transparent 70%); }
+  .hero h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.02em; }
+  .hero h1 span { background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lead { font-size: clamp(18px, 2.4vw, 22px); color: var(--muted); max-width: 680px; margin: 0 auto 28px; }
+  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 13px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid transparent; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-hover); color: #fff; }
+  .btn.ghost { border-color: var(--line); color: var(--text); background: var(--bg-raised); }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--text); }
+  .pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; list-style: none; padding: 0; margin: 26px 0 0; }
+  .pills li { padding: 7px 18px; border-radius: 999px; font-weight: 650; font-size: 16px; border: 1px solid transparent; background: linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box, linear-gradient(90deg, var(--cyan), var(--violet), var(--pink)) border-box; }
+  .fine { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  .tv { margin: 44px auto 0; max-width: 940px; border-radius: 18px; padding: 10px; background: #05050b; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 80px rgba(108, 99, 255, .2); }
+  .tv img { border-radius: 10px; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; width: 100%; }
+
+  /* sections */
+  section { padding: 72px 0; }
+  section.alt { background: var(--bg-raised); border-block: 1px solid var(--line); }
+  h2 { font-size: clamp(26px, 4vw, 38px); line-height: 1.2; margin: 0 0 12px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); max-width: 640px; margin: 0 0 40px; }
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card { background: var(--bg-tile); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .card h3 { margin: 0 0 8px; font-size: 19px; }
+  .card p { margin: 0; color: var(--muted); font-size: 16px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; margin-bottom: 14px; background: linear-gradient(135deg, var(--cyan), var(--violet) 55%, var(--pink)); }
+
+  /* screenshots */
+  .shots { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+  figure { margin: 0; }
+  figure img { border-radius: 12px; border: 1px solid var(--line); width: 100%; }
+  figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; }
+
+  /* split blocks */
+  .split { display: grid; gap: 40px; grid-template-columns: 1fr 1fr; align-items: center; }
+  .split ul { padding-left: 20px; margin: 0; color: var(--muted); }
+  .split li { margin: 8px 0; }
+  .split li strong { color: var(--text); }
+
+  /* faq */
+  .faq { max-width: 780px; display: grid; gap: 10px; }
+  .faq details { background: var(--bg-tile); border: 1px solid var(--line); border-radius: 12px; padding: 0 20px; }
+  .faq summary { cursor: pointer; font-weight: 600; padding: 16px 0; list-style-position: outside; }
+  .faq details[open] summary { color: var(--cyan); }
+  .faq p { margin: 0 0 18px; color: var(--muted); font-size: 16px; }
+
+  /* install */
+  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0 0 28px; display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  ol.steps li { counter-increment: step; background: var(--bg-tile); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 24px 24px 24px; }
+  ol.steps li::before { content: counter(step); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); font-weight: 700; margin-bottom: 12px; }
+  ol.steps strong { display: block; margin-bottom: 4px; }
+  ol.steps span { color: var(--muted); font-size: 16px; }
+  code { background: #0a0a14; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: .9em; }
+
+  footer { border-top: 1px solid var(--line); padding: 40px 0 56px; color: var(--muted); font-size: 15px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
+  footer ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 760px) {
+    nav { display: none; }
+    .split { grid-template-columns: 1fr; }
+    section { padding: 52px 0; }
+    .hero { padding-top: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does Portal work on Google TV?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Portal runs on Android TV and Google TV, on Android 14 or newer. It has been tested on a TCL Google TV, including one set up as a Basic TV."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does Portal cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nothing. Portal is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0. Using it in a business or on products needs a commercial license, which you can ask for at license@getportaltv.net."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Portal open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It is source-available, not open source. You can read, build and change the code for noncommercial use, and the whole app is on GitHub."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Portal show ads or track me?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Portal has no ads, no analytics and no account of its own. Your profiles, settings and watch history stay on the TV. It contacts a service only for features you use, such as weather, video downloads, or an AI server you set up."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I install Portal?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Download the APK from the latest GitHub release and install it on the TV with adb from a computer, or with a file manager app on the TV. Open Portal, and its first-run setup walks you through making it your home screen. There is also a one-step install script for macOS, Linux and Windows."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I go back to my TV's own home screen?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Open Portal's Settings, then System, then Restore the TV's own home screen. That undoes the launcher and screen saver changes Portal made."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Portal have parental controls?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. A kid profile shows only the apps a parent allows, and has a daily time limit, a bedtime and a parent PIN to leave the profile. The limits count apps opened from Portal, so opening an app by voice through the TV's assistant can bypass them."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which AI does Portal use?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "None is built in. Search can talk to any OpenAI-compatible chat server that you set up, either a hosted service or one on your own network, such as llama.cpp, Ollama or LM Studio. With no server set, search only finds your apps."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="img/icon.png" alt="" width="32" height="32">Portal</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#private">No ads, no tracking</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#faq">Questions</a></li>
+        <li><a href="https://github.com/plecos/portaltv">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero" id="top">
+    <div class="wrap">
+      <h1>A home screen <span>for your TV</span></h1>
+      <p class="lead">Portal replaces the stock launcher on Android TV and Google TV with a quiet, good-looking home screen: live video backgrounds, your apps, the weather, and a profile for everyone in the house.</p>
+      <div class="buttons">
+        <a class="btn primary" href="https://github.com/plecos/portaltv/releases/latest">Download the latest release</a>
+        <a class="btn ghost" href="#install">How to install</a>
+      </div>
+      <ul class="pills" aria-label="Portal's promises">
+        <li>No ads</li>
+        <li>No tracking</li>
+        <li>No account</li>
+      </ul>
+      <p class="fine">Unlike most stock TV launchers. Free for personal use &middot; Android 14 or newer</p>
+      <div class="tv">
+        <img src="img/home.jpg" width="1280" height="720" alt="Portal's home screen: a fireplace video plays behind the time and weather, a profile chip, and a list of apps.">
+      </div>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>What you get</h2>
+      <p class="sub">Everything runs on the TV. Set it up with your remote.</p>
+      <div class="grid">
+        <div class="card"><div class="dot"></div><h3>Live video backgrounds</h3><p>Fireplaces, space, aquariums and more behind your apps, or an animated color shader. Pick one, or let Portal choose a new video each day. Holiday and birthday videos play on the right days.</p></div>
+        <div class="card"><div class="dot"></div><h3>Profiles for everyone</h3><p>Each person gets their own apps, background, screen saver and settings, and can sign in with their Google account using a QR code.</p></div>
+        <div class="card"><div class="dot"></div><h3>Kid profiles</h3><p>Only the apps a parent allows, a daily time limit and a bedtime, a countdown for the last minute, and a parent PIN to leave the profile.</p></div>
+        <div class="card"><div class="dot"></div><h3>Weather and radar</h3><p>Current conditions, 12 hours and 7 days, sunrise and sunset, air quality and the moon, with a looping radar map. In the US, severe weather alerts show right on the home screen.</p></div>
+        <div class="card"><div class="dot"></div><h3>A screen saver that moves</h3><p>Your videos fade through while the time and weather drift around the screen. It can dim or go dark at night.</p></div>
+        <div class="card"><div class="dot"></div><h3>Search with your own AI</h3><p>Find apps as you type or by voice. Connect any OpenAI-compatible server, a hosted one or one on your own network, and ask it questions or have it open apps for you.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="look">
+    <div class="wrap">
+      <h2>A look around</h2>
+      <p class="sub">Screenshots taken on a real TV.</p>
+      <div class="shots">
+        <figure>
+          <img src="img/weather.jpg" width="1280" height="720" loading="lazy" alt="The weather page: 49 degrees and overcast, with humidity, wind, high and low, and the next 12 hours.">
+          <figcaption>Current conditions, the next 12 hours and the week ahead, with radar and alerts.</figcaption>
+        </figure>
+        <figure>
+          <img src="img/profiles.jpg" width="1280" height="720" loading="lazy" alt="The Who's watching screen with a profile and an Add New button.">
+          <figcaption>Choose who's watching. Hold OK on a profile to rename it or delete it.</figcaption>
+        </figure>
+        <figure>
+          <img src="img/settings-videos.jpg" width="1280" height="720" loading="lazy" alt="Settings, Videos: a Random option and thumbnails of space and aquarium videos, with holiday videos turned on.">
+          <figcaption>Pick a video, or a new one each day. Add more from NASA or Pixabay.</figcaption>
+        </figure>
+        <figure>
+          <img src="img/settings-apps.jpg" width="1280" height="720" loading="lazy" alt="Settings, Apps: choose icon and title, icon only or list, and whether to group frequently used apps.">
+          <figcaption>Show apps as tiles, icons or a list, and group the ones you use most.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="private">
+    <div class="wrap split">
+      <div>
+        <h2>No ads. No tracking.</h2>
+        <p class="sub" style="margin-bottom:0">Many stock TV launchers fill the home screen with sponsored rows and recommendations, and keep track of what you watch. Portal does neither. Your TV is in your living room, and Portal treats it that way.</p>
+      </div>
+      <ul>
+        <li><strong>No ads.</strong> No sponsored rows, no promoted apps, no banners. Not now, not later.</li>
+        <li><strong>No tracking.</strong> There are no analytics and no Portal account.</li>
+        <li><strong>Your data stays on the TV.</strong> Profiles, settings and watch history are saved on the device, and API keys are stored encrypted.</li>
+        <li><strong>You choose what it talks to.</strong> Portal reaches out only for features you use, such as weather, video downloads, or the AI server you set up.</li>
+        <li><strong>Read the code.</strong> The whole app is on GitHub.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="alt" id="install">
+    <div class="wrap">
+      <h2>Install it</h2>
+      <p class="sub">Portal needs Android 14 or newer on an Android TV or Google TV. It installs like any app you load yourself.</p>
+      <ol class="steps">
+        <li><strong>Get the APK</strong><span>Download <code>portal-*-release.apk</code> from the <a href="https://github.com/plecos/portaltv/releases/latest">latest release</a>.</span></li>
+        <li><strong>Put it on the TV</strong><span>Install it with <code>adb</code> from a computer, or with a file manager app on the TV.</span></li>
+        <li><strong>Open Portal</strong><span>The first-run setup walks you through making Portal your home screen, right from the TV.</span></li>
+      </ol>
+      <p>Prefer a script? The <a href="https://github.com/plecos/portaltv#quick-install">install guide</a> has a one-step script for macOS, Linux and Windows, plus the manual steps, and how to put your TV's own home screen back.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>Questions</h2>
+      <p class="sub">Short answers to what people ask first.</p>
+      <div class="faq">
+        <details>
+          <summary>Does Portal work on Google TV?</summary>
+          <p>Yes. Portal runs on Android TV and Google TV, on Android 14 or newer. It has been tested on a TCL Google TV, including one set up as a Basic TV.</p>
+        </details>
+        <details>
+          <summary>What does Portal cost?</summary>
+          <p>Nothing. Portal is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0. Using it in a business or on products needs a commercial license, which you can ask for at license@getportaltv.net.</p>
+        </details>
+        <details>
+          <summary>Is Portal open source?</summary>
+          <p>It is source-available, not open source. You can read, build and change the code for noncommercial use, and the whole app is on GitHub.</p>
+        </details>
+        <details>
+          <summary>Does Portal show ads or track me?</summary>
+          <p>No. Portal has no ads, no analytics and no account of its own. Your profiles, settings and watch history stay on the TV. It contacts a service only for features you use, such as weather, video downloads, or an AI server you set up.</p>
+        </details>
+        <details>
+          <summary>How do I install Portal?</summary>
+          <p>Download the APK from the latest GitHub release and install it on the TV with adb from a computer, or with a file manager app on the TV. Open Portal, and its first-run setup walks you through making it your home screen. There is also a one-step install script for macOS, Linux and Windows.</p>
+        </details>
+        <details>
+          <summary>How do I go back to my TV&#x27;s own home screen?</summary>
+          <p>Open Portal&#x27;s Settings, then System, then Restore the TV&#x27;s own home screen. That undoes the launcher and screen saver changes Portal made.</p>
+        </details>
+        <details>
+          <summary>Does Portal have parental controls?</summary>
+          <p>Yes. A kid profile shows only the apps a parent allows, and has a daily time limit, a bedtime and a parent PIN to leave the profile. The limits count apps opened from Portal, so opening an app by voice through the TV&#x27;s assistant can bypass them.</p>
+        </details>
+        <details>
+          <summary>Which AI does Portal use?</summary>
+          <p>None is built in. Search can talk to any OpenAI-compatible chat server that you set up, either a hosted service or one on your own network, such as llama.cpp, Ollama or LM Studio. With no server set, search only finds your apps.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="license">
+    <div class="wrap split">
+      <div>
+        <h2>Free to use, open to read</h2>
+        <p class="sub" style="margin-bottom:0">Portal is source-available under the PolyForm Noncommercial License 1.0.0. It is free for personal and other noncommercial use. It is not open source.</p>
+      </div>
+      <div>
+        <p style="margin-top:0">Want to use Portal in a business or ship it on products? Write to <a href="mailto:license@getportaltv.net">license@getportaltv.net</a> for a commercial license.</p>
+        <p>Found a bug or want a feature? <a href="https://github.com/plecos/portaltv/issues">Open an issue</a>. If Portal is useful to you, you can <a href="https://buymeacoffee.com/portal.tv">buy me a coffee</a>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>Copyright 2026 Portal TV</div>
+    <ul>
+      <li><a href="https://github.com/plecos/portaltv">Source on GitHub</a></li>
+      <li><a href="https://github.com/plecos/portaltv/releases">Releases</a></li>
+      <li><a href="https://github.com/plecos/portaltv/blob/main/LICENSE">License</a></li>
+      <li><a href="https://github.com/plecos/portaltv/blob/main/SECURITY.md">Security</a></li>
+      <li><a href="https://github.com/plecos/portaltv/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>
