@@ -86,7 +86,7 @@
   .dot { width: 12px; height: 12px; border-radius: 50%; margin-bottom: 14px; background: linear-gradient(135deg, var(--cyan), var(--violet) 55%, var(--pink)); }
 
   /* screenshots */
-  .shots { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .shots { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
   figure { margin: 0; }
   figure img { border-radius: 12px; border: 1px solid var(--line); width: 100%; }
   figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; }
@@ -173,6 +173,10 @@
       <h2>A look around</h2>
       <p class="sub">Screenshots taken on a real TV.</p>
       <div class="shots">
+        <figure>
+          <img src="img/weather.jpg" width="1280" height="720" loading="lazy" alt="The weather page: 49 degrees and overcast, with humidity, wind, high and low, and the next 12 hours.">
+          <figcaption>Current conditions, the next 12 hours and the week ahead, with radar and alerts.</figcaption>
+        </figure>
         <figure>
           <img src="img/profiles.jpg" width="1280" height="720" loading="lazy" alt="The Who's watching screen with a profile and an Add New button.">
           <figcaption>Choose who's watching. Hold OK on a profile to rename it or delete it.</figcaption>
