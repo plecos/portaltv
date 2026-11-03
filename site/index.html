@@ -119,6 +119,13 @@
   .split li { margin: 8px 0; }
   .split li strong { color: var(--text); }
 
+  /* faq */
+  .faq { max-width: 780px; display: grid; gap: 10px; }
+  .faq details { background: var(--bg-tile); border: 1px solid var(--line); border-radius: 12px; padding: 0 20px; }
+  .faq summary { cursor: pointer; font-weight: 600; padding: 16px 0; list-style-position: outside; }
+  .faq details[open] summary { color: var(--cyan); }
+  .faq p { margin: 0 0 18px; color: var(--muted); font-size: 16px; }
+
   /* install */
   ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0 0 28px; display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
   ol.steps li { counter-increment: step; background: var(--bg-tile); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 24px 24px 24px; }
@@ -141,6 +148,78 @@
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does Portal work on Google TV?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Portal runs on Android TV and Google TV, on Android 14 or newer. It has been tested on a TCL Google TV, including one set up as a Basic TV."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does Portal cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nothing. Portal is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0. Using it in a business or on products needs a commercial license, which you can ask for at license@getportaltv.net."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Portal open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It is source-available, not open source. You can read, build and change the code for noncommercial use, and the whole app is on GitHub."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Portal show ads or track me?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Portal has no ads, no analytics and no account of its own. Your profiles, settings and watch history stay on the TV. It contacts a service only for features you use, such as weather, video downloads, or an AI server you set up."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I install Portal?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Download the APK from the latest GitHub release and install it on the TV with adb from a computer, or with a file manager app on the TV. Open Portal, and its first-run setup walks you through making it your home screen. There is also a one-step install script for macOS, Linux and Windows."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I go back to my TV's own home screen?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Open Portal's Settings, then System, then Restore the TV's own home screen. That undoes the launcher and screen saver changes Portal made."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Portal have parental controls?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. A kid profile shows only the apps a parent allows, and has a daily time limit, a bedtime and a parent PIN to leave the profile. The limits count apps opened from Portal, so opening an app by voice through the TV's assistant can bypass them."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which AI does Portal use?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "None is built in. Search can talk to any OpenAI-compatible chat server that you set up, either a hosted service or one on your own network, such as llama.cpp, Ollama or LM Studio. With no server set, search only finds your apps."
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -153,6 +232,7 @@
         <li><a href="#features">Features</a></li>
         <li><a href="#private">No ads, no tracking</a></li>
         <li><a href="#install">Install</a></li>
+        <li><a href="#faq">Questions</a></li>
         <li><a href="https://github.com/plecos/portaltv">GitHub</a></li>
       </ul>
     </nav>
@@ -246,6 +326,47 @@
         <li><strong>Open Portal</strong><span>The first-run setup walks you through making Portal your home screen, right from the TV.</span></li>
       </ol>
       <p>Prefer a script? The <a href="https://github.com/plecos/portaltv#quick-install">install guide</a> has a one-step script for macOS, Linux and Windows, plus the manual steps, and how to put your TV's own home screen back.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>Questions</h2>
+      <p class="sub">Short answers to what people ask first.</p>
+      <div class="faq">
+        <details>
+          <summary>Does Portal work on Google TV?</summary>
+          <p>Yes. Portal runs on Android TV and Google TV, on Android 14 or newer. It has been tested on a TCL Google TV, including one set up as a Basic TV.</p>
+        </details>
+        <details>
+          <summary>What does Portal cost?</summary>
+          <p>Nothing. Portal is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0. Using it in a business or on products needs a commercial license, which you can ask for at license@getportaltv.net.</p>
+        </details>
+        <details>
+          <summary>Is Portal open source?</summary>
+          <p>It is source-available, not open source. You can read, build and change the code for noncommercial use, and the whole app is on GitHub.</p>
+        </details>
+        <details>
+          <summary>Does Portal show ads or track me?</summary>
+          <p>No. Portal has no ads, no analytics and no account of its own. Your profiles, settings and watch history stay on the TV. It contacts a service only for features you use, such as weather, video downloads, or an AI server you set up.</p>
+        </details>
+        <details>
+          <summary>How do I install Portal?</summary>
+          <p>Download the APK from the latest GitHub release and install it on the TV with adb from a computer, or with a file manager app on the TV. Open Portal, and its first-run setup walks you through making it your home screen. There is also a one-step install script for macOS, Linux and Windows.</p>
+        </details>
+        <details>
+          <summary>How do I go back to my TV&#x27;s own home screen?</summary>
+          <p>Open Portal&#x27;s Settings, then System, then Restore the TV&#x27;s own home screen. That undoes the launcher and screen saver changes Portal made.</p>
+        </details>
+        <details>
+          <summary>Does Portal have parental controls?</summary>
+          <p>Yes. A kid profile shows only the apps a parent allows, and has a daily time limit, a bedtime and a parent PIN to leave the profile. The limits count apps opened from Portal, so opening an app by voice through the TV&#x27;s assistant can bypass them.</p>
+        </details>
+        <details>
+          <summary>Which AI does Portal use?</summary>
+          <p>None is built in. Search can talk to any OpenAI-compatible chat server that you set up, either a hosted service or one on your own network, such as llama.cpp, Ollama or LM Studio. With no server set, search only finds your apps.</p>
+        </details>
+      </div>
     </div>
   </section>
 
