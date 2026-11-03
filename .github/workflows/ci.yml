@@ -8,6 +8,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Reading the code is all CI needs, so the token gets nothing more.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
