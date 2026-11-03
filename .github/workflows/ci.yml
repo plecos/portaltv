@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  pull_request:   # pushes to main are tested by the release workflow
+  pull_request:   # the release workflow tests main again when you run it
   workflow_dispatch:   # the Run workflow button
 
 concurrency:
