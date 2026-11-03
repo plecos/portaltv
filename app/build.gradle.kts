@@ -97,7 +97,7 @@ dependencies {
         exclude(group = "com.github.MuntashirAkon.spake2-java")
     }
     implementation("com.github.MuntashirAkon:sun-security-android:1.1")  // makes the certificate adb pairing needs
-    implementation("org.conscrypt:conscrypt-android:2.5.3")              // TLS 1.3 with the key export adb pairing needs
+    implementation("org.conscrypt:conscrypt-android:2.8.0")              // TLS 1.3 with the key export adb pairing needs
     // libadb-android brings in Bouncy Castle 1.81. Keep it at 1.85 or newer, which fixes the Name Constraints, ASN.1 depth
     // and LDAP advisories in older versions.
     implementation("org.bouncycastle:bcprov-jdk15to18:1.85")
