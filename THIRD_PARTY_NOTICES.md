@@ -40,6 +40,9 @@ Linked into the app under other licenses:
 - sun-security-android, used under the GNU General Public License version 2 with the "Classpath" exception, which
   allows linking it into an independent program without that program becoming GPL
   (<https://github.com/MuntashirAkon/sun-security-android>). It makes the certificate adb pairing needs.
+- Bouncy Castle (bcprov), Copyright The Legion of the Bouncy Castle Inc., used under the Bouncy Castle License, an
+  MIT-style license (<https://www.bouncycastle.org/licence.html>). libadb-android uses a few of its routines (AES-GCM,
+  HMAC and HKDF) for adb pairing; the rest is removed from the release build.
 
 ## Font
 
