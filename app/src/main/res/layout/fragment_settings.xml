@@ -1743,10 +1743,24 @@
                 android:focusable="true" />
 
             <TextView
+                android:id="@+id/opt_screensaver_system"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/screensaver_system_note"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Starts from the home screen. To use it while other apps are open too, choose Portal in your TV's Settings → Device Preferences → Screen saver."
                 android:textSize="14sp"
                 android:fontFamily="@font/inter"
                 android:textColor="@color/text_secondary" />

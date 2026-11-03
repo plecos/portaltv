@@ -7,7 +7,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Finishes setting up this TV over Portal's own connection to its debug service, doing what scripts/install.sh
  * does from a computer: turn off the TV's own home screen, make Portal the home app, allow alerts over apps and
- * the microphone, and turn off the TV's ambient screen saver. The TV asks once to allow the connection.
+ * the microphone, and make Portal the TV's screen saver in place of its ambient mode. The TV asks once to allow the
+ * connection.
  *
  * Every function blocks; call them off the main thread.
  */
@@ -17,6 +18,14 @@ object SelfSetup {
     private const val PACKAGE = "com.portal.tv"
     private const val PREFS = "portal_selfsetup"
     private const val KEY_DISABLED = "disabled_launchers"
+
+    /** Portal's screen saver service, written the way the TV stores it. */
+    internal const val SAVER = "com.portal.tv/com.portal.tv.screensaver.ScreensaverService"
+
+    // What the TV had before Portal became its screen saver, so Restore can put it back.
+    private const val KEY_SAVER_SAVED = "saver_saved"
+    private const val KEY_SAVER_COMPONENTS = "saver_components"
+    private const val KEY_SAVER_ON_SLEEP = "saver_on_sleep"
 
     /** Launchers that must stay on: Portal, and the Settings app's fallback home. */
     private val KEEP = setOf(PACKAGE, "com.android.tv.settings", "android")
@@ -66,10 +75,9 @@ object SelfSetup {
             run(adb, "cmd role add-role-holder --user 0 android.app.role.HOME $PACKAGE")
             run(adb, "appops set $PACKAGE SYSTEM_ALERT_WINDOW allow")
             run(adb, "pm grant $PACKAGE android.permission.RECORD_AUDIO")
-            // The TV's own ambient mode would draw over Portal's screen saver.
-            run(adb, "settings put secure screensaver_enabled 0")
-            run(adb, "settings put secure screensaver_activate_on_sleep 0")
-            run(adb, "settings put secure screensaver_activate_on_dock 0")
+            // The TV's own ambient mode would draw over Portal's screen saver, so Portal takes its place. The system
+            // then starts it over any app that has been idle for the TV's screen saver time.
+            setPortalAsScreensaver(context, adb)
             Result.Ok
         } catch (e: Exception) {
             Log.d(TAG, "selfsetup: apply failed", e)
@@ -88,12 +96,95 @@ object SelfSetup {
             for (name in disabledLaunchers(context).ifEmpty { KNOWN_LAUNCHERS.toSet() }) {
                 run(adb, "pm enable --user 0 $name")
             }
-            run(adb, "settings put secure screensaver_enabled 1")
+            putBackScreensaver(context, adb)
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_DISABLED).apply()
             Result.Ok
         } catch (e: Exception) {
             Result.Failed(e.message ?: "Something went wrong.")
         }
+    }
+
+    /** Whether Portal is the TV's screen saver, so the system starts it over other apps. Readable without adb. */
+    fun isSystemScreensaver(context: Context): Boolean {
+        val resolver = context.contentResolver
+        return isPortalSaver(
+            android.provider.Settings.Secure.getString(resolver, "screensaver_components"),
+            android.provider.Settings.Secure.getInt(resolver, "screensaver_enabled", 0) == 1
+        )
+    }
+
+    /** Make Portal the TV's screen saver. Call after [connect] returned [Result.Ok]. */
+    fun enableSystemScreensaver(context: Context): Result = try {
+        setPortalAsScreensaver(context, PortalAdb.get(context))
+        Result.Ok
+    } catch (e: Exception) {
+        Log.d(TAG, "selfsetup: enabling the screen saver failed", e)
+        Result.Failed(e.message ?: "Something went wrong.")
+    }
+
+    /** Give the TV's own screen saver back. Call after [connect] returned [Result.Ok]. */
+    fun disableSystemScreensaver(context: Context): Result = try {
+        putBackScreensaver(context, PortalAdb.get(context))
+        Result.Ok
+    } catch (e: Exception) {
+        Log.d(TAG, "selfsetup: restoring the screen saver failed", e)
+        Result.Failed(e.message ?: "Something went wrong.")
+    }
+
+    private fun setPortalAsScreensaver(context: Context, adb: PortalAdb) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        // Remember the TV's own choice once, and never overwrite it with Portal's.
+        if (!prefs.getBoolean(KEY_SAVER_SAVED, false) && !isSystemScreensaver(context)) {
+            val resolver = context.contentResolver
+            prefs.edit()
+                .putBoolean(KEY_SAVER_SAVED, true)
+                .putString(KEY_SAVER_COMPONENTS, android.provider.Settings.Secure.getString(resolver, "screensaver_components"))
+                .putString(KEY_SAVER_ON_SLEEP, android.provider.Settings.Secure.getString(resolver, "screensaver_activate_on_sleep"))
+                .apply()
+        }
+        run(adb, "settings put secure screensaver_components $SAVER")
+        run(adb, "settings put secure screensaver_enabled 1")
+        // A TV has no "sleep" apart from idling, so this is what lets it start after the screen saver time.
+        run(adb, "settings put secure screensaver_activate_on_sleep 1")
+    }
+
+    private fun putBackScreensaver(context: Context, adb: PortalAdb) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        for (command in restoreScreensaverCommands(
+            saved = prefs.getBoolean(KEY_SAVER_SAVED, false),
+            components = prefs.getString(KEY_SAVER_COMPONENTS, null),
+            onSleep = prefs.getString(KEY_SAVER_ON_SLEEP, null)
+        )) run(adb, command)
+        prefs.edit().remove(KEY_SAVER_SAVED).remove(KEY_SAVER_COMPONENTS).remove(KEY_SAVER_ON_SLEEP).apply()
+    }
+
+    /** Whether the TV's screen saver setting names Portal, however the component is spelled. */
+    internal fun isPortalSaver(components: String?, enabled: Boolean): Boolean =
+        enabled && components.orEmpty().split(',').any { expand(it.trim()) == expand(SAVER) }
+
+    /** "pkg/.Class" and "pkg/pkg.Class" name the same component. */
+    private fun expand(component: String): String {
+        val slash = component.indexOf('/')
+        if (slash < 0) return component
+        val pkg = component.substring(0, slash)
+        val cls = component.substring(slash + 1)
+        return "$pkg/" + if (cls.startsWith(".")) pkg + cls else cls
+    }
+
+    /**
+     * The commands that give the TV its own screen saver back: what it had before Portal took over, if that was
+     * saved, and the screen saver turned on either way (setup used to turn it off, so older setups have none saved).
+     */
+    internal fun restoreScreensaverCommands(saved: Boolean, components: String?, onSleep: String?): List<String> {
+        val commands = mutableListOf<String>()
+        commands += if (components != null) "settings put secure screensaver_components '$components'"
+        else "settings delete secure screensaver_components"
+        if (saved) {
+            commands += if (onSleep != null) "settings put secure screensaver_activate_on_sleep $onSleep"
+            else "settings delete secure screensaver_activate_on_sleep"
+        }
+        commands += "settings put secure screensaver_enabled 1"
+        return commands
     }
 
     /**

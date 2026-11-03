@@ -3,7 +3,7 @@
 #   1. connects to the TV
 #   2. installs the APK (yours, or the latest GitHub release)
 #   3. makes Portal the home screen (turns off the stock launcher, gives Portal the HOME role)
-#   4. turns off the TV's own ambient mode / screen saver, which would draw over Portal
+#   4. makes Portal the TV's screen saver in place of its ambient mode, so it also starts over other apps
 #   5. starts Portal
 #
 # Usage: scripts/install.sh [options] <tv-ip>[:port]
@@ -11,7 +11,7 @@
 #                        build in app/build/outputs/apk/release, then the latest GitHub release (needs gh).
 #   --keep-launcher      leave the stock launcher alone
 #   --keep-screensaver   leave the TV's screen saver settings alone
-#   --restore            undo steps 3 and 4: re-enable the stock launcher and the TV's screen saver
+#   --restore            undo steps 3 and 4: re-enable the stock launcher and give back the TV's own screen saver
 #   -h, --help           show this help
 #
 # Every step is safe to repeat. Needs adb (Android SDK platform-tools) on your PATH.
@@ -78,7 +78,9 @@ if [ "$RESTORE" -eq 1 ]; then
       tv pm enable --user 0 "$p" >/dev/null && echo "enabled $p"
     fi
   done
-  step "Turning the TV's screen saver back on"
+  step "Giving the TV's own screen saver back"
+  tv settings delete secure screensaver_components >/dev/null
+  tv settings delete secure screensaver_activate_on_sleep >/dev/null
   tv settings put secure screensaver_enabled 1
   echo "screen saver on"
   echo; echo "Done. Press Home on the remote and pick the launcher you want."
@@ -126,12 +128,14 @@ if [ "$KEEP_LAUNCHER" -eq 0 ]; then
 fi
 
 if [ "$KEEP_SCREENSAVER" -eq 0 ]; then
-  step "Turning off the TV's ambient mode and screen saver"
-  tv settings put secure screensaver_enabled 0
-  tv settings put secure screensaver_activate_on_sleep 0
-  tv settings put secure screensaver_activate_on_dock 0
-  echo "screensaver_enabled=$(tv settings get secure screensaver_enabled)"
-  echo "(Portal has its own screen saver: Settings, Screen saver.)"
+  # The TV's own ambient mode would draw over Portal's screen saver, so Portal takes its place. The TV then starts it
+  # over any app that has been idle for the TV's own screen saver time.
+  step "Making Portal the TV's screen saver"
+  tv settings put secure screensaver_components com.portal.tv/com.portal.tv.screensaver.ScreensaverService
+  tv settings put secure screensaver_enabled 1
+  tv settings put secure screensaver_activate_on_sleep 1
+  echo "screen saver: $(tv settings get secure screensaver_components)"
+  echo "(Settings, Screen saver, Also over other apps turns this on or off.)"
 fi
 
 step "Starting Portal"
