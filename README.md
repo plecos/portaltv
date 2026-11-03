@@ -28,7 +28,7 @@ Basic TV mode: tested on a TCL Google TV (Android 14) that was factory reset and
 
 ### One script
 
-[`scripts/install.sh`](scripts/install.sh) (macOS, Linux) and [`scripts/install.ps1`](scripts/install.ps1) (Windows PowerShell) do every step below in one go: connect, install, make Portal the home screen, turn off the TV's ambient screen saver, and start Portal. They are safe to run again.
+[`scripts/install.sh`](scripts/install.sh) (macOS, Linux) and [`scripts/install.ps1`](scripts/install.ps1) (Windows PowerShell) do every step below in one go: connect, install, make Portal the home screen, make Portal the TV's screen saver in place of its ambient mode, and start Portal. They are safe to run again.
 
 ```bash
 scripts/install.sh 192.168.1.20
@@ -75,15 +75,7 @@ Repeat the `pm disable-user` for each package the first command lists, except `c
 
 To undo that later: `adb shell pm enable --user 0 <package>` for each one you disabled.
 
-**4. Turn off the TV's own screen saver.** Google TV's ambient mode (`com.google.android.apps.tv.dreamx`) draws over Portal. Turn it off in the TV's settings (Settings, System, Ambient mode, start time Never; older Android TV: Settings, Device Preferences, Screen saver), or from adb:
-
-```bash
-adb shell settings put secure screensaver_enabled 0
-adb shell settings put secure screensaver_activate_on_sleep 0
-adb shell settings put secure screensaver_activate_on_dock 0
-```
-
-To turn it back on, set `screensaver_enabled` to `1`. Portal has its own screen saver (Settings, Screen saver) that plays your videos, but on its own it starts only from Portal's home screen. To have it start over other apps too, make Portal the TV's screen saver instead of turning it off. Portal's setup and Settings, Screen Saver, Also over other apps do this, or from adb:
+**4. Make Portal the TV's screen saver.** Google TV's ambient mode (`com.google.android.apps.tv.dreamx`) would draw over Portal. Making Portal the TV's screen saver replaces it, and lets Portal's screen saver (your videos with the time and weather) start over other apps too, once the TV has been idle for its own screen saver time. From adb:
 
 ```bash
 adb shell settings put secure screensaver_components com.portal.tv/com.portal.tv.screensaver.ScreensaverService
@@ -91,7 +83,17 @@ adb shell settings put secure screensaver_enabled 1
 adb shell settings put secure screensaver_activate_on_sleep 1
 ```
 
-The system starts it after the TV has been idle for the TV's own screen saver time, which is separate from Portal's "Start after" setting.
+Portal's own setup does this for you, and Settings, Screen Saver, Also over other apps turns it on or off. That start time is the TV's, separate from Portal's "Start after" setting, which applies from Portal's home screen.
+
+To give the TV's own screen saver back, clear Portal's:
+
+```bash
+adb shell settings delete secure screensaver_components
+adb shell settings delete secure screensaver_activate_on_sleep
+adb shell settings put secure screensaver_enabled 1
+```
+
+If you would rather have no screen saver over other apps, turn the TV's off instead (Settings, System, Ambient mode, start time Never; older Android TV: Settings, Device Preferences, Screen saver) or run `adb shell settings put secure screensaver_enabled 0`. Portal's screen saver still starts from its home screen.
 
 **5. First run.** Portal asks you to create a profile (a plain Portal profile, or one linked to a Google account). That's all the setup it needs. Everything else is optional and lives in Settings.
 
