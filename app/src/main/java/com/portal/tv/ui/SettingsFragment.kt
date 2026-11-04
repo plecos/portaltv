@@ -37,6 +37,13 @@ private const val SUPPORT_URL = "https://buymeacoffee.com/portal.tv"
  */
 class SettingsFragment : Fragment() {
 
+    companion object {
+        private const val ARG_UPDATES = "updates"
+
+        /** Settings opened straight at System, Updates, with the update's button selected. */
+        fun forUpdates() = SettingsFragment().apply { arguments = Bundle().apply { putBoolean(ARG_UPDATES, true) } }
+    }
+
     private var onBackgroundChanged: (() -> Unit)? = null
 
     /** Shows or hides the shader color picker to match the background mode. */
@@ -801,7 +808,17 @@ class SettingsFragment : Fragment() {
         }
         refreshCategories = ::refresh
         refresh()
-        items[0].post { items[0].requestFocus() }
+        val updatesAt = if (arguments?.getBoolean(ARG_UPDATES) == true) shown.indexOfFirst { it.itemId == R.id.cat_system } else -1
+        if (updatesAt >= 0) {
+            // Straight to the update: its Download button if there is one to download, otherwise the check.
+            active = updatesAt
+            refresh()
+            val install = view.findViewById<View>(R.id.opt_update_install)
+            val target = if (install.visibility == View.VISIBLE) install else view.findViewById(R.id.opt_update_check)
+            target.post { target.requestFocus() }
+        } else {
+            items[0].post { items[0].requestFocus() }
+        }
     }
 
     /**
@@ -1155,6 +1172,35 @@ class SettingsFragment : Fragment() {
         val install = view.findViewById<TextView>(R.id.opt_update_install)
         var busy = false
 
+        // Check automatically: On or Off.
+        val dp = resources.displayMetrics.density
+        val autoRow = view.findViewById<android.widget.LinearLayout>(R.id.update_auto_row)
+        val autoTiles = listOf("On" to true, "Off" to false).map { (label, value) ->
+            TextView(context).apply {
+                text = label
+                textSize = 18f
+                typeface = resources.getFont(R.font.inter)
+                gravity = android.view.Gravity.CENTER
+                setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+                minHeight = (48 * dp).toInt()
+                isFocusable = true
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = (12 * dp).toInt() }
+                autoRow.addView(this)
+            } to value
+        }
+        fun styleAuto() = autoTiles.forEach { (tile, value) ->
+            val on = value == com.portal.tv.update.UpdateChecks.enabled(app)
+            tile.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tile.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
+        }
+        autoTiles.forEach { (tile, value) ->
+            tile.setOnClickListener { com.portal.tv.update.UpdateChecks.setEnabled(app, value); styleAuto() }
+        }
+        styleAuto()
+
         fun refresh(message: String? = null) {
             val release = com.portal.tv.update.Updates.lastRelease(app)
             val available = release != null && com.portal.tv.update.Updates.isNewer(release.version, installed)
@@ -1202,7 +1248,9 @@ class SettingsFragment : Fragment() {
                 com.portal.tv.update.UpdateInstaller.onFailed = null
             }
         })
-        if (System.currentTimeMillis() - com.portal.tv.update.Updates.lastCheckedAt(app) > 6 * 60 * 60 * 1000L) check(manual = false)
+        if (com.portal.tv.update.UpdateChecks.enabled(app) &&
+            System.currentTimeMillis() - com.portal.tv.update.Updates.lastCheckedAt(app) > 6 * 60 * 60 * 1000L
+        ) check(manual = false)
 
         notes.setOnClickListener {
             val release = com.portal.tv.update.Updates.lastRelease(app) ?: return@setOnClickListener

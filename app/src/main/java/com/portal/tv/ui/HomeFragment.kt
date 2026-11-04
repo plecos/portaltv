@@ -153,8 +153,7 @@ class HomeFragment : Fragment() {
                 SearchDialogFragment().show(childFragmentManager, "search")
             }
         }
-        view.findViewById<View>(R.id.btn_settings).setOnClickListener {
-            val settings = SettingsFragment()
+        fun openSettings(settings: SettingsFragment) {
             settings.setBackgroundChangedListener {
                 applyBackground(view)
             }
@@ -163,8 +162,21 @@ class HomeFragment : Fragment() {
                 .addToBackStack("settings")
                 .commit()
         }
+        view.findViewById<View>(R.id.btn_settings).setOnClickListener { openSettings(SettingsFragment()) }
+        // A newer version has been found: the Update button goes straight to the update in Settings.
+        view.findViewById<View>(R.id.btn_update).setOnClickListener { openSettings(SettingsFragment.forUpdates()) }
+        refreshUpdateButton()
 
         setupBackground(view)
+    }
+
+    /** Shows the Update button when the last check found a newer version. Kids can't open that part of Settings. */
+    private fun refreshUpdateButton() {
+        val context = context ?: return
+        val button = view?.findViewById<View>(R.id.btn_update) ?: return
+        val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
+        button.visibility = if (!kid && com.portal.tv.update.Updates.updateAvailable(context, com.portal.tv.BuildConfig.VERSION_NAME))
+            View.VISIBLE else View.GONE
     }
 
     private fun setupBackground(view: View) {
@@ -829,6 +841,11 @@ class HomeFragment : Fragment() {
         updateClock()
         timeHandler.postDelayed(timeRunnable, 1000)
         applySearchLevel()
+        refreshUpdateButton()
+        // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
+        viewLifecycleOwner.lifecycleScope.launch {
+            if (com.portal.tv.update.UpdateChecks.checkIfDue(requireContext())) refreshUpdateButton()
+        }
         // Rebuild the app lists so launches and installs made elsewhere show up.
         loadApps()
         fetchWeather()
