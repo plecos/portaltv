@@ -76,6 +76,8 @@ object SelfSetup {
             run(adb, "cmd role add-role-holder --user 0 android.app.role.HOME $PACKAGE")
             run(adb, "appops set $PACKAGE SYSTEM_ALERT_WINDOW allow")
             run(adb, "pm grant $PACKAGE android.permission.RECORD_AUDIO")
+            // So Portal can install the updates it downloads, without the TV's "Install unknown apps" screen.
+            run(adb, "appops set $PACKAGE REQUEST_INSTALL_PACKAGES allow")
             // The TV's own ambient mode would draw over Portal's screen saver, so Portal takes its place. The system
             // then starts it over any app that has been idle for the TV's screen saver time.
             setPortalAsScreensaver(context, adb)
@@ -103,6 +105,15 @@ object SelfSetup {
         } catch (e: Exception) {
             Result.Failed(e.message ?: "Something went wrong.")
         }
+    }
+
+    /** Lets Portal install the updates it downloads. Call after [connect] returned [Result.Ok]. */
+    fun allowInstalls(context: Context): Result = try {
+        run(PortalAdb.get(context), "appops set $PACKAGE REQUEST_INSTALL_PACKAGES allow")
+        Result.Ok
+    } catch (e: Exception) {
+        Log.d(TAG, "selfsetup: allowing installs failed", e)
+        Result.Failed(e.message ?: "Something went wrong.")
     }
 
     /** Whether Portal is the TV's screen saver, so the system starts it over other apps. Readable without adb. */
