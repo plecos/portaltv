@@ -257,6 +257,7 @@ class ScreensaverVideosFragment : Fragment() {
             val dim: View = view.findViewById(R.id.dim)
             val label: TextView = view.findViewById(R.id.label)
             val badge: View = view.findViewById(R.id.badge)
+            val sound: View = view.findViewById(R.id.sound)
             var bound: String? = null
         }
 
@@ -273,10 +274,13 @@ class ScreensaverVideosFragment : Fragment() {
             holder.dim.visibility = if (on) View.GONE else View.VISIBLE
             holder.badge.visibility = if (on) View.VISIBLE else View.GONE
             holder.thumb.setImageDrawable(null)
+            holder.sound.visibility = if (VideoThumbnails.peekAudio(entry.asset) == true) View.VISIBLE else View.GONE
             viewLifecycleOwner.lifecycleScope.launch {
                 VideoThumbnails.load(holder.itemView.context, entry.asset)?.let {
                     if (holder.bound == entry.asset) holder.thumb.setImageBitmap(it)
                 }
+                val has = VideoThumbnails.hasAudio(holder.itemView.context, entry.asset)
+                if (holder.bound == entry.asset) holder.sound.visibility = if (has) View.VISIBLE else View.GONE
             }
             holder.itemView.setOnClickListener { toggle(entry) }
             holder.itemView.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) onFocused(entry) }
