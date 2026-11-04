@@ -748,8 +748,10 @@ class SettingsFragment : Fragment() {
                 summary.visibility = if (summary.text.isEmpty()) View.GONE else View.VISIBLE
                 val on = i == active
                 item.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
-                item.findViewWithTag<TextView>("summary")
-                    .setTextColor(context.resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
+                val tone = context.resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null)
+                item.findViewWithTag<TextView>("summary").setTextColor(tone)
+                item.findViewWithTag<android.widget.ImageView>("icon")?.imageTintList =
+                    android.content.res.ColorStateList.valueOf(tone)
                 pages[i].visibility = if (on) View.VISIBLE else View.GONE
             }
         }

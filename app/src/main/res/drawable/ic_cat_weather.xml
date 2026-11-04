@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings category icon: A cloud with a sun above it. Drawn as an outline so the list can tint it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp" android:height="28dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7,19a4,4 0 0 1 -0.4,-7.98A5.5,5.5 0 0 1 17.2,10.5a4.25,4.25 0 0 1 -0.2,8.5H7zM5.5,4a1.5,1.5 0 1 0 0,3a1.5,1.5 0 1 0 0,-3z" />
+</vector>
