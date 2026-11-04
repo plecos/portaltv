@@ -605,63 +605,35 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="32dp"
-                    android:text="Shader Style"
+                    android:text="Shader"
                     android:textSize="16sp"
                     android:fontFamily="@font/inter"
                     android:textColor="@color/text_secondary"
                     android:layout_marginBottom="8dp" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-
-                    <LinearLayout
-                        android:id="@+id/shader_style_row"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-                </HorizontalScrollView>
 
                 <TextView
+                    android:id="@+id/shader_choose"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
-                    android:text="Shader Color"
-                    android:textSize="16sp"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Choose shader…"
+                    android:textSize="18sp"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-
-                    <LinearLayout
-                        android:id="@+id/shader_color_row"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-                </HorizontalScrollView>
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
 
                 <TextView
+                    android:id="@+id/shader_summary"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
-                    android:text="Color cycling"
-                    android:textSize="16sp"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="6dp"
+                    android:textSize="14sp"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp" />
-
-                <LinearLayout
-                    android:id="@+id/shader_cycle_row"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
+                    android:textColor="@color/text_secondary" />
             </LinearLayout>
 
             </LinearLayout>
@@ -1776,64 +1748,36 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:text="Style"
+                    android:layout_marginTop="32dp"
+                    android:text="Shader"
                     android:textSize="16sp"
                     android:fontFamily="@font/inter"
                     android:textColor="@color/text_secondary"
                     android:layout_marginBottom="8dp" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-
-                    <LinearLayout
-                        android:id="@+id/saver_shader_style_row"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-                </HorizontalScrollView>
 
                 <TextView
+                    android:id="@+id/saver_shader_choose"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:text="Color"
-                    android:textSize="16sp"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Choose shader…"
+                    android:textSize="18sp"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-
-                    <LinearLayout
-                        android:id="@+id/saver_shader_color_row"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-                </HorizontalScrollView>
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
 
                 <TextView
+                    android:id="@+id/saver_shader_summary"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:text="Color cycling"
-                    android:textSize="16sp"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="6dp"
+                    android:textSize="14sp"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp" />
-
-                <LinearLayout
-                    android:id="@+id/saver_shader_cycle_row"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
+                    android:textColor="@color/text_secondary" />
             </LinearLayout>
 
             <TextView
