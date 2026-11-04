@@ -16,6 +16,12 @@
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Screen saver: keep the TV's start time in step with Portal's "Start after". Setup grants both over adb, so
+         Portal can change the TV's screen saver settings later without it. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <queries>
         <intent><action android:name="android.speech.RecognitionService" /></intent>
