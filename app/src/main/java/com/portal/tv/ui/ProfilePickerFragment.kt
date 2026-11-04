@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.CheckedTextView
+import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.ScrollView
@@ -483,7 +484,7 @@ class ProfilePickerFragment : Fragment() {
             }
             builder
                 .setTitle("Apps for ${profile.name}")
-                .setView(list)
+                .setView(boxed(list, apps.size))
                 .setPositiveButton("Save") { _, _ ->
                     val allowed = apps.filterIndexed { i, _ -> list.isItemChecked(i) }
                         .map { it.packageName }.toSet()
@@ -494,6 +495,17 @@ class ProfilePickerFragment : Fragment() {
                 .setOnCancelListener { then() }
                 .show()
         }
+    }
+
+    /**
+     * The dialog holds its view in a scroll view, which measures it without a height limit and so shrinks a list to about
+     * one row. Putting the list in a box of set height shows its apps at once: as tall as its [rows] need, up to half the
+     * screen (as much as the dialog allows), after which the list scrolls inside.
+     */
+    private fun boxed(list: ListView, rows: Int) = FrameLayout(list.context).apply {
+        val wanted = rows * (dp(40) + dp(16) + 2)
+        val height = wanted.coerceIn(dp(56), (resources.displayMetrics.heightPixels * 0.5).toInt())
+        addView(list, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height))
     }
 
     private fun showRenameDialog(profile: Profile) {
