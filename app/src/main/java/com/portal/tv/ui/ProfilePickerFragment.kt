@@ -141,6 +141,8 @@ class ProfilePickerFragment : Fragment() {
             onLongPress = { profile -> requireParent { showProfileOptions(profile) } }
         )
         emptyHint.visibility = if (profiles.isEmpty()) View.VISIBLE else View.GONE
+        // As many columns as there are tiles (up to five), so a few profiles sit together in the middle.
+        (profilesRecycler.layoutManager as GridLayoutManager).spanCount = (profiles.size + 1).coerceAtMost(5)
     }
 
     private fun selectProfile(profile: Profile) {
