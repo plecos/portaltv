@@ -44,18 +44,56 @@ object VideoThumbnails {
         return frame
     }
 
+    /** Points [retriever] at the video for [asset], bundled or downloaded. False if it can't be opened. */
+    private fun openSource(retriever: MediaMetadataRetriever, context: Context, asset: String): Boolean {
+        val fd = runCatching { context.assets.openFd("backgrounds/$asset") }.getOrNull()
+        if (fd != null) {
+            fd.use { retriever.setDataSource(it.fileDescriptor, it.startOffset, it.length) }
+        } else {
+            // Compressed assets can't be opened in place, so use the extracted copy.
+            val repo = BackgroundRepository(context, asset)
+            if (!repo.extractBundledVideo()) return false
+            retriever.setDataSource(repo.getVideoFile().path)
+        }
+        return true
+    }
+
+    private val audio = HashMap<String, Boolean>()
+
+    /** The answer already known for [asset], or null if it hasn't been checked yet. */
+    fun peekAudio(asset: String): Boolean? = synchronized(audio) { audio[asset] }
+
+    private fun audioFile(context: Context, asset: String) =
+        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "$asset.audio")
+
+    /** Whether the video has a sound track. Remembered in the cache folder; false if it can't be read. */
+    suspend fun hasAudio(context: Context, asset: String): Boolean {
+        peekAudio(asset)?.let { return it }
+        val app = context.applicationContext
+        val answer = withContext(Dispatchers.IO) {
+            val saved = runCatching { audioFile(app, asset).takeIf { it.exists() }?.readText() }.getOrNull()
+            if (saved == "1" || saved == "0") return@withContext saved == "1"
+            val retriever = MediaMetadataRetriever()
+            try {
+                if (!openSource(retriever, app, asset)) return@withContext null
+                val has = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes"
+                runCatching { audioFile(app, asset).writeText(if (has) "1" else "0") }
+                has
+            } catch (e: Exception) {
+                Log.w(TAG, "Audio check for $asset failed: ${e.message}")
+                null
+            } finally {
+                runCatching { retriever.release() }
+            }
+        }
+        if (answer != null) synchronized(audio) { audio[asset] = answer }
+        return answer ?: false
+    }
+
     private fun grab(context: Context, asset: String): Bitmap? {
         val retriever = MediaMetadataRetriever()
         return try {
-            val fd = runCatching { context.assets.openFd("backgrounds/$asset") }.getOrNull()
-            if (fd != null) {
-                fd.use { retriever.setDataSource(it.fileDescriptor, it.startOffset, it.length) }
-            } else {
-                // Compressed assets can't be opened in place, so use the extracted copy.
-                val repo = BackgroundRepository(context, asset)
-                if (!repo.extractBundledVideo()) return null
-                retriever.setDataSource(repo.getVideoFile().path)
-            }
+            if (!openSource(retriever, context, asset)) return null
             // A tenth of the way in, so a video that opens on black still shows a picture.
             val durationUs = (retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) * 1000
             val at = maxOf(2_000_000L, durationUs / 10).coerceAtMost(durationUs.coerceAtLeast(0))

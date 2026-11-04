@@ -464,7 +464,7 @@ class VideoBrowserFragment : Fragment() {
 
     private inner class Adapter : RecyclerView.Adapter<Adapter.Holder>() {
 
-        inner class Holder(val root: LinearLayout, val thumb: ImageView, val title: TextView, val line: TextView) :
+        inner class Holder(val root: LinearLayout, val thumb: ImageView, val title: TextView, val line: TextView, val sound: ImageView) :
             RecyclerView.ViewHolder(root)
 
         override fun getItemCount() = entries.size
@@ -483,6 +483,7 @@ class VideoBrowserFragment : Fragment() {
                     }
                 }
             }
+            val sound = soundBadge(context)
             val title = TextView(context).apply {
                 textSize = 14f
                 setTextColor(resources.getColor(R.color.text_primary, null))
@@ -503,11 +504,15 @@ class VideoBrowserFragment : Fragment() {
                 isFocusable = true
                 layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                     .apply { setMargins(px(4), px(4), px(4), px(4)) }
-                addView(thumb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(96)))
+                addView(android.widget.FrameLayout(context).apply {
+                    addView(thumb, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                    addView(sound, android.widget.FrameLayout.LayoutParams(px(22), px(22), android.view.Gravity.TOP or android.view.Gravity.START)
+                        .apply { setMargins(px(6), px(6), 0, 0) })
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(96)))
                 addView(title)
                 addView(line)
             }
-            return Holder(root, thumb, title, line)
+            return Holder(root, thumb, title, line, sound)
         }
 
         override fun onBindViewHolder(h: Holder, position: Int) {
@@ -516,6 +521,7 @@ class VideoBrowserFragment : Fragment() {
                     h.title.text = e.hit.title
                     h.line.text = listOf(e.hit.creator, e.hit.details).filter { it.isNotEmpty() }.joinToString(" · ")
                     h.thumb.setImageBitmap(null)
+                    h.sound.visibility = View.GONE
                     loadImage(e.hit.thumbUrl, h.thumb)
                     h.root.setOnClickListener { onChoose(e.hit) }
                 }
@@ -523,8 +529,11 @@ class VideoBrowserFragment : Fragment() {
                     h.title.text = e.item.title
                     h.line.text = "${e.item.creator} · ${DownloadedVideos.useLabel(e.item.use)}"
                     h.thumb.setImageBitmap(null)
+                    h.sound.visibility = if (VideoThumbnails.peekAudio(e.item.file) == true) View.VISIBLE else View.GONE
                     viewLifecycleOwner.lifecycleScope.launch {
                         VideoThumbnails.load(requireContext(), e.item.file)?.let { h.thumb.setImageBitmap(it) }
+                        val has = VideoThumbnails.hasAudio(requireContext(), e.item.file)
+                        if (entries.getOrNull(h.bindingAdapterPosition) === e) h.sound.visibility = if (has) View.VISIBLE else View.GONE
                     }
                     h.root.setOnClickListener { onChoose(e.item) }
                 }
@@ -532,6 +541,7 @@ class VideoBrowserFragment : Fragment() {
                     h.title.text = "More results"
                     h.line.text = "Next page"
                     h.thumb.setImageBitmap(null)
+                    h.sound.visibility = View.GONE
                     h.root.setOnClickListener { runSearch(reset = false) }
                 }
             }
