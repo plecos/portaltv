@@ -4,19 +4,20 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="24dp"
+    android:padding="16dp"
     android:background="@drawable/bg_app_tile"
     android:clipChildren="false"
     android:focusable="true">
 
     <!-- Dashed-circle "add" placeholder -->
     <FrameLayout
-        android:layout_width="84dp"
-        android:layout_height="84dp">
+        android:layout_width="80dp"
+        android:layout_height="80dp">
 
         <View
-            android:layout_width="84dp"
-            android:layout_height="84dp"
+            android:layout_width="66dp"
+            android:layout_height="66dp"
+            android:layout_gravity="center"
             android:background="@drawable/bg_profile_add_circle" />
 
         <TextView
@@ -24,7 +25,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:text="+"
-            android:textSize="40sp"
+            android:textSize="32sp"
             android:textStyle="bold"
             android:fontFamily="@font/inter"
             android:textColor="@color/accent" />
@@ -34,9 +35,9 @@
         android:id="@+id/add_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:text="Add New"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:fontFamily="@font/inter"
         android:textColor="@color/text_primary" />
 </LinearLayout>

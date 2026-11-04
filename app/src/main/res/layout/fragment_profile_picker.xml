@@ -3,11 +3,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Background dim so the picker stands out -->
-    <View
+    <!-- A still backdrop: night, soft pools of color, a faint ring and stars -->
+    <com.portal.tv.ui.ProfileBackdropView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#CC0F0F1A" />
+        android:layout_height="match_parent" />
+
+    <!-- Stars over it: they twinkle and slowly rise -->
+    <com.portal.tv.ui.ProfileStarsView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -45,19 +49,24 @@
         <!-- Profile grid (adapter appends a trailing "Add New" tile) -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/profile_grid"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:clipToPadding="false"
             android:padding="16dp" />
 
-        <!-- How to reach rename/delete -->
+        <!-- How to reach the profile's options -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Hold OK on a profile to rename or delete it"
-            android:textSize="16sp"
+            android:background="@drawable/bg_hint_pill"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="Hold OK on a profile to rename it, change its avatar, set a code or delete it"
+            android:textSize="15sp"
             android:fontFamily="@font/inter"
-            android:textColor="@color/text_secondary" />
+            android:textColor="#D0D3EE" />
     </LinearLayout>
 </FrameLayout>
