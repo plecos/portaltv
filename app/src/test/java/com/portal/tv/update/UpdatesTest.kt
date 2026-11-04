@@ -98,4 +98,27 @@ class UpdatesTest {
         assertTrue(UpdateClient.isTrusted("http://10.0.2.2:8000/x.apk", debug = true))
         assertFalse(UpdateClient.isTrusted("ftp://example.com/x.apk", debug = true))
     }
+
+    private val day = 24L * 60 * 60 * 1000
+    private val hour = 60L * 60 * 1000
+
+    @Test
+    fun aCheckIsDueOnceADayHasPassed() {
+        assertTrue(UpdateChecks.isDue(true, checkedAt = 0, attemptedAt = 0, now = day))
+        assertFalse(UpdateChecks.isDue(true, checkedAt = 1_000, attemptedAt = 1_000, now = day))
+        assertTrue(UpdateChecks.isDue(true, checkedAt = 1_000, attemptedAt = 1_000, now = 1_000 + day))
+    }
+
+    @Test
+    fun noCheckIsDueWhenItIsTurnedOff() {
+        assertFalse(UpdateChecks.isDue(false, checkedAt = 0, attemptedAt = 0, now = 10 * day))
+    }
+
+    @Test
+    fun aFailedAttemptIsNotRepeatedForAnHour() {
+        // Offline for two days: the last good check is old, but we tried just now.
+        val now = 2 * day
+        assertFalse(UpdateChecks.isDue(true, checkedAt = 0, attemptedAt = now - 10 * 60 * 1000, now = now))
+        assertTrue(UpdateChecks.isDue(true, checkedAt = 0, attemptedAt = now - hour, now = now))
+    }
 }

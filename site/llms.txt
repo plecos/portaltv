@@ -22,6 +22,6 @@ Requires Android 14 or newer. Package name: com.portal.tv.
 
 - Platforms: Android TV and Google TV, Android 14 or newer
 - Price: free for noncommercial use
-- Data: no ads, no analytics, no Portal account; profiles and settings stay on the TV
+- Data: no ads, no analytics, no Portal account; profiles and settings stay on the TV; it asks GitHub once a day whether a newer version is out (can be turned off)
 - Kid profiles: allowed apps only, daily time limit, bedtime, parent PIN; limits count apps opened from Portal
 - AI search: no built-in model; connects to any OpenAI-compatible server the user sets up

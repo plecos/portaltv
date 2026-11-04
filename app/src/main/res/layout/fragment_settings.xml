@@ -2035,6 +2035,31 @@
                 android:visibility="gone" />
 
             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Check automatically"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/update_auto_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Once a day Portal asks GitHub whether there is a newer version, and shows an Update button on the home screen if there is. It never downloads or installs anything by itself."
+                android:textSize="14sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary" />
+
+            <TextView
                 android:id="@+id/opt_system_settings"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"

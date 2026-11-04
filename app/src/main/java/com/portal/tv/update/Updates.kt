@@ -105,6 +105,13 @@ object Updates {
         return ReleaseInfo(version, p.getString("notes", "") ?: "", url, p.getLong("bytes", -1L), p.getString("sha256", null))
     }
 
+    /** When a check was last tried, whether or not it worked. */
+    fun lastAttemptAt(context: Context): Long = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("attempted", 0L)
+
+    fun markAttempt(context: Context, now: Long = System.currentTimeMillis()) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong("attempted", now).apply()
+    }
+
     fun lastCheckedAt(context: Context): Long = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("checked", 0L)
 
     /** Whether the last check found a version newer than [installed]. */
