@@ -135,13 +135,13 @@ class SettingsFragment : Fragment() {
         refresh()
     }
 
-    /** The background and screen saver belong to the active profile; say whose they are. */
+    /** The background belongs to the active profile, so say whose it is; the screen saver belongs to the TV. */
     private fun setupProfileHints(view: View) {
+        view.findViewById<TextView>(R.id.hint_screensaver).text = "For the whole TV, whichever profile is in use"
         val name = com.portal.tv.repo.ProfileManager.getActive(requireContext())?.name ?: return
         val text = "Saved for $name's profile"
         view.findViewById<TextView>(R.id.hint_background).text = text
         view.findViewById<TextView>(R.id.hint_videos).text = text
-        view.findViewById<TextView>(R.id.hint_screensaver).text = text
     }
 
     /**
@@ -915,19 +915,37 @@ class SettingsFragment : Fragment() {
                 .commit()
         }
 
-        // With a shader background the screen saver is the shader, so the video list doesn't apply.
+        // The screen saver has its own look, whatever the profile's background is: videos, or a shader of colors with
+        // its own style and color. The video list and sound only apply to videos.
+        val refreshSaverShader = bindShaderPickers(
+            view,
+            ShaderPickers(
+                R.id.saver_shader_group, R.id.saver_shader_style_row, R.id.saver_shader_color_row, R.id.saver_shader_cycle_row,
+                visible = { ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_SHADER },
+                color = { ScreensaverSettings.shaderColor(context) },
+                setColor = { ScreensaverSettings.setShaderColor(context, it) },
+                style = { ScreensaverSettings.shaderStyle(context) },
+                setStyle = { ScreensaverSettings.setShaderStyle(context, it) },
+                cycle = { ScreensaverSettings.shaderCycle(context) },
+                setCycle = { ScreensaverSettings.setShaderCycle(context, it) },
+                changed = {}
+            )
+        )
         fun refreshSaverMode() {
-            val shader = BackgroundSettings.getMode(context) == "shader"
+            val shader = ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_SHADER
             view.findViewById<View>(R.id.screensaver_videos_title).visibility = if (shader) View.GONE else View.VISIBLE
             view.findViewById<View>(R.id.opt_screensaver_videos).visibility = if (shader) View.GONE else View.VISIBLE
-            view.findViewById<View>(R.id.screensaver_shader_note).visibility = if (shader) View.VISIBLE else View.GONE
-            // Sound is for videos, so it goes with them.
             for (id in listOf(R.id.screensaver_sound_title, R.id.screensaver_sound_row, R.id.screensaver_sound_note)) {
                 view.findViewById<View>(id).visibility = if (shader) View.GONE else View.VISIBLE
             }
+            refreshSaverShader()
         }
-        val previousSaver = refreshShaderColors
-        refreshShaderColors = { previousSaver?.invoke(); refreshSaverMode() }
+        choices(
+            R.id.screensaver_look_row,
+            listOf("Videos" to ScreensaverSettings.LOOK_VIDEO, "Colors" to ScreensaverSettings.LOOK_SHADER),
+            { ScreensaverSettings.look(context) },
+            { ScreensaverSettings.setLook(context, it); refreshSaverMode() }
+        )
         refreshSaverMode()
 
         view.findViewById<TextView>(R.id.opt_screensaver_preview).setOnClickListener {
@@ -1431,11 +1449,50 @@ class SettingsFragment : Fragment() {
         highlight()
     }
 
-    /** A row of color swatches for the shader background; each is a ShaderPalettes entry. */
+    /** What one set of shader pickers (style, color, cycling) shows and changes: the background's, or the screen saver's. */
+    private class ShaderPickers(
+        val groupId: Int,
+        val styleRowId: Int,
+        val colorRowId: Int,
+        val cycleRowId: Int,
+        val visible: () -> Boolean,
+        val color: () -> String,
+        val setColor: (String) -> Unit,
+        val style: () -> String,
+        val setStyle: (String) -> Unit,
+        val cycle: () -> Boolean,
+        val setCycle: (Boolean) -> Unit,
+        /** Runs after the person changes something, for whatever else needs to follow it. */
+        val changed: () -> Unit
+    )
+
+    /** The shader background's pickers, which follow the active profile. */
     private fun setupShaderColors(view: View) {
         val context = requireContext()
-        val group = view.findViewById<View>(R.id.shader_color_group)
-        val row = view.findViewById<android.widget.LinearLayout>(R.id.shader_color_row)
+        refreshShaderColors = bindShaderPickers(
+            view,
+            ShaderPickers(
+                R.id.shader_color_group, R.id.shader_style_row, R.id.shader_color_row, R.id.shader_cycle_row,
+                visible = { BackgroundSettings.getMode(context) == "shader" },
+                color = { BackgroundSettings.getShaderColor(context) },
+                setColor = { BackgroundSettings.setShaderColor(context, it) },
+                style = { BackgroundSettings.getShaderStyle(context) },
+                setStyle = { BackgroundSettings.setShaderStyle(context, it) },
+                cycle = { BackgroundSettings.getShaderCycle(context) },
+                setCycle = { BackgroundSettings.setShaderCycle(context, it) },
+                changed = { refreshShaderColors?.invoke(); onBackgroundChanged?.invoke() }
+            )
+        )
+    }
+
+    /**
+     * A row of shader styles, a row of color swatches (each a ShaderPalettes entry) and the color-cycling switch, for
+     * whichever settings [pickers] reads and writes. Returns what refreshes them.
+     */
+    private fun bindShaderPickers(view: View, pickers: ShaderPickers): () -> Unit {
+        val context = requireContext()
+        val group = view.findViewById<View>(pickers.groupId)
+        val row = view.findViewById<android.widget.LinearLayout>(pickers.colorRowId)
         val dp = resources.displayMetrics.density
         fun px(v: Int) = (v * dp).toInt()
 
@@ -1466,7 +1523,7 @@ class SettingsFragment : Fragment() {
         }
 
         // The style: each is a name; the colors below apply to whichever is chosen.
-        val styleRow = view.findViewById<android.widget.LinearLayout>(R.id.shader_style_row)
+        val styleRow = view.findViewById<android.widget.LinearLayout>(pickers.styleRowId)
         val styleTiles = ShaderStyles.all.map { style ->
             val tile = TextView(context).apply {
                 text = style.label
@@ -1484,15 +1541,14 @@ class SettingsFragment : Fragment() {
         }
 
         fun refresh() {
-            val selectedStyle = BackgroundSettings.getShaderStyle(context)
+            val selectedStyle = pickers.style()
             styleTiles.forEach { (style, tile) ->
                 val on = style.id == selectedStyle
                 tile.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
                 tile.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
             }
-            val selected = BackgroundSettings.getShaderColor(context)
-            group.visibility =
-                if (BackgroundSettings.getMode(context) == "shader") View.VISIBLE else View.GONE
+            val selected = pickers.color()
+            group.visibility = if (pickers.visible()) View.VISIBLE else View.GONE
             circles.forEach { (palette, circle, _) ->
                 circle.background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.OVAL
@@ -1508,20 +1564,20 @@ class SettingsFragment : Fragment() {
 
         styleTiles.forEach { (style, tile) ->
             tile.setOnClickListener {
-                BackgroundSettings.setShaderStyle(context, style.id)
+                pickers.setStyle(style.id)
                 refresh()
-                onBackgroundChanged?.invoke()
+                pickers.changed()
             }
         }
         circles.forEach { (palette, _, tile) ->
             tile.setOnClickListener {
-                BackgroundSettings.setShaderColor(context, palette.id)
+                pickers.setColor(palette.id)
                 refresh()
-                onBackgroundChanged?.invoke()
+                pickers.changed()
             }
         }
         // Color cycling: the chosen color is where it starts.
-        val cycleRow = view.findViewById<android.widget.LinearLayout>(R.id.shader_cycle_row)
+        val cycleRow = view.findViewById<android.widget.LinearLayout>(pickers.cycleRowId)
         val cycleChips = listOf("Off" to false, "On" to true).map { (label, value) ->
             val chip = TextView(context).apply {
                 text = label
@@ -1535,25 +1591,26 @@ class SettingsFragment : Fragment() {
                 ).apply { marginEnd = px(8) }
             }
             cycleRow.addView(chip)
-            chip.setOnClickListener {
-                BackgroundSettings.setShaderCycle(context, value)
-                refreshShaderColors?.invoke()
-                onBackgroundChanged?.invoke()
-            }
             value to chip
         }
-        val baseRefresh = ::refresh
         fun refreshAll() {
-            baseRefresh()
-            val cycling = BackgroundSettings.getShaderCycle(context)
+            refresh()
+            val cycling = pickers.cycle()
             cycleChips.forEach { (value, chip) ->
                 val on = value == cycling
                 chip.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
                 chip.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
             }
         }
-        refreshShaderColors = ::refreshAll
+        cycleChips.forEach { (value, chip) ->
+            chip.setOnClickListener {
+                pickers.setCycle(value)
+                refreshAll()
+                pickers.changed()
+            }
+        }
         refreshAll()
+        return ::refreshAll
     }
 
     /** How loud the home screen's video is; shown only for a video background, since a shader has no sound. */
