@@ -15,6 +15,13 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- The daytime scene, for a day's time being used up; KidLockStyle picks which scene shows. -->
+    <com.portal.tv.ui.RestingSunView
+        android:id="@+id/kid_lock_scene_day"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/kid_lock_time"
         android:layout_width="wrap_content"

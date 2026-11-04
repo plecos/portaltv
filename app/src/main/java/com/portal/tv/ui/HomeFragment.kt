@@ -563,6 +563,8 @@ class HomeFragment : Fragment() {
                 "Bedtime" to "Apps are off until ${KidsSchedule.timeLabel(status.wakeMinute)}."
             else -> "Time's up" to "You've used all of today's time. Ask a parent if you need more."
         }
+        // Bedtime is a night sky with a sleepy moon; a day's time being used up is a bright sky with a friendly sun.
+        KidLockStyle.apply(root.findViewById(R.id.kid_lock), night = status is ScheduleLogic.Status.Bedtime)
         root.findViewById<android.widget.TextView>(R.id.kid_lock_title).text = title
         root.findViewById<android.widget.TextView>(R.id.kid_lock_message).text = message
         root.findViewById<android.widget.TextView>(R.id.kid_lock_time).text =
