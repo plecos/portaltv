@@ -20,7 +20,7 @@ import kotlin.random.Random
 
 /**
  * The bedtime scene: a starry night sky, a sleepy moon in a nightcap that breathes, bobs and snores a few Zs, and
- * soft puffy clouds that sway. Drawn with a canvas, so it needs no pictures. It only animates while it is on screen.
+ * soft puffy clouds that sway, with the moon behind all of them. Drawn with a canvas, so it needs no pictures. It only animates while it is on screen.
  */
 class SleepyMoonView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
 
@@ -41,22 +41,19 @@ class SleepyMoonView @JvmOverloads constructor(context: Context, attrs: Attribut
         }
     }
 
-    /** A cloud: where it sits (fractions of the screen), how wide, how much it sways, and how see-through. */
-    private class Cloud(val x: Float, val y: Float, val width: Float, val sway: Float, val phase: Float, val alpha: Float, val drift: Float = 0f)
-
-    // Far clouds drift slowly across the top and pass behind the moon, in a deeper lilac; near ones sit beside and below it.
+    // Far clouds drift slowly across the top and pass in front of the moon, in a deeper lilac; near ones sit beside and below it.
     // All are solid, so no star shows through.
     private val farClouds = listOf(
-        Cloud(0.08f, 0.17f, 0.15f, 0f, 0f, 1f, drift = 0.0060f),
-        Cloud(0.58f, 0.08f, 0.12f, 0f, 0f, 1f, drift = 0.0042f),
-        Cloud(0.88f, 0.26f, 0.14f, 0f, 0f, 1f, drift = 0.0050f),
-        Cloud(0.34f, 0.37f, 0.10f, 0f, 0f, 1f, drift = 0.0035f)
+        SceneCloud(0.08f, 0.17f, 0.15f, drift = 0.0060f),
+        SceneCloud(0.58f, 0.08f, 0.12f, drift = 0.0042f),
+        SceneCloud(0.88f, 0.26f, 0.14f, drift = 0.0050f),
+        SceneCloud(0.34f, 0.37f, 0.10f, drift = 0.0035f)
     )
     private val nearClouds = listOf(
-        Cloud(0.145f, 0.50f, 0.245f, 0.010f, 0.0f, 1f),
-        Cloud(0.865f, 0.46f, 0.225f, 0.010f, 2.1f, 1f),
-        Cloud(0.02f, 1.02f, 0.28f, 0.008f, 4.0f, 1f),
-        Cloud(0.985f, 1.01f, 0.26f, 0.008f, 1.2f, 1f)
+        SceneCloud(0.145f, 0.50f, 0.245f, sway = 0.010f, phase = 0.0f),
+        SceneCloud(0.865f, 0.46f, 0.225f, sway = 0.010f, phase = 2.1f),
+        SceneCloud(0.02f, 1.02f, 0.28f, sway = 0.008f, phase = 4.0f),
+        SceneCloud(0.985f, 1.01f, 0.26f, sway = 0.008f, phase = 1.2f)
     )
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -120,9 +117,10 @@ class SleepyMoonView @JvmOverloads constructor(context: Context, attrs: Attribut
         fill.shader = null
 
         drawStars(canvas, w, h, t)
-        for (cloud in farClouds) drawCloud(canvas, w, h, t, cloud)
+        // The moon is behind every cloud, so a drifting one can pass in front of it.
         drawMoon(canvas, w, h, t)
-        for (cloud in nearClouds) drawCloud(canvas, w, h, t, cloud)
+        for (cloud in farClouds) drawSceneCloud(canvas, fill, oval, w, h, t, cloud, 0xFFB7A8E6.toInt(), 0xFF8B7DC8.toInt())
+        for (cloud in nearClouds) drawSceneCloud(canvas, fill, oval, w, h, t, cloud, 0xFFF4F6FF.toInt(), 0xFFB9BEF2.toInt())
 
         if (running) postInvalidateOnAnimation()
     }
@@ -150,44 +148,6 @@ class SleepyMoonView @JvmOverloads constructor(context: Context, attrs: Attribut
                 canvas.drawCircle(cx, cy, size, fill)
             }
         }
-    }
-
-    /** A puffy cloud: round bumps on a soft flat base, with a lavender shadow underneath for depth. */
-    private fun drawCloud(canvas: Canvas, w: Float, h: Float, t: Float, cloud: Cloud) {
-        val width = cloud.width * w
-        val cx = if (cloud.drift != 0f) {
-            // Drifts right and wraps around, fully off screen before it comes back.
-            val span = w + width * 1.4f
-            ((cloud.x * w + t * cloud.drift * w + width * 0.7f) % span) - width * 0.7f
-        } else {
-            cloud.x * w + sin(t * 0.35f + cloud.phase) * cloud.sway * w
-        }
-        val cy = cloud.y * h + (if (cloud.drift == 0f) cos(t * 0.3f + cloud.phase) * 0.004f * h else 0f)
-
-        val saved = if (cloud.alpha < 1f) canvas.saveLayerAlpha(0f, 0f, w, h, (cloud.alpha * 255).toInt()) else canvas.save()
-        val far = cloud.drift != 0f
-        drawCloudShape(canvas, cx, cy + width * 0.035f, width, if (far) 0xFF8B7DC8.toInt() else 0xFFB9BEF2.toInt())
-        drawCloudShape(canvas, cx, cy, width, if (far) 0xFFB7A8E6.toInt() else 0xFFF4F6FF.toInt())
-        canvas.restoreToCount(saved)
-    }
-
-    private fun drawCloudShape(canvas: Canvas, cx: Float, cy: Float, width: Float, color: Int) {
-        fill.color = color
-        // Bumps as (x, y, radius) fractions of the cloud width, around its centre line.
-        val bumps = floatArrayOf(
-            -0.33f, -0.01f, 0.20f,
-            -0.12f, -0.15f, 0.27f,
-            0.14f, -0.09f, 0.24f,
-            0.35f, -0.01f, 0.19f,
-            0.00f, -0.02f, 0.26f
-        )
-        var i = 0
-        while (i < bumps.size) {
-            canvas.drawCircle(cx + bumps[i] * width, cy + bumps[i + 1] * width, bumps[i + 2] * width, fill)
-            i += 3
-        }
-        oval.set(cx - 0.50f * width, cy - 0.10f * width, cx + 0.50f * width, cy + 0.14f * width)
-        canvas.drawRoundRect(oval, 0.12f * width, 0.12f * width, fill)
     }
 
     private fun drawMoon(canvas: Canvas, w: Float, h: Float, t: Float) {
