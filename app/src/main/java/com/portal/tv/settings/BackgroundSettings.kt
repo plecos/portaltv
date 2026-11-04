@@ -114,15 +114,16 @@ object BackgroundSettings {
         prefs(context).edit { putBoolean("weather_background", enabled) }
     }
 
-    /**
-     * The holiday video this profile picked for a holiday ([holiday] is its file-name prefix, for
-     * example "halloween"), such as "halloween2.mp4"; null means Portal rotates through them.
-     */
+    /** The holiday video this profile picked before holidays could have several (kept to carry that choice over). */
     fun getHolidayVideo(context: Context, holiday: String): String? =
         prefs(context).string("holiday_video_$holiday", "").takeIf { it.isNotEmpty() }
 
-    fun setHolidayVideo(context: Context, holiday: String, file: String?) {
-        prefs(context).edit { putString("holiday_video_$holiday", file ?: "") }
+    /** This profile's holidays as saved text (see Holidays.toJson), or null if it has never changed them. */
+    fun getHolidaysJson(context: Context): String? =
+        prefs(context).string("holidays_json", "").takeIf { it.isNotEmpty() }
+
+    fun setHolidaysJson(context: Context, json: String) {
+        prefs(context).edit { putString("holidays_json", json) }
     }
 
     /** The birthday video this profile picked (a file name); empty means Portal switches between them. */

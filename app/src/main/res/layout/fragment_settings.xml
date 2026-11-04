@@ -748,82 +748,29 @@
                     android:focusable="true" />
 
                 <TextView
-                    android:id="@+id/holiday_toggle_title"
+                    android:id="@+id/opt_holidays"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:text="Holiday videos (day before and day of)"
-                    android:textSize="16sp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Holidays…"
+                    android:textSize="18sp"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp" />
-
-                <LinearLayout
-                    android:id="@+id/holiday_toggle_row"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/opt_holiday_on"
-                        android:layout_width="wrap_content"
-                        android:layout_height="48dp"
-                        android:gravity="center"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:text="On"
-                        android:textSize="18sp"
-                        android:fontFamily="@font/inter"
-                        android:textColor="@color/text_secondary"
-                        android:background="@drawable/bg_settings_tile"
-                        android:focusable="true" />
-
-                    <TextView
-                        android:id="@+id/opt_holiday_off"
-                        android:layout_width="wrap_content"
-                        android:layout_height="48dp"
-                        android:layout_marginStart="12dp"
-                        android:gravity="center"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp"
-                        android:text="Off"
-                        android:textSize="18sp"
-                        android:fontFamily="@font/inter"
-                        android:textColor="@color/text_secondary"
-                        android:background="@drawable/bg_settings_tile"
-                        android:focusable="true" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Which holiday video to use (shown while holiday videos are on) -->
-            <LinearLayout
-                android:id="@+id/holiday_video_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="20dp">
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
 
                 <TextView
+                    android:id="@+id/holidays_summary"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Holiday video (pick one, or Portal switches between them)"
-                    android:textSize="16sp"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="6dp"
+                    android:textSize="14sp"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginBottom="8dp" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none"
-                    android:clipToPadding="false">
-
-                    <LinearLayout
-                        android:id="@+id/holiday_video_row"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-                </HorizontalScrollView>
+                    android:textColor="@color/text_secondary" />
             </LinearLayout>
 
             <!-- Which birthday video to use (shown when there is more than one) -->

@@ -19,7 +19,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.portal.tv.R
 import com.portal.tv.background.BackgroundPlayer
 import com.portal.tv.background.BackgroundRepository
-import com.portal.tv.background.SeasonalVideos
+import com.portal.tv.background.HolidayStore
 import com.portal.tv.data.AppInfo
 import com.portal.tv.repo.AppOrder
 import com.portal.tv.kids.KidsMonitorService
@@ -201,7 +201,7 @@ class HomeFragment : Fragment() {
     private fun seasonalNow(): String? =
         if (BackgroundSettings.getMode(requireContext()) == "video" &&
             BackgroundSettings.getHolidayVideos(requireContext()))
-            SeasonalVideos.forDate(requireContext()) else null
+            HolidayStore.forDate(requireContext()) else null
 
     private fun todaysBirthdays() =
         com.portal.tv.settings.BirthdayStore.on(requireContext()).map { it.name }
