@@ -1652,6 +1652,15 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="From the home screen, and over other apps too when Also over other apps is on."
+                android:textSize="14sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:text="At night (10 pm to 6 am)"
                 android:textSize="16sp"
