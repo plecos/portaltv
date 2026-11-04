@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A kid's bedtime or time limit. Covers everything, video included. Shared by the home screen and the debug preview. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/kid_lock"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0F2C"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:focusable="false"
+    android:visibility="gone">
+
+    <com.portal.tv.ui.SleepyMoonView
+        android:id="@+id/kid_lock_scene"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/kid_lock_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="36dp"
+        android:layout_marginEnd="48dp"
+        android:textSize="26sp"
+        android:fontFamily="@font/inter"
+        android:textColor="#CCD3F5" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="48dp"
+        android:clipChildren="false"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:id="@+id/kid_lock_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="60sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/inter"
+            android:textColor="@color/text_primary"
+            android:shadowColor="#99000000"
+            android:shadowDy="3"
+            android:shadowRadius="10" />
+
+        <TextView
+            android:id="@+id/kid_lock_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="26sp"
+            android:fontFamily="@font/inter"
+            android:textColor="#D5DAF8"
+            android:shadowColor="#99000000"
+            android:shadowDy="2"
+            android:shadowRadius="8" />
+
+        <ImageView
+            android:id="@+id/kid_lock_parent"
+            android:layout_width="76dp"
+            android:layout_height="76dp"
+            android:layout_marginTop="28dp"
+            android:padding="22dp"
+            android:src="@drawable/ic_unlock"
+            android:scaleType="fitCenter"
+            android:background="@drawable/bg_unlock_button"
+            android:stateListAnimator="@animator/focus_grow"
+            android:contentDescription="Parent unlock"
+            android:focusable="true" />
+    </LinearLayout>
+
+</FrameLayout>
