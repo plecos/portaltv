@@ -22,7 +22,8 @@ import com.portal.tv.search.WebProvider
 import com.portal.tv.search.WebSearch
 import com.portal.tv.screensaver.ScreensaverSettings
 import com.portal.tv.background.BackgroundRepository
-import com.portal.tv.background.SeasonalVideos
+import com.portal.tv.background.HolidayStore
+import com.portal.tv.background.Holidays
 import com.portal.tv.background.VideoThumbnails
 import com.portal.tv.settings.AppSettings
 import com.portal.tv.settings.BirthdayStore
@@ -678,11 +679,13 @@ class SettingsFragment : Fragment() {
                 val everyday = if (BackgroundRepository.isRandom(context)) "Random"
                 else BackgroundRepository.availableVideos(context)
                     .firstOrNull { it.asset == BackgroundRepository.selectedVideo(context) }?.label ?: "Default"
-                val holidays = SeasonalVideos.availableFiles(context).size
                 everyday + when {
                     com.portal.tv.repo.ProfileManager.isActiveKids(context) -> ""
                     !BackgroundSettings.getHolidayVideos(context) -> " · holidays off"
-                    else -> " · $holidays holiday video" + if (holidays == 1) "" else "s"
+                    else -> {
+                        val count = HolidayStore.load(context).size
+                        " · $count holiday" + if (count == 1) "" else "s"
+                    }
                 }
             },
             Category(R.id.cat_apps, R.id.page_apps) {
@@ -1899,6 +1902,14 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    /** "Next: Thanksgiving, Nov 26", or why there is none, for under the Holidays button. */
+    private fun holidaysSummaryText(context: android.content.Context): String {
+        if (!BackgroundSettings.getHolidayVideos(context)) return "Off"
+        val today = java.time.LocalDate.now()
+        val soon = HolidayStore.load(context).minByOrNull { Holidays.nextDate(it.rule, today) } ?: return "No holidays yet"
+        return "Next: ${soon.name}, ${Holidays.shortDate(Holidays.nextDate(soon.rule, today))}"
+    }
+
     private fun setupVideoChoices(view: View) {
         val context = requireContext()
         val group = view.findViewById<View>(R.id.video_choice_group)
@@ -2032,69 +2043,19 @@ class SettingsFragment : Fragment() {
             }
         }
         showInUse()
-        // Which holiday video: one tile per holiday video (bundled or downloaded), plus Automatic to rotate.
-        val holidayGroup = view.findViewById<View>(R.id.holiday_video_group)
-        val holidayRow = view.findViewById<android.widget.LinearLayout>(R.id.holiday_video_row)
-        val holidayFiles = SeasonalVideos.availableFiles(context)
-        val holidayTiles = addPickerTiles(
-            holidayRow,
-            listOf(PickTile(null, "Automatic", null)) +
-                holidayFiles.map { PickTile(it, SeasonalVideos.labelOf(context, it), SeasonalVideos.pathOf(it)) }
-        )
-        fun styleHolidayVideos() {
-            val chosen = holidayFiles.filter { f ->
-                SeasonalVideos.holidayOf(context, f)?.let { BackgroundSettings.getHolidayVideo(context, it) } == f
-            }
-            // Holiday videos play whatever the background type is. A kid never manages them.
-            val kidHere = com.portal.tv.repo.ProfileManager.isActiveKids(context)
-            holidayGroup.visibility = if (!kidHere && BackgroundSettings.getHolidayVideos(context) && holidayFiles.isNotEmpty())
-                View.VISIBLE else View.GONE
-            val holidayToggle = if (kidHere) View.GONE else View.VISIBLE
-            view.findViewById<View>(R.id.holiday_toggle_title).visibility = holidayToggle
-            view.findViewById<View>(R.id.holiday_toggle_row).visibility = holidayToggle
-            holidayTiles.forEach { (file, ring, _) ->
-                val on = if (file == null) chosen.isEmpty() else file in chosen
-                ring.background = android.graphics.drawable.GradientDrawable().apply {
-                    cornerRadius = px(13).toFloat()
-                    setStroke(px(if (on) 3 else 0), android.graphics.Color.WHITE)
-                }
-            }
+        // Holidays have a page of their own; this is the way in, with the next one for a glance.
+        val holidaysButton = view.findViewById<View>(R.id.opt_holidays)
+        val holidaysSummary = view.findViewById<TextView>(R.id.holidays_summary)
+        val kidHere = com.portal.tv.repo.ProfileManager.isActiveKids(context)
+        holidaysButton.visibility = if (kidHere) View.GONE else View.VISIBLE
+        holidaysSummary.visibility = if (kidHere) View.GONE else View.VISIBLE
+        holidaysSummary.text = holidaysSummaryText(context)
+        holidaysButton.setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.container, HolidaysFragment())
+                .addToBackStack("holidays")
+                .commit()
         }
-        holidayTiles.forEach { (file, _, tile) ->
-            tile.setOnClickListener {
-                if (file == null) {
-                    holidayFiles.mapNotNull { SeasonalVideos.holidayOf(context, it) }.distinct()
-                        .forEach { BackgroundSettings.setHolidayVideo(context, it, null) }
-                } else {
-                    SeasonalVideos.holidayOf(context, file)?.let { BackgroundSettings.setHolidayVideo(context, it, file) }
-                }
-                styleHolidayVideos()
-                onBackgroundChanged?.invoke()
-            }
-        }
-        val holidayOn = view.findViewById<TextView>(R.id.opt_holiday_on)
-        val holidayOff = view.findViewById<TextView>(R.id.opt_holiday_off)
-        fun styleHoliday() {
-            val on = BackgroundSettings.getHolidayVideos(context)
-            for ((tile, selected) in listOf(holidayOn to on, holidayOff to !on)) {
-                tile.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
-                tile.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
-            }
-        }
-        holidayOn.setOnClickListener {
-            BackgroundSettings.setHolidayVideos(context, true)
-            styleHoliday()
-            styleHolidayVideos()
-            onBackgroundChanged?.invoke()
-        }
-        holidayOff.setOnClickListener {
-            BackgroundSettings.setHolidayVideos(context, false)
-            styleHoliday()
-            styleHolidayVideos()
-            onBackgroundChanged?.invoke()
-        }
-        styleHoliday()
-        styleHolidayVideos()
 
         // Which birthday video, when there is more than one.
         val birthdayGroup = view.findViewById<View>(R.id.birthday_video_group)
@@ -2140,7 +2101,7 @@ class SettingsFragment : Fragment() {
 
         // Piggyback on the shader picker's refresh so both follow the background mode.
         val previous = refreshShaderColors
-        refreshShaderColors = { previous?.invoke(); refresh(); styleHolidayVideos() }
+        refreshShaderColors = { previous?.invoke(); refresh() }
         refresh()
     }
 }

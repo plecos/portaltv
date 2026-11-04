@@ -283,7 +283,7 @@ class VideoBrowserFragment : Fragment() {
         fun dp(v: Int) = (v * d).toInt()
         val white = 0xFFFFFFFF.toInt()
         val soft = 0xFFB0B0C0.toInt()
-        val choices = DownloadedVideos.uses
+        val choices = DownloadedVideos.uses(context)
         var picked = choices.indexOfFirst { it.first == current }.coerceAtLeast(0)
         val tiles = ArrayList<LinearLayout>()
         val checks = ArrayList<ImageView>()
@@ -304,7 +304,7 @@ class VideoBrowserFragment : Fragment() {
             blurb.text = when {
                 use == DownloadedVideos.USE_BACKGROUND -> "Plays on the home screen on ordinary days."
                 use == DownloadedVideos.USE_BIRTHDAY -> "Plays on someone's birthday."
-                else -> "Plays on the day before and the day of $label."
+                else -> "Plays on the days around $label."
             }
         }
 
@@ -314,7 +314,8 @@ class VideoBrowserFragment : Fragment() {
             use.endsWith("halloween") -> "\uD83C\uDF83"
             use.endsWith("thanksgiving") -> "\uD83E\uDD83"
             use.endsWith("christmas") -> "\uD83C\uDF84"
-            else -> "\uD83C\uDF86"
+            use.endsWith("newyear") -> "\uD83C\uDF86"
+            else -> "\uD83C\uDF89"
         }
 
         fun tile(i: Int): LinearLayout {
@@ -407,7 +408,7 @@ class VideoBrowserFragment : Fragment() {
                 cancelOnBack.isEnabled = false
                 val dialog = PortalDialog.Builder(requireContext())
                     .setTitle("Downloaded")
-                    .setMessage("${hit.title}\nBy ${hit.creator} on ${hit.provider.label}\nFor: ${DownloadedVideos.useLabel(use)}")
+                    .setMessage("${hit.title}\nBy ${hit.creator} on ${hit.provider.label}\nFor: ${DownloadedVideos.useLabel(requireContext(), use)}")
                 if (use == DownloadedVideos.USE_BACKGROUND) {
                     dialog.setPositiveButton("Use as background") { _, _ -> useAsBackground(hit.fileName) }
                         .setNegativeButton("Done", null)
@@ -455,7 +456,7 @@ class VideoBrowserFragment : Fragment() {
             add("Close" to {})
         }
         PortalDialog.Builder(context)
-            .setTitle("${item.title}\nBy ${item.creator} on ${item.provider} · ${DownloadedVideos.useLabel(item.use)}")
+            .setTitle("${item.title}\nBy ${item.creator} on ${item.provider} · ${DownloadedVideos.useLabel(requireContext(), item.use)}")
             .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
             .show()
     }
@@ -527,7 +528,7 @@ class VideoBrowserFragment : Fragment() {
                 }
                 is Entry.Saved -> {
                     h.title.text = e.item.title
-                    h.line.text = "${e.item.creator} · ${DownloadedVideos.useLabel(e.item.use)}"
+                    h.line.text = "${e.item.creator} · ${DownloadedVideos.useLabel(requireContext(), e.item.use)}"
                     h.thumb.setImageBitmap(null)
                     h.sound.visibility = if (VideoThumbnails.peekAudio(e.item.file) == true) View.VISIBLE else View.GONE
                     viewLifecycleOwner.lifecycleScope.launch {
