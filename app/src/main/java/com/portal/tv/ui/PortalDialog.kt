@@ -43,6 +43,7 @@ class PortalDialog private constructor(context: Context, private val spec: Spec)
         var onDismiss: DialogInterface.OnDismissListener? = null
         var destructive = false
         var widthDp = 560
+        var bodyMaxFraction = 0.5f
     }
 
     private val buttonViews = HashMap<Int, TextView>()
@@ -120,7 +121,7 @@ class PortalDialog private constructor(context: Context, private val spec: Spec)
 
         val body: View? = spec.items?.let { buildList(it) } ?: spec.view?.also { (it.parent as? ViewGroup)?.removeView(it) }
         if (body != null) {
-            val limit = (context.resources.displayMetrics.heightPixels * 0.5).toInt()
+            val limit = (context.resources.displayMetrics.heightPixels * spec.bodyMaxFraction).toInt()
             panel.addView(MaxHeightScrollView(context, limit).apply {
                 isVerticalScrollBarEnabled = false
                 overScrollMode = View.OVER_SCROLL_NEVER
@@ -265,6 +266,9 @@ class PortalDialog private constructor(context: Context, private val spec: Spec)
 
         /** How wide the panel is, for content that needs more than the usual room. */
         fun setWidthDp(width: Int) = apply { spec.widthDp = width }
+
+        /** How much of the screen's height a list or view may take before it scrolls (half, unless this says more). */
+        fun setBodyMaxHeightFraction(fraction: Float) = apply { spec.bodyMaxFraction = fraction }
 
         fun create(): PortalDialog = PortalDialog(context, spec)
         fun show(): PortalDialog = create().also { it.show() }

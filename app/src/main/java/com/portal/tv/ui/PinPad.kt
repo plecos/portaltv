@@ -40,10 +40,8 @@ object PinPad {
             if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
 
-        val dots = text(26f, R.color.text_primary).apply { gravity = Gravity.CENTER }
-        fun showDots() {
-            dots.text = if (entry.length == 0) " " else "●".repeat(entry.length).chunked(1).joinToString(" ")
-        }
+        val dots = PinDotsView(context, ParentPin.LENGTH)
+        fun showDots() { dots.entered = entry.length }
         showDots()
 
         lateinit var dialog: PortalDialog
@@ -55,7 +53,14 @@ object PinPad {
             if (result != null) onDone(result) else onCancel()
         }
 
+        val pads = Array(LAST_ROW + 1) { arrayOfNulls<View>(3) }
+
         fun press(row: Int, column: Int) {
+            pads[row][column]?.let { k ->
+                k.animate().cancel()
+                k.scaleX = 0.82f; k.scaleY = 0.82f
+                k.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+            }
             if (row == LAST_ROW && column == 0) {
                 entry.delete(); showDots()
             } else if (row == LAST_ROW && column == 2) {
@@ -73,14 +78,17 @@ object PinPad {
             setPadding(px(24), px(8), px(24), px(8))
             if (message != null) addView(text(14f, R.color.text_secondary).apply {
                 this.text = message
-                setPadding(0, 0, 0, px(8))
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, px(4))
             })
             addView(dots, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, px(40)))
+                LinearLayout.LayoutParams.MATCH_PARENT, px(44)).apply { topMargin = px(4); bottomMargin = px(8) })
             addView(text(13f, R.color.text_secondary).apply {
-                this.text = "Up and Down pick a row. Left, OK or Right pick a number in it."
+                this.text = "Up and Down pick a row. Left, OK or Right pick a number.\n" +
+                    "On the top row, Up picks 2. On the bottom row, Down picks 0."
                 gravity = Gravity.CENTER
-                setPadding(0, 0, 0, px(8))
+                setLineSpacing(px(2).toFloat(), 1f)
+                setPadding(0, 0, 0, px(12))
             })
         }
 
@@ -95,10 +103,13 @@ object PinPad {
                 setPadding(px(4), px(2), px(4), px(2))
                 setOnKeyListener { _, keyCode, event ->
                     if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-                    val column = when (keyCode) {
-                        KeyEvent.KEYCODE_DPAD_LEFT -> 0
-                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> 1
-                        KeyEvent.KEYCODE_DPAD_RIGHT -> 2
+                    val column = when {
+                        keyCode == KeyEvent.KEYCODE_DPAD_LEFT -> 0
+                        keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER -> 1
+                        keyCode == KeyEvent.KEYCODE_DPAD_RIGHT -> 2
+                        // There is no row above the first or below the last, so those presses pick the middle number (2 and 0).
+                        keyCode == KeyEvent.KEYCODE_DPAD_UP && r == 0 -> 1
+                        keyCode == KeyEvent.KEYCODE_DPAD_DOWN && r == LAST_ROW -> 1
                         else -> return@setOnKeyListener false
                     }
                     if (event.repeatCount == 0) press(r, column)
@@ -111,21 +122,27 @@ object PinPad {
                     2 -> R.drawable.ic_close
                     else -> null
                 } else null
-                val cell: View = if (icon != null) {
+                val key: View = if (icon != null) {
                     android.widget.ImageView(context).apply {
                         setImageResource(icon)
                         scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-                        setPadding(0, px(8), 0, px(8))
+                        setPadding(px(10), px(10), px(10), px(10))
                         contentDescription = if (column == 0) "Delete" else "Cancel"
                     }
                 } else {
                     text(22f, R.color.text_primary).apply {
                         this.text = label
                         gravity = Gravity.CENTER
+                        setBackgroundResource(R.drawable.bg_pin_key)
                     }
                 }
-                cell.setOnClickListener { press(r, column) } // touch and mouse
-                row.addView(cell, LinearLayout.LayoutParams(0, px(42), 1f))
+                // Each key is a round button in the middle of its third of the row; it dips a little when pressed.
+                val cell = android.widget.FrameLayout(context).apply {
+                    addView(key, android.widget.FrameLayout.LayoutParams(px(44), px(44), Gravity.CENTER))
+                    setOnClickListener { press(r, column) } // touch and mouse
+                }
+                pads[r][column] = key
+                row.addView(cell, LinearLayout.LayoutParams(0, px(50), 1f))
             }
             rows += row
             box.addView(row, LinearLayout.LayoutParams(
@@ -136,6 +153,7 @@ object PinPad {
         dialog = PortalDialog.Builder(context)
             .setTitle(title)
             .setView(box)
+            .setBodyMaxHeightFraction(0.8f)
             .setOnCancelListener { finish(null) }
             .create()
         dialog.show()
