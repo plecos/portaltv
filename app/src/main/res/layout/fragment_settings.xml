@@ -1725,7 +1725,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="Look"
+                android:text="Type"
                 android:textSize="16sp"
                 android:fontFamily="@font/inter"
                 android:textColor="@color/text_secondary"
@@ -1737,7 +1737,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal" />
 
-            <!-- The colors look: its own style and color, apart from the profile's background -->
+            <!-- The shaders type: its own style and color, apart from the profile's background -->
             <LinearLayout
                 android:id="@+id/saver_shader_group"
                 android:layout_width="match_parent"
