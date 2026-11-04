@@ -1917,10 +1917,11 @@ class SettingsFragment : Fragment() {
                 .commit()
         }
 
-        // "Random" comes first, then each bundled video.
-        val videos = listOf(BackgroundRepository.Companion.VideoChoice(BackgroundRepository.RANDOM, "Random")) +
-            BackgroundRepository.availableVideos(context)
-        val frames = videos.map { video ->
+        // Three tiles: Random (a new video each day), the video in use, and Select, which opens a window to choose
+        // from all of them (there may be many once videos have been downloaded).
+        class VideoTile(val thumb: android.widget.ImageView, val ring: android.widget.FrameLayout,
+                        val tile: android.widget.LinearLayout, val name: TextView)
+        fun buildTile(label: String): VideoTile {
             val thumb = android.widget.ImageView(context).apply {
                 scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
                 setBackgroundColor(0xFF1A1A2E.toInt())
@@ -1934,7 +1935,16 @@ class SettingsFragment : Fragment() {
             // The ring around the thumbnail marks the current choice.
             val ring = android.widget.FrameLayout(context).apply {
                 setPadding(px(3), px(3), px(3), px(3))
-                addView(thumb, android.widget.FrameLayout.LayoutParams(px(176), px(99)))
+                addView(thumb, android.widget.FrameLayout.LayoutParams(px(150), px(84)))
+            }
+            val name = TextView(context).apply {
+                text = label
+                textSize = 14f
+                setTextColor(resources.getColor(R.color.text_secondary, null))
+                gravity = android.view.Gravity.CENTER
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, px(4), 0, 0)
             }
             val tile = android.widget.LinearLayout(context).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
@@ -1942,63 +1952,86 @@ class SettingsFragment : Fragment() {
                 setPadding(px(8), px(8), px(8), px(6))
                 setBackgroundResource(R.drawable.bg_settings_tile)
                 isFocusable = true
-                contentDescription = video.label
+                contentDescription = label
                 layoutParams = android.widget.LinearLayout.LayoutParams(
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply { marginEnd = px(8) }
                 addView(ring)
-                addView(TextView(context).apply {
-                    text = video.label
-                    textSize = 14f
-                    setTextColor(resources.getColor(R.color.text_secondary, null))
-                    gravity = android.view.Gravity.CENTER
-                    setPadding(0, px(4), 0, 0)
-                })
+                addView(name, android.widget.LinearLayout.LayoutParams(px(156), android.view.ViewGroup.LayoutParams.WRAP_CONTENT))
             }
             row.addView(tile)
-            if (video.asset == BackgroundRepository.RANDOM) {
-                // No preview frame: a plain card that says what it does.
-                ring.addView(TextView(context).apply {
-                    text = "A new video\neach day"
-                    textSize = 16f
-                    setTextColor(resources.getColor(R.color.text_primary, null))
-                    gravity = android.view.Gravity.CENTER
-                }, android.widget.FrameLayout.LayoutParams(px(176), px(99)))
-            } else {
-                val sound = soundBadge(context)
-                ring.addView(sound, android.widget.FrameLayout.LayoutParams(px(22), px(22), android.view.Gravity.TOP or android.view.Gravity.START)
-                    .apply { setMargins(px(9), px(9), 0, 0) })
-                viewLifecycleOwner.lifecycleScope.launch {
-                    VideoThumbnails.load(context, video.asset)?.let { thumb.setImageBitmap(it) }
-                    if (VideoThumbnails.hasAudio(context, video.asset)) sound.visibility = View.VISIBLE
-                }
+            return VideoTile(thumb, ring, tile, name)
+        }
+        fun card(tile: VideoTile, words: String) {
+            // No preview frame: a plain card that says what it does.
+            tile.ring.addView(TextView(context).apply {
+                text = words
+                textSize = 16f
+                setTextColor(resources.getColor(R.color.text_primary, null))
+                gravity = android.view.Gravity.CENTER
+            }, android.widget.FrameLayout.LayoutParams(px(150), px(84)))
+        }
+
+        val random = buildTile("Random").also { card(it, "A new video\neach day") }
+        val inUse = buildTile("")
+        val sound = soundBadge(context)
+        inUse.ring.addView(sound, android.widget.FrameLayout.LayoutParams(px(22), px(22), android.view.Gravity.TOP or android.view.Gravity.START)
+            .apply { setMargins(px(9), px(9), 0, 0) })
+        val select = buildTile("Select").also { card(it, "Browse all\nvideos") }
+        var inUseAsset = ""
+
+        /** Shows the video in use (today's, when the choice is Random) on the middle tile. */
+        fun showInUse() {
+            val asset = BackgroundRepository.selectedVideo(context)
+            inUseAsset = asset
+            val label = BackgroundRepository.availableVideos(context).firstOrNull { it.asset == asset }?.label
+                ?: BackgroundRepository.labelFor(asset)
+            val today = BackgroundRepository.isRandom(context)
+            inUse.name.text = if (today) "Today: $label" else label
+            inUse.tile.contentDescription = if (today) "Today's video, $label" else label
+            inUse.thumb.setImageDrawable(null)
+            sound.visibility = View.GONE
+            viewLifecycleOwner.lifecycleScope.launch {
+                VideoThumbnails.load(context, asset)?.let { if (inUseAsset == asset) inUse.thumb.setImageBitmap(it) }
+                if (VideoThumbnails.hasAudio(context, asset) && inUseAsset == asset) sound.visibility = View.VISIBLE
             }
-            Triple(video, ring, tile)
         }
 
         fun refresh() {
             // The saved choice, which may be Random rather than the video it picked today.
-            val selected = BackgroundSettings.getVideo(context)
+            val randomOn = BackgroundRepository.isRandom(context)
             group.visibility = View.VISIBLE
-            frames.forEach { (video, ring, _) ->
-                ring.background = android.graphics.drawable.GradientDrawable().apply {
+            for ((tile, on) in listOf(random to randomOn, inUse to !randomOn, select to false)) {
+                tile.ring.background = android.graphics.drawable.GradientDrawable().apply {
                     cornerRadius = px(13).toFloat()
-                    setStroke(
-                        px(if (video.asset == selected) 3 else 0),
-                        android.graphics.Color.WHITE
-                    )
+                    setStroke(px(if (on) 3 else 0), android.graphics.Color.WHITE)
                 }
             }
         }
 
-        frames.forEach { (video, _, tile) ->
-            tile.setOnClickListener {
-                BackgroundSettings.setVideo(context, video.asset)
+        random.tile.setOnClickListener {
+            BackgroundSettings.setVideo(context, BackgroundRepository.RANDOM)
+            refresh()
+            onBackgroundChanged?.invoke()
+        }
+        inUse.tile.setOnClickListener {
+            BackgroundSettings.setVideo(context, inUseAsset)
+            showInUse()
+            refresh()
+            onBackgroundChanged?.invoke()
+        }
+        select.tile.setOnClickListener {
+            VideoPickerDialog.show(
+                context, viewLifecycleOwner, BackgroundRepository.availableVideos(context), inUseAsset
+            ) { picked ->
+                BackgroundSettings.setVideo(context, picked.asset)
+                showInUse()
                 refresh()
                 onBackgroundChanged?.invoke()
             }
         }
+        showInUse()
         // Which holiday video: one tile per holiday video (bundled or downloaded), plus Automatic to rotate.
         val holidayGroup = view.findViewById<View>(R.id.holiday_video_group)
         val holidayRow = view.findViewById<android.widget.LinearLayout>(R.id.holiday_video_row)
