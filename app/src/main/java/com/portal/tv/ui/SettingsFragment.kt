@@ -947,7 +947,7 @@ class SettingsFragment : Fragment() {
         }
         choices(
             R.id.screensaver_look_row,
-            listOf("Videos" to ScreensaverSettings.LOOK_VIDEO, "Colors" to ScreensaverSettings.LOOK_SHADER),
+            listOf("Videos" to ScreensaverSettings.LOOK_VIDEO, "Shaders" to ScreensaverSettings.LOOK_SHADER),
             { ScreensaverSettings.look(context) },
             { ScreensaverSettings.setLook(context, it); refreshSaverMode() }
         )
