@@ -56,8 +56,8 @@ class PortalActivity : FragmentActivity() {
         super.onResume()
         // Watching for severe weather alerts carries on while another app is open.
         com.portal.tv.alerts.SevereAlertService.ensureRunning(this)
-        // "Start after" belongs to the active profile, and the TV has only one start time, so follow whoever is
-        // watching. Quietly: it only writes if Portal is already allowed to.
+        // Keep the TV's start time in step with the screen saver's "Start after", which is the same for every
+        // profile. Quietly: it only writes if Portal is already allowed to.
         com.portal.tv.adb.SelfSetup.syncStartAfterQuietly(this, ScreensaverSettings.idleMinutes(this))
         scheduleIdle()
     }
