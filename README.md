@@ -98,7 +98,7 @@ If you would rather have no screen saver over other apps, turn the TV's off inst
 
 **5. First run.** Portal asks you to create a profile (a plain Portal profile, or one linked to a Google account). That's all the setup it needs. Everything else is optional and lives in Settings.
 
-> Updating: install a newer build with `adb install -r` (or run the script again). Your profiles and settings are kept as long as the new APK is signed with the same key.
+> Updating: Portal can update itself. Settings, System, Updates checks GitHub for a newer release (it looks by itself when Settings opens, at most every six hours), shows what's new, and downloads and installs it when you ask. Android asks you to confirm with its own "Do you want to update this app?" screen, then Portal restarts. The download is about 150 MB. Portal checks that the file is complete, matches GitHub's checksum, and is signed with the same key as the installed app before it hands it to Android, which would refuse a different key anyway. Updating needs Portal to be allowed to install apps; setup turns that on over adb, and if it wasn't, Portal turns it on itself the first time over Wireless debugging. You can still install a newer build with `adb install -r` (or run the script again). Your profiles and settings are kept as long as the new APK is signed with the same key.
 >
 > Switching between a debug build and a release build is different. They are signed with different keys, so Android refuses the install until you run `adb uninstall com.portal.tv`, and that erases the app's data.
 
