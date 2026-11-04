@@ -563,6 +563,8 @@ class HomeFragment : Fragment() {
                 "Bedtime" to "Apps are off until ${KidsSchedule.timeLabel(status.wakeMinute)}."
             else -> "Time's up" to "You've used all of today's time. Ask a parent if you need more."
         }
+        // Bedtime is a night sky with a sleepy moon; a day's time being used up is a bright sky with a friendly sun.
+        KidLockStyle.apply(root.findViewById(R.id.kid_lock), night = status is ScheduleLogic.Status.Bedtime)
         root.findViewById<android.widget.TextView>(R.id.kid_lock_title).text = title
         root.findViewById<android.widget.TextView>(R.id.kid_lock_message).text = message
         root.findViewById<android.widget.TextView>(R.id.kid_lock_time).text =
@@ -577,6 +579,14 @@ class HomeFragment : Fragment() {
         val lock = root.findViewById<View>(R.id.kid_lock)
         if (lock.visibility != View.VISIBLE) {
             lock.visibility = View.VISIBLE
+            // The lock opens the way a profile does: the ring draws on black and the screen opens through it.
+            if (IntroAnimation.current != null) {
+                // A profile is being opened onto the lock, so the ring has no home screen to wait for.
+                IntroAnimation.release(BACKGROUND_READY)
+                IntroAnimation.release(APPS_READY)
+            } else {
+                IntroAnimation.play(requireActivity().findViewById(android.R.id.content), expectHome = false)
+            }
             // After layout, so focus lands on the button even when the lock appears as the screen opens.
             root.findViewById<View>(R.id.kid_lock_parent).apply { isFocusable = true; post { requestFocus() } }
         }
