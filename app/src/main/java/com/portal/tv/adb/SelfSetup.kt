@@ -26,6 +26,7 @@ object SelfSetup {
     private const val KEY_SAVER_SAVED = "saver_saved"
     private const val KEY_SAVER_COMPONENTS = "saver_components"
     private const val KEY_SAVER_ON_SLEEP = "saver_on_sleep"
+    private const val KEY_SAVER_TIMEOUT = "saver_timeout"
 
     /** Launchers that must stay on: Portal, and the Settings app's fallback home. */
     private val KEEP = setOf(PACKAGE, "com.android.tv.settings", "android")
@@ -113,6 +114,84 @@ object SelfSetup {
         )
     }
 
+    /** Whether the TV's screen saver setting names Portal, switched on or not. */
+    private fun isPortalComponent(context: Context): Boolean =
+        isPortalSaver(android.provider.Settings.Secure.getString(context.contentResolver, "screensaver_components"), true)
+
+    /** What "Start after" means for the TV: a time starts the screen saver after it, and Off stops it starting. */
+    internal data class StartAfter(val enabled: Boolean, val timeoutMs: Long?)
+
+    internal fun startAfter(minutes: Int) =
+        if (minutes <= 0) StartAfter(enabled = false, timeoutMs = null) else StartAfter(enabled = true, timeoutMs = minutes * 60_000L)
+
+    /** The commands that give the TV Portal's "Start after". */
+    internal fun startAfterCommands(minutes: Int): List<String> {
+        val start = startAfter(minutes)
+        val commands = mutableListOf("settings put secure screensaver_enabled ${if (start.enabled) 1 else 0}")
+        start.timeoutMs?.let { commands += "settings put system screen_off_timeout $it" }
+        return commands
+    }
+
+    /** Lets Portal change those two settings itself afterwards, without the debug connection. */
+    private val GRANTS = listOf(
+        "appops set $PACKAGE WRITE_SETTINGS allow",
+        "pm grant $PACKAGE android.permission.WRITE_SECURE_SETTINGS"
+    )
+
+    /** Whether Portal may change the TV's screen saver settings without the debug connection. */
+    fun canWriteDirectly(context: Context): Boolean =
+        android.provider.Settings.System.canWrite(context) &&
+            context.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Keep the TV's start time in step with Portal's "Start after", when Portal is the TV's screen saver: the system
+     * starts it over other apps after the TV's own time, so the two must agree. Does nothing otherwise. Uses Portal's
+     * own permission when it has it, and the debug connection (which also grants it) when it doesn't, so this blocks.
+     */
+    fun syncStartAfter(context: Context, minutes: Int): Result {
+        if (!isPortalComponent(context)) return Result.Ok
+        if (writeStartAfter(context, minutes)) return Result.Ok
+        return when (val connected = connect(context)) {
+            is Result.Failed -> connected
+            else -> try {
+                val adb = PortalAdb.get(context)
+                for (command in GRANTS + startAfterCommands(minutes)) run(adb, command)
+                Result.Ok
+            } catch (e: Exception) {
+                Log.d(TAG, "selfsetup: syncing the start time failed", e)
+                Result.Failed(e.message ?: "Something went wrong.")
+            }
+        }
+    }
+
+    /** Same as [syncStartAfter] but only when Portal can write the settings itself, so it never asks anything. */
+    fun syncStartAfterQuietly(context: Context, minutes: Int) {
+        if (isPortalComponent(context)) writeStartAfter(context, minutes)
+    }
+
+    /** Write the settings directly if Portal is allowed to. Only changes what differs. Returns whether it could. */
+    private fun writeStartAfter(context: Context, minutes: Int): Boolean {
+        if (!canWriteDirectly(context)) return false
+        return try {
+            val resolver = context.contentResolver
+            val start = startAfter(minutes)
+            val enabled = if (start.enabled) 1 else 0
+            if (android.provider.Settings.Secure.getInt(resolver, "screensaver_enabled", 0) != enabled) {
+                android.provider.Settings.Secure.putInt(resolver, "screensaver_enabled", enabled)
+            }
+            start.timeoutMs?.let {
+                if (android.provider.Settings.System.getLong(resolver, "screen_off_timeout", -1L) != it) {
+                    android.provider.Settings.System.putLong(resolver, "screen_off_timeout", it)
+                }
+            }
+            true
+        } catch (e: SecurityException) {
+            Log.d(TAG, "selfsetup: not allowed to write the start time", e)
+            false
+        }
+    }
+
     /** Make Portal the TV's screen saver. Call after [connect] returned [Result.Ok]. */
     fun enableSystemScreensaver(context: Context): Result = try {
         setPortalAsScreensaver(context, PortalAdb.get(context))
@@ -134,18 +213,22 @@ object SelfSetup {
     private fun setPortalAsScreensaver(context: Context, adb: PortalAdb) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         // Remember the TV's own choice once, and never overwrite it with Portal's.
-        if (!prefs.getBoolean(KEY_SAVER_SAVED, false) && !isSystemScreensaver(context)) {
+        if (!prefs.getBoolean(KEY_SAVER_SAVED, false) && !isPortalComponent(context)) {
             val resolver = context.contentResolver
             prefs.edit()
                 .putBoolean(KEY_SAVER_SAVED, true)
                 .putString(KEY_SAVER_COMPONENTS, android.provider.Settings.Secure.getString(resolver, "screensaver_components"))
                 .putString(KEY_SAVER_ON_SLEEP, android.provider.Settings.Secure.getString(resolver, "screensaver_activate_on_sleep"))
+                .putLong(KEY_SAVER_TIMEOUT, android.provider.Settings.System.getLong(resolver, "screen_off_timeout", -1L))
                 .apply()
         }
         run(adb, "settings put secure screensaver_components $SAVER")
-        run(adb, "settings put secure screensaver_enabled 1")
         // A TV has no "sleep" apart from idling, so this is what lets it start after the screen saver time.
         run(adb, "settings put secure screensaver_activate_on_sleep 1")
+        // Portal's own "Start after" is the start time, here and from now on.
+        for (command in GRANTS + startAfterCommands(com.portal.tv.screensaver.ScreensaverSettings.idleMinutes(context))) {
+            run(adb, command)
+        }
     }
 
     private fun putBackScreensaver(context: Context, adb: PortalAdb) {
@@ -153,9 +236,11 @@ object SelfSetup {
         for (command in restoreScreensaverCommands(
             saved = prefs.getBoolean(KEY_SAVER_SAVED, false),
             components = prefs.getString(KEY_SAVER_COMPONENTS, null),
-            onSleep = prefs.getString(KEY_SAVER_ON_SLEEP, null)
+            onSleep = prefs.getString(KEY_SAVER_ON_SLEEP, null),
+            timeoutMs = prefs.getLong(KEY_SAVER_TIMEOUT, -1L).takeIf { it > 0 }
         )) run(adb, command)
-        prefs.edit().remove(KEY_SAVER_SAVED).remove(KEY_SAVER_COMPONENTS).remove(KEY_SAVER_ON_SLEEP).apply()
+        prefs.edit().remove(KEY_SAVER_SAVED).remove(KEY_SAVER_COMPONENTS).remove(KEY_SAVER_ON_SLEEP)
+            .remove(KEY_SAVER_TIMEOUT).apply()
     }
 
     /** Whether the TV's screen saver setting names Portal, however the component is spelled. */
@@ -174,14 +259,21 @@ object SelfSetup {
     /**
      * The commands that give the TV its own screen saver back: what it had before Portal took over, if that was
      * saved, and the screen saver turned on either way (setup used to turn it off, so older setups have none saved).
+     * [timeoutMs] is the TV's own start time, if it was saved.
      */
-    internal fun restoreScreensaverCommands(saved: Boolean, components: String?, onSleep: String?): List<String> {
+    internal fun restoreScreensaverCommands(
+        saved: Boolean,
+        components: String?,
+        onSleep: String?,
+        timeoutMs: Long? = null
+    ): List<String> {
         val commands = mutableListOf<String>()
         commands += if (components != null) "settings put secure screensaver_components '$components'"
         else "settings delete secure screensaver_components"
         if (saved) {
             commands += if (onSleep != null) "settings put secure screensaver_activate_on_sleep $onSleep"
             else "settings delete secure screensaver_activate_on_sleep"
+            if (timeoutMs != null) commands += "settings put system screen_off_timeout $timeoutMs"
         }
         commands += "settings put secure screensaver_enabled 1"
         return commands
