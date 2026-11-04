@@ -1966,8 +1966,12 @@ class SettingsFragment : Fragment() {
                     gravity = android.view.Gravity.CENTER
                 }, android.widget.FrameLayout.LayoutParams(px(176), px(99)))
             } else {
+                val sound = soundBadge(context)
+                ring.addView(sound, android.widget.FrameLayout.LayoutParams(px(22), px(22), android.view.Gravity.TOP or android.view.Gravity.START)
+                    .apply { setMargins(px(9), px(9), 0, 0) })
                 viewLifecycleOwner.lifecycleScope.launch {
                     VideoThumbnails.load(context, video.asset)?.let { thumb.setImageBitmap(it) }
+                    if (VideoThumbnails.hasAudio(context, video.asset)) sound.visibility = View.VISIBLE
                 }
             }
             Triple(video, ring, tile)
