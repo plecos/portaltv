@@ -37,7 +37,8 @@
             android:id="@+id/cat_background"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -45,6 +46,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_background"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -63,13 +78,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_videos"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -77,6 +94,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_videos"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -95,13 +126,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_apps"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -109,6 +142,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_apps"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -127,13 +174,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_search"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -141,6 +190,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_search"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -159,13 +222,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_weather"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -173,6 +238,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_weather"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -191,13 +270,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_screensaver"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -205,6 +286,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_screensaver"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -223,13 +318,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_family"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -237,6 +334,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_family"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -255,13 +366,15 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/cat_system"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:focusable="true"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -269,6 +382,20 @@
             android:paddingBottom="8dp"
             android:layout_marginBottom="4dp"
             android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_system"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -287,6 +414,7 @@
                 android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
 
             </LinearLayout>
