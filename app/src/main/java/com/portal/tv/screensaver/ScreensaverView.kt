@@ -19,7 +19,6 @@ import com.portal.tv.R
 import com.portal.tv.background.BackgroundRepository
 import com.portal.tv.repo.WeatherRepository
 import com.portal.tv.settings.AppSettings
-import com.portal.tv.settings.BackgroundSettings
 import com.portal.tv.settings.VideoSound
 import com.portal.tv.ui.ShaderBackgroundView
 import com.portal.tv.ui.ShaderPalettes
@@ -157,16 +156,16 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
 
     // ---------- Shader ----------
 
-    /** With a shader background the screen saver is that shader, in the same colors, style and speed. */
+    /** With the shader look, the screen saver is a slowly moving shader in the colors and style chosen for it. */
     private fun startShaderIfWanted() {
         stopShader()
-        if (BackgroundSettings.getMode(context) != "shader") return
+        if (ScreensaverSettings.look(context) != ScreensaverSettings.LOOK_SHADER) return
         val view = ShaderBackgroundView(
             context,
-            ShaderPalettes.find(BackgroundSettings.getShaderColor(context)),
-            ShaderStyles.find(BackgroundSettings.getShaderStyle(context)),
-            BackgroundSettings.getSpeed(context),
-            BackgroundSettings.getShaderCycle(context)
+            ShaderPalettes.find(ScreensaverSettings.shaderColor(context)),
+            ShaderStyles.find(ScreensaverSettings.shaderStyle(context)),
+            1f,
+            ScreensaverSettings.shaderCycle(context)
         )
         addView(view, 0, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         shader = view
