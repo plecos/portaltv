@@ -577,6 +577,14 @@ class HomeFragment : Fragment() {
         val lock = root.findViewById<View>(R.id.kid_lock)
         if (lock.visibility != View.VISIBLE) {
             lock.visibility = View.VISIBLE
+            // The lock opens the way a profile does: the ring draws on black and the screen opens through it.
+            if (IntroAnimation.current != null) {
+                // A profile is being opened onto the lock, so the ring has no home screen to wait for.
+                IntroAnimation.release(BACKGROUND_READY)
+                IntroAnimation.release(APPS_READY)
+            } else {
+                IntroAnimation.play(requireActivity().findViewById(android.R.id.content), expectHome = false)
+            }
             // After layout, so focus lands on the button even when the lock appears as the screen opens.
             root.findViewById<View>(R.id.kid_lock_parent).apply { isFocusable = true; post { requestFocus() } }
         }

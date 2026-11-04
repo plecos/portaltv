@@ -389,58 +389,6 @@
         android:visibility="gone" />
 
     <!-- Layer 4: a kid's bedtime or time limit. Covers everything, video included. -->
-    <LinearLayout
-        android:id="@+id/kid_lock"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#0F0F1A"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="false"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/kid_lock_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="28sp"
-            android:fontFamily="@font/inter"
-            android:textColor="@color/text_secondary"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:id="@+id/kid_lock_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="64sp"
-            android:textStyle="bold"
-            android:fontFamily="@font/inter"
-            android:textColor="@color/text_primary" />
-
-        <TextView
-            android:id="@+id/kid_lock_message"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:textSize="26sp"
-            android:fontFamily="@font/inter"
-            android:textColor="@color/text_secondary" />
-
-        <TextView
-            android:id="@+id/kid_lock_parent"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:layout_marginTop="48dp"
-            android:gravity="center"
-            android:paddingStart="40dp"
-            android:paddingEnd="40dp"
-            android:text="Parent"
-            android:textSize="20sp"
-            android:fontFamily="@font/inter"
-            android:textColor="@color/text_primary"
-            android:background="@drawable/bg_app_tile"
-            android:focusable="true" />
-    </LinearLayout>
+    <include layout="@layout/include_kid_lock" />
 
 </FrameLayout>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A button grows a little while it has focus. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <set>
+            <objectAnimator android:propertyName="scaleX" android:valueTo="1.12" android:valueType="floatType" android:duration="160" />
+            <objectAnimator android:propertyName="scaleY" android:valueTo="1.12" android:valueType="floatType" android:duration="160" />
+        </set>
+    </item>
+    <item>
+        <set>
+            <objectAnimator android:propertyName="scaleX" android:valueTo="1" android:valueType="floatType" android:duration="160" />
+            <objectAnimator android:propertyName="scaleY" android:valueTo="1" android:valueType="floatType" android:duration="160" />
+        </set>
+    </item>
+</selector>
