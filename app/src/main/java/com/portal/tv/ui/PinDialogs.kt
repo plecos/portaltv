@@ -100,7 +100,7 @@ object PinDialogs {
     fun createProfileCode(context: Context, profile: Profile, onSet: () -> Unit = {}) {
         PinPad.ask(
             context, "Set a code for ${profile.name}",
-            "Asked whenever someone switches to this profile. ${ProfileCode.MIN_LENGTH} digits.",
+            "Set a ${ProfileCode.MIN_LENGTH} digit code that is asked when opening this profile",
             onDone = { first ->
                 if (first.length < ProfileCode.MIN_LENGTH) {
                     toast(context, "Code must be at least ${ProfileCode.MIN_LENGTH} digits")
