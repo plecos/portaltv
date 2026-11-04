@@ -28,13 +28,27 @@ class ShaderBackgroundView(
     palette: ShaderPalettes.Palette = ShaderPalettes.find(null),
     style: ShaderStyles.Style = ShaderStyles.find(null),
     speed: Float = 1f,
-    cycle: Boolean = false
+    cycle: Boolean = false,
+    /** The size it is drawn at; small for a preview, which has little room to show detail. */
+    private val bufferWidth: Int = WIDTH,
+    private val bufferHeight: Int = HEIGHT,
+    /** Where in its animation it starts, in seconds, so a still picture of it isn't the empty first moment. */
+    startAt: Float = 0f
 ) : TextureView(context), TextureView.SurfaceTextureListener {
 
     /** Called on the main thread once the first picture has been drawn. */
     var onFirstFrame: (() -> Unit)? = null
 
-    private val renderer = ShaderRenderer(palette, style, speed, cycle) { post { onFirstFrame?.invoke() } }
+    private val renderer = ShaderRenderer(palette, style, speed, cycle, startAt) { post { onFirstFrame?.invoke() } }
+
+    /** Milliseconds between frames; a preview that isn't the one in focus can draw less often. */
+    @Volatile var frameMs = FRAME_MS
+
+    /** Changes the colors while it runs. */
+    fun setPalette(palette: ShaderPalettes.Palette) { renderer.palette = palette }
+
+    /** Turns color cycling on or off while it runs. */
+    fun setCycle(cycle: Boolean) { renderer.cycle = cycle }
     private var surface: SurfaceTexture? = null
     private var thread: RenderThread? = null
     private var resumed = false
@@ -60,8 +74,8 @@ class ShaderBackgroundView(
         val st = surface ?: return
         if (!resumed || thread != null) return
         // Half the screen's pixels is plenty for soft color, and a quarter of the work for the GPU.
-        st.setDefaultBufferSize(WIDTH, HEIGHT)
-        thread = RenderThread(st, renderer).also { it.start() }
+        st.setDefaultBufferSize(bufferWidth, bufferHeight)
+        thread = RenderThread(st, renderer) { frameMs }.also { it.start() }
     }
 
     private fun stopThread() {
@@ -80,7 +94,7 @@ class ShaderBackgroundView(
     override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {
         // The view resets the buffer to its own size whenever it is laid out again, for instance on coming back
         // from another app. Keep it at the half size the shader is drawn at.
-        st.setDefaultBufferSize(WIDTH, HEIGHT)
+        st.setDefaultBufferSize(bufferWidth, bufferHeight)
     }
 
     override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
@@ -92,7 +106,11 @@ class ShaderBackgroundView(
     override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
 
     /** Owns an OpenGL context for the texture and draws a frame about every 16 ms until told to finish. */
-    private class RenderThread(private val texture: SurfaceTexture, private val renderer: ShaderRenderer) : Thread("shader-render") {
+    private class RenderThread(
+        private val texture: SurfaceTexture,
+        private val renderer: ShaderRenderer,
+        private val frameMs: () -> Long
+    ) : Thread("shader-render") {
 
         @Volatile private var running = true
 
@@ -142,7 +160,8 @@ class ShaderBackgroundView(
                     renderer.onDrawFrame(null)
                     if (!EGL14.eglSwapBuffers(display, window)) break
                     val spent = (System.nanoTime() - start) / 1_000_000
-                    if (spent < FRAME_MS) sleep(FRAME_MS - spent)
+                    val wanted = frameMs()
+                    if (spent < wanted) sleep(wanted - spent)
                 }
             } catch (e: InterruptedException) {
                 // told to stop
@@ -156,10 +175,11 @@ class ShaderBackgroundView(
     }
 
     private class ShaderRenderer(
-        private val palette: ShaderPalettes.Palette,
+        @Volatile var palette: ShaderPalettes.Palette,
         private val style: ShaderStyles.Style,
         private val speed: Float,
-        private val cycle: Boolean,
+        @Volatile var cycle: Boolean,
+        startAt: Float,
         private val onFirstDrawn: () -> Unit
     ) {
 
@@ -169,7 +189,7 @@ class ShaderBackgroundView(
         private var width = 960f
         private var height = 540f
         /** Animation time in seconds. It advances by the real time between frames times [speed]. */
-        private var elapsed = 0f
+        private var elapsed = startAt
         private var lastNanos = 0L
         private val shifted = Array(5) { FloatArray(3) }
 
@@ -306,7 +326,7 @@ class ShaderBackgroundView(
         }
     }
 
-    private companion object {
+    companion object {
         const val WIDTH = 960
         const val HEIGHT = 540
         const val FRAME_MS = 16L

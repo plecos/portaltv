@@ -925,7 +925,7 @@ class SettingsFragment : Fragment() {
         val refreshSaverShader = bindShaderPickers(
             view,
             ShaderPickers(
-                R.id.saver_shader_group, R.id.saver_shader_style_row, R.id.saver_shader_color_row, R.id.saver_shader_cycle_row,
+                R.id.saver_shader_group, R.id.saver_shader_choose, R.id.saver_shader_summary, "Screen saver shader",
                 visible = { ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_SHADER },
                 color = { ScreensaverSettings.shaderColor(context) },
                 setColor = { ScreensaverSettings.setShaderColor(context, it) },
@@ -1454,12 +1454,14 @@ class SettingsFragment : Fragment() {
         highlight()
     }
 
-    /** What one set of shader pickers (style, color, cycling) shows and changes: the background's, or the screen saver's. */
+    /** What one set of shader settings (style, color, cycling) shows and changes: the background's, or the screen saver's. */
     private class ShaderPickers(
         val groupId: Int,
-        val styleRowId: Int,
-        val colorRowId: Int,
-        val cycleRowId: Int,
+        /** The button that opens the chooser, and the line under it that says what is chosen. */
+        val chooseId: Int,
+        val summaryId: Int,
+        /** The chooser's title. */
+        val title: String,
         val visible: () -> Boolean,
         val color: () -> String,
         val setColor: (String) -> Unit,
@@ -1477,7 +1479,7 @@ class SettingsFragment : Fragment() {
         refreshShaderColors = bindShaderPickers(
             view,
             ShaderPickers(
-                R.id.shader_color_group, R.id.shader_style_row, R.id.shader_color_row, R.id.shader_cycle_row,
+                R.id.shader_color_group, R.id.shader_choose, R.id.shader_summary, "Background shader",
                 visible = { BackgroundSettings.getMode(context) == "shader" },
                 color = { BackgroundSettings.getShaderColor(context) },
                 setColor = { BackgroundSettings.setShaderColor(context, it) },
@@ -1491,131 +1493,34 @@ class SettingsFragment : Fragment() {
     }
 
     /**
-     * A row of shader styles, a row of color swatches (each a ShaderPalettes entry) and the color-cycling switch, for
-     * whichever settings [pickers] reads and writes. Returns what refreshes them.
+     * The shader settings as a button that opens the chooser and a line saying what is chosen, for whichever settings
+     * [pickers] reads and writes. Returns what refreshes them.
      */
     private fun bindShaderPickers(view: View, pickers: ShaderPickers): () -> Unit {
         val context = requireContext()
         val group = view.findViewById<View>(pickers.groupId)
-        val row = view.findViewById<android.widget.LinearLayout>(pickers.colorRowId)
-        val dp = resources.displayMetrics.density
-        fun px(v: Int) = (v * dp).toInt()
-
-        val circles = ShaderPalettes.all.map { palette ->
-            val circle = View(context)
-            val tile = android.widget.LinearLayout(context).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
-                gravity = android.view.Gravity.CENTER_HORIZONTAL
-                setPadding(px(12), px(10), px(12), px(10))
-                setBackgroundResource(R.drawable.bg_settings_tile)
-                isFocusable = true
-                contentDescription = palette.label
-                layoutParams = android.widget.LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { marginEnd = px(8) }
-                addView(circle, android.widget.LinearLayout.LayoutParams(px(48), px(48)))
-                addView(TextView(context).apply {
-                    text = palette.label
-                    textSize = 13f
-                    setTextColor(resources.getColor(R.color.text_secondary, null))
-                    gravity = android.view.Gravity.CENTER
-                    setPadding(0, px(4), 0, 0)
-                })
-            }
-            row.addView(tile)
-            Triple(palette, circle, tile)
-        }
-
-        // The style: each is a name; the colors below apply to whichever is chosen.
-        val styleRow = view.findViewById<android.widget.LinearLayout>(pickers.styleRowId)
-        val styleTiles = ShaderStyles.all.map { style ->
-            val tile = TextView(context).apply {
-                text = style.label
-                textSize = 18f
-                typeface = resources.getFont(R.font.inter)
-                gravity = android.view.Gravity.CENTER
-                setPadding(px(24), 0, px(24), 0)
-                isFocusable = true
-                layoutParams = android.widget.LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, px(48)
-                ).apply { marginEnd = px(8) }
-            }
-            styleRow.addView(tile)
-            style to tile
-        }
+        val choose = view.findViewById<View>(pickers.chooseId)
+        val summary = view.findViewById<TextView>(pickers.summaryId)
 
         fun refresh() {
-            val selectedStyle = pickers.style()
-            styleTiles.forEach { (style, tile) ->
-                val on = style.id == selectedStyle
-                tile.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
-                tile.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
-            }
-            val selected = pickers.color()
             group.visibility = if (pickers.visible()) View.VISIBLE else View.GONE
-            circles.forEach { (palette, circle, _) ->
-                circle.background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.OVAL
-                    setColor(palette.swatch)
-                    // A white ring marks the current choice.
-                    setStroke(
-                        px(if (palette.id == selected) 4 else 0),
-                        android.graphics.Color.WHITE
-                    )
-                }
-            }
+            val style = ShaderStyles.find(pickers.style()).label
+            val color = ShaderPalettes.find(pickers.color()).label
+            summary.text = "$style · $color" + if (pickers.cycle()) " · colors cycling" else ""
         }
-
-        styleTiles.forEach { (style, tile) ->
-            tile.setOnClickListener {
-                pickers.setStyle(style.id)
+        choose.setOnClickListener {
+            ShaderPickerDialog.show(
+                context, pickers.title, ShaderPickerDialog.Choice(pickers.style(), pickers.color(), pickers.cycle())
+            ) { picked ->
+                pickers.setStyle(picked.style)
+                pickers.setColor(picked.color)
+                pickers.setCycle(picked.cycle)
                 refresh()
                 pickers.changed()
             }
         }
-        circles.forEach { (palette, _, tile) ->
-            tile.setOnClickListener {
-                pickers.setColor(palette.id)
-                refresh()
-                pickers.changed()
-            }
-        }
-        // Color cycling: the chosen color is where it starts.
-        val cycleRow = view.findViewById<android.widget.LinearLayout>(pickers.cycleRowId)
-        val cycleChips = listOf("Off" to false, "On" to true).map { (label, value) ->
-            val chip = TextView(context).apply {
-                text = label
-                textSize = 18f
-                typeface = resources.getFont(R.font.inter)
-                gravity = android.view.Gravity.CENTER
-                setPadding(px(24), 0, px(24), 0)
-                isFocusable = true
-                layoutParams = android.widget.LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, px(48)
-                ).apply { marginEnd = px(8) }
-            }
-            cycleRow.addView(chip)
-            value to chip
-        }
-        fun refreshAll() {
-            refresh()
-            val cycling = pickers.cycle()
-            cycleChips.forEach { (value, chip) ->
-                val on = value == cycling
-                chip.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
-                chip.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
-            }
-        }
-        cycleChips.forEach { (value, chip) ->
-            chip.setOnClickListener {
-                pickers.setCycle(value)
-                refreshAll()
-                pickers.changed()
-            }
-        }
-        refreshAll()
-        return ::refreshAll
+        refresh()
+        return ::refresh
     }
 
     /** How loud the home screen's video is; shown only for a video background, since a shader has no sound. */
