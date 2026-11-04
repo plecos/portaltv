@@ -27,7 +27,7 @@ object PinDialogs {
         context: Context,
         title: String = "Set a parent PIN",
         message: String =
-            "Needed to leave a kid profile or change profiles. ${ParentPin.MIN_LENGTH} digits.",
+            "Set a ${ParentPin.MIN_LENGTH} digit parent PIN that is asked to leave a kid profile or change profiles",
         onSet: () -> Unit = {}
     ) {
         PinPad.ask(context, title, message, onDone = { first ->
@@ -76,7 +76,7 @@ object PinDialogs {
             create(
                 context,
                 title = "Choose a new PIN",
-                message = "${ParentPin.MIN_LENGTH} digits.",
+                message = "Set a new ${ParentPin.MIN_LENGTH} digit parent PIN that is asked to leave a kid profile or change profiles",
                 onSet = {
                     toast(context, "PIN changed")
                     onChanged()
