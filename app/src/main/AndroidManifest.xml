@@ -16,6 +16,8 @@
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Updates: install the new version of Portal it downloads from GitHub. Setup allows this over adb. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Screen saver: keep the TV's start time in step with Portal's "Start after". Setup grants both over adb, so
          Portal can change the TV's screen saver settings later without it. -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
@@ -85,6 +87,14 @@
             </intent-filter>
         </service>
 
+    
+        <!-- Updates: Android's answer to an install, and reopening Portal once an update has replaced it. -->
+        <receiver android:name=".update.UpdateInstallReceiver" android:exported="false" />
+        <receiver android:name=".update.UpdatedReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
