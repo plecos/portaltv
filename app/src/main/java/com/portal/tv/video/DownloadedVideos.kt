@@ -28,22 +28,20 @@ object DownloadedVideos {
     /** Bigger than this is refused: it would fill a TV's storage and take too long to fetch. */
     const val MAX_BYTES = 400_000_000L
 
-    /** What a downloaded video is for. Holiday uses are "holiday:" followed by the holiday's name, as in [SeasonalVideos]. */
+    /** What a downloaded video is for. Holiday uses are "holiday:" followed by the holiday's id, as in [com.portal.tv.background.Holidays]. */
     const val USE_BACKGROUND = "background"
     const val USE_BIRTHDAY = "birthday"
     const val USE_HOLIDAY = "holiday:"
 
-    /** The uses to choose from, each with the words shown for it. */
-    val uses = listOf(
-        USE_BACKGROUND to "Regular background",
-        USE_BIRTHDAY to "Birthdays",
-        "${USE_HOLIDAY}halloween" to "Halloween",
-        "${USE_HOLIDAY}thanksgiving" to "Thanksgiving",
-        "${USE_HOLIDAY}christmas" to "Christmas",
-        "${USE_HOLIDAY}newyear" to "New Year's"
-    )
+    /** The uses to choose from, each with the words shown for it: ordinary days, birthdays, then each of the profile's holidays. */
+    fun uses(context: Context): List<Pair<String, String>> =
+        listOf(USE_BACKGROUND to "Regular background", USE_BIRTHDAY to "Birthdays") +
+            com.portal.tv.background.HolidayStore.load(context).map { "$USE_HOLIDAY${it.id}" to it.name }
 
-    fun useLabel(use: String) = uses.firstOrNull { it.first == use }?.second ?: "Regular background"
+    fun useLabel(context: Context, use: String): String =
+        if (use == USE_BIRTHDAY) "Birthdays"
+        else if (use.startsWith(USE_HOLIDAY)) com.portal.tv.background.HolidayStore.nameOf(context, use.removePrefix(USE_HOLIDAY)) ?: "Regular background"
+        else "Regular background"
 
     data class Item(
         val file: String,
@@ -80,7 +78,7 @@ object DownloadedVideos {
     /** The downloads made for [use], such as [USE_BIRTHDAY]. */
     fun withUse(context: Context, use: String): List<Item> = all(context).filter { it.use == use }
 
-    /** The holiday a download is for (as its name in SeasonalVideos, such as "halloween"), or null. */
+    /** The id of the holiday a download is for (such as "halloween"), or null. */
     fun holidayOf(item: Item): String? = item.use.takeIf { it.startsWith(USE_HOLIDAY) }?.removePrefix(USE_HOLIDAY)
 
     /** Changes what a downloaded video is for. */

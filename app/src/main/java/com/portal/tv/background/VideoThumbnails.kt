@@ -23,7 +23,7 @@ object VideoThumbnails {
     }
 
     private fun file(context: Context, asset: String) =
-        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "$asset.jpg")
+        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "${asset.replace('/', '_')}.jpg")
 
     private fun save(context: Context, asset: String, frame: Bitmap) {
         runCatching {
@@ -64,7 +64,7 @@ object VideoThumbnails {
     fun peekAudio(asset: String): Boolean? = synchronized(audio) { audio[asset] }
 
     private fun audioFile(context: Context, asset: String) =
-        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "$asset.audio")
+        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "${asset.replace('/', '_')}.audio")
 
     /** Whether the video has a sound track. Remembered in the cache folder; false if it can't be read. */
     suspend fun hasAudio(context: Context, asset: String): Boolean {
