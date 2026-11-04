@@ -77,4 +77,48 @@ class SelfSetupTest {
             commands
         )
     }
+
+    @Test
+    fun aStartAfterTimeStartsTheSaverAfterThatLong() {
+        assertEquals(
+            listOf(
+                "settings put secure screensaver_enabled 1",
+                "settings put system screen_off_timeout 300000"
+            ),
+            SelfSetup.startAfterCommands(5)
+        )
+        assertEquals(1_800_000L, SelfSetup.startAfter(30).timeoutMs)
+    }
+
+    @Test
+    fun startAfterOffStopsTheSaverAndLeavesTheTimeAlone() {
+        assertEquals(listOf("settings put secure screensaver_enabled 0"), SelfSetup.startAfterCommands(0))
+        assertFalse(SelfSetup.startAfter(0).enabled)
+        assertEquals(null, SelfSetup.startAfter(0).timeoutMs)
+    }
+
+    @Test
+    fun restoreAlsoPutsBackTheTvsStartTime() {
+        val commands = SelfSetup.restoreScreensaverCommands(
+            saved = true,
+            components = null,
+            onSleep = "0",
+            timeoutMs = 600_000L
+        )
+        assertEquals(
+            listOf(
+                "settings delete secure screensaver_components",
+                "settings put secure screensaver_activate_on_sleep 0",
+                "settings put system screen_off_timeout 600000",
+                "settings put secure screensaver_enabled 1"
+            ),
+            commands
+        )
+    }
+
+    @Test
+    fun restoreLeavesTheStartTimeAloneWhenNoneWasSaved() {
+        val commands = SelfSetup.restoreScreensaverCommands(saved = true, components = null, onSleep = null, timeoutMs = null)
+        assertFalse(commands.any { "screen_off_timeout" in it })
+    }
 }

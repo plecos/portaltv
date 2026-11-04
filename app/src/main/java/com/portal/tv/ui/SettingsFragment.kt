@@ -840,11 +840,30 @@ class SettingsFragment : Fragment() {
             refresh()
         }
 
+        // Over other apps the TV starts the screen saver by its own clock, so "Start after" sets that too. Set below,
+        // once the "Also over other apps" tile exists, so it can refresh.
+        var startTimeChanged: () -> Unit = {}
         choices(
             R.id.screensaver_idle_row,
             listOf("Off" to 0, "5 min" to 5, "10 min" to 10, "30 min" to 30),
             { ScreensaverSettings.idleMinutes(context) },
-            { ScreensaverSettings.setIdleMinutes(context, it) }
+            { minutes ->
+                ScreensaverSettings.setIdleMinutes(context, minutes)
+                val app = context.applicationContext
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.portal.tv.adb.SelfSetup.syncStartAfter(app, minutes)
+                    }
+                    startTimeChanged()
+                    if (result is com.portal.tv.adb.SelfSetup.Result.Failed) {
+                        Toast.makeText(
+                            context,
+                            "Couldn't change the TV's start time: ${result.why} Turn on Wireless debugging and pick it again.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
         )
         choices(
             R.id.screensaver_night_row,
@@ -903,17 +922,23 @@ class SettingsFragment : Fragment() {
             val on = com.portal.tv.adb.SelfSetup.isSystemScreensaver(context)
             systemTile.text = if (on) "Also over other apps: On" else "Also over other apps: Off"
             style(systemTile, on)
-            systemNote.text = if (on) {
-                "Portal's screen saver also starts when another app has been idle for the TV's screen saver time. " +
+            systemNote.text = when {
+                on -> "Portal's screen saver also starts when another app has been idle for the Start after time. " +
                     "Select to give the TV's own screen saver back."
-            } else {
-                "Without this the screen saver starts only from Portal's home screen. Select to turn it on. " +
+                ScreensaverSettings.idleMinutes(context) == 0 ->
+                    "Start after is Off, so the screen saver won't start. Pick a time above to turn it on."
+                else -> "Without this the screen saver starts only from Portal's home screen. Select to turn it on. " +
                     "It needs Wireless debugging on, and the TV may ask you to allow it."
             }
         }
         refreshSystem()
+        startTimeChanged = { refreshSystem() }
         systemTile.setOnClickListener {
             val turnOn = !com.portal.tv.adb.SelfSetup.isSystemScreensaver(context)
+            if (turnOn && ScreensaverSettings.idleMinutes(context) == 0) {
+                Toast.makeText(context, "Pick a Start after time first.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             val app = context.applicationContext
             Toast.makeText(context, "Working…", Toast.LENGTH_SHORT).show()
             viewLifecycleOwner.lifecycleScope.launch {
