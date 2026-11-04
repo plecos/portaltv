@@ -1970,9 +1970,75 @@
                     android:layout_marginBottom="24dp" />
 
             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Updates"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/update_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:id="@+id/opt_update_check"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Check for updates"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/opt_update_notes"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="What's new"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/opt_update_install"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Download and install"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:background="@drawable/bg_settings_tile"
+                android:focusable="true"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/opt_system_settings"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
+                android:layout_marginTop="32dp"
                 android:gravity="center"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"

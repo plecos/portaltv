@@ -71,6 +71,7 @@ class SettingsFragment : Fragment() {
         setupPin(view)
         setupSystemSettings(view)
         setupAbout(view)
+        setupUpdates(view)
         setupProfileHints(view)
         setupAppManagement(view)
         setupKidsSchedule(view)
@@ -705,7 +706,9 @@ class SettingsFragment : Fragment() {
                 val birthdays = if (count == 1) "1 birthday" else "$count birthdays"
                 birthdays + " · PIN " + if (ParentPin.isSet(context)) "set" else "not set"
             },
-            Category(R.id.cat_system, R.id.page_system) { "" }
+            Category(R.id.cat_system, R.id.page_system) {
+                if (com.portal.tv.update.Updates.updateAvailable(context, com.portal.tv.BuildConfig.VERSION_NAME)) "Update available" else ""
+            }
         )
         // A kid gets only what is theirs to choose: the background, how the apps are laid out, and
         // the weather units. Search, the screen saver, family and system settings stay with parents,
@@ -1136,6 +1139,118 @@ class SettingsFragment : Fragment() {
             if (ParentPin.isSet(context)) PinDialogs.remove(context) { refresh() }
         }
         refresh()
+    }
+
+    /**
+     * Updates: ask GitHub for the newest release, say what's new, and download and install it. The check runs by itself
+     * when Settings opens, at most every few hours; the download and install only when the person asks.
+     */
+    private fun setupUpdates(view: View) {
+        val context = requireContext()
+        val app = context.applicationContext
+        val installed = com.portal.tv.BuildConfig.VERSION_NAME
+        val status = view.findViewById<TextView>(R.id.update_status)
+        val check = view.findViewById<TextView>(R.id.opt_update_check)
+        val notes = view.findViewById<TextView>(R.id.opt_update_notes)
+        val install = view.findViewById<TextView>(R.id.opt_update_install)
+        var busy = false
+
+        fun refresh(message: String? = null) {
+            val release = com.portal.tv.update.Updates.lastRelease(app)
+            val available = release != null && com.portal.tv.update.Updates.isNewer(release.version, installed)
+            notes.visibility = if (available) View.VISIBLE else View.GONE
+            install.visibility = if (available) View.VISIBLE else View.GONE
+            if (release != null && available) {
+                val mb = if (release.apkBytes > 0) " (${release.apkBytes / (1024 * 1024)} MB)" else ""
+                install.text = "Download and install ${release.version}$mb"
+            }
+            val checked = com.portal.tv.update.Updates.lastCheckedAt(app)
+            status.text = message ?: when {
+                available -> "Version ${release!!.version} is available. You have $installed."
+                checked == 0L -> "You have version $installed."
+                else -> "Version $installed is up to date. Checked " +
+                    android.text.format.DateUtils.getRelativeTimeSpanString(
+                        checked, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS
+                    ).toString().lowercase() + "."
+            }
+        }
+        refresh()
+
+        fun check(manual: Boolean) {
+            if (busy) return
+            busy = true
+            if (manual) refresh("Checking for updates…")
+            viewLifecycleOwner.lifecycleScope.launch {
+                val result = runCatching {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.portal.tv.update.UpdateClient.latest(app) }
+                }
+                busy = false
+                result.onSuccess {
+                    com.portal.tv.update.Updates.saveCheck(app, it)
+                    refresh()
+                }.onFailure { refresh(if (manual) "Couldn't check for updates: ${it.message}" else null) }
+            }
+        }
+        check.setOnClickListener { check(manual = true) }
+        // If Android's install is cancelled or fails after it has the file, say so here.
+        com.portal.tv.update.UpdateInstaller.onFailed = { message ->
+            busy = false
+            refresh(message)
+        }
+        viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
+                com.portal.tv.update.UpdateInstaller.onFailed = null
+            }
+        })
+        if (System.currentTimeMillis() - com.portal.tv.update.Updates.lastCheckedAt(app) > 6 * 60 * 60 * 1000L) check(manual = false)
+
+        notes.setOnClickListener {
+            val release = com.portal.tv.update.Updates.lastRelease(app) ?: return@setOnClickListener
+            PortalDialog.Builder(context)
+                .setTitle("What's new in ${release.version}")
+                .setMessage(com.portal.tv.update.Updates.tidyNotes(release.notes))
+                .setPositiveButton("Close", null)
+                .show()
+        }
+
+        install.setOnClickListener {
+            val release = com.portal.tv.update.Updates.lastRelease(app) ?: return@setOnClickListener
+            if (busy) return@setOnClickListener
+            busy = true
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    status.text = "Downloading ${release.version}…"
+                    val file = com.portal.tv.update.UpdateClient.download(app, release) { done, total ->
+                        val percent = if (total > 0) " ${(done * 100 / total).toInt()}%" else ""
+                        status.post { status.text = "Downloading ${release.version}…$percent" }
+                    }
+                    if (!com.portal.tv.update.UpdateInstaller.canInstall(app)) {
+                        // Setup normally allows this. If it didn't, do it now over the debug connection.
+                        status.text = "Allowing Portal to install updates…"
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            if (com.portal.tv.adb.SelfSetup.connect(app) is com.portal.tv.adb.SelfSetup.Result.Ok) {
+                                com.portal.tv.adb.SelfSetup.allowInstalls(app)
+                            }
+                        }
+                    }
+                    if (!com.portal.tv.update.UpdateInstaller.canInstall(app)) {
+                        refresh(
+                            "Portal isn't allowed to install apps yet. Turn on Wireless debugging and try again, or allow " +
+                                "Portal under the TV's Settings, Apps, Special app access, Install unknown apps."
+                        )
+                        return@launch
+                    }
+                    status.text = "Installing ${release.version}. Portal will restart…"
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.portal.tv.update.UpdateInstaller.install(app, file)
+                    }
+                } catch (e: java.io.IOException) {
+                    refresh("Couldn't update: ${e.message}")
+                } finally {
+                    busy = false
+                }
+            }
+        }
     }
 
     /** The About card: which version is installed (handy when updating the TV), and a way to say thanks. */
