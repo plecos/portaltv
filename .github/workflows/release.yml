@@ -20,6 +20,7 @@ jobs:
     # Only the repository owner, and only from main, so a release can't be started by anyone else or from a stray branch.
     if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 25   # a normal release takes about 7; a stuck one should fail by itself
     steps:
       - uses: actions/checkout@v7
         with:
