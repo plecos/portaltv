@@ -56,10 +56,11 @@ object PinPad {
         val pads = Array(LAST_ROW + 1) { arrayOfNulls<View>(3) }
 
         fun press(row: Int, column: Int) {
-            pads[row][column]?.let { k ->
-                k.animate().cancel()
-                k.scaleX = 0.82f; k.scaleY = 0.82f
-                k.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+            // Every key in the row dips together, whichever one was pressed: a dip on one key would show the digit.
+            pads[row].forEach { k ->
+                k?.animate()?.cancel()
+                k?.scaleX = 0.82f; k?.scaleY = 0.82f
+                k?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(120)?.start()
             }
             if (row == LAST_ROW && column == 0) {
                 entry.delete(); showDots()
