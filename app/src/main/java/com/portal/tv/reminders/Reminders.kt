@@ -16,11 +16,46 @@ data class Reminder(
     val profileId: Int,
     val title: String,
     val atMillis: Long,
-    val repeat: Repeat = Repeat.NONE
+    val repeat: Repeat = Repeat.NONE,
+    /** The sound it makes, a key from [ReminderTones]. */
+    val tone: String = ReminderTones.DEFAULT,
+    /** True: the card stays until someone dismisses it. False: it goes by itself after a while. */
+    val manual: Boolean = false,
+    /** Minutes a Snooze button puts it off for; 0 means the card has no Snooze button. */
+    val snoozeMinutes: Int = 0
 ) {
     enum class Repeat(val label: String) {
         NONE("Once"), DAILY("Every day"), WEEKLY("Every week")
     }
+
+    /** Whether the card for this one has buttons, and so has to take the remote. */
+    val needsButtons: Boolean get() = manual || snoozeMinutes > 0
+}
+
+/** The sounds a reminder can make. The names here are stored with the reminder; playing them is [TonePlayer]'s job. */
+object ReminderTones {
+    const val NONE = "none"
+    const val BEEPS = "beeps"
+    const val CHIRP = "chirp"
+    const val PROMPT = "prompt"
+    const val ALERT = "alert"
+    const val DEFAULT = BEEPS
+
+    /** Prefix of a sound from the TV's own list: the rest is its address. */
+    const val SYSTEM = "sys:"
+
+    /** The built-in tones, in the order they are listed. They are made by the TV's tone generator, so every TV has them. */
+    val builtIn = listOf(
+        NONE to "No sound",
+        BEEPS to "Beeps",
+        CHIRP to "Chirp",
+        PROMPT to "Prompt",
+        ALERT to "Alert"
+    )
+
+    val snoozeChoices = listOf(0, 5, 10, 15, 30)
+
+    fun snoozeLabel(minutes: Int) = if (minutes <= 0) "Off" else "$minutes min"
 }
 
 /** What to do with a reminder that came due while the TV was off or Portal wasn't running. */
@@ -112,4 +147,8 @@ object ReminderLogic {
         }
         return "$day $time"
     }
+
+    /** What Snooze does: the same reminder once more, [Reminder.snoozeMinutes] from [now], whether or not it repeats. */
+    fun snoozed(reminder: Reminder, now: Long): Reminder =
+        reminder.copy(atMillis = now + reminder.snoozeMinutes * 60_000L, repeat = Reminder.Repeat.NONE)
 }
