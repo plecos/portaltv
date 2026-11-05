@@ -41,19 +41,27 @@ import java.util.Locale
  * has; OK on a tile opens that holiday (its videos, its date, removing it), and the last tile adds one. A switch turns
  * holiday videos on or off for the profile without losing the list.
  */
-class HolidaysFragment : Fragment() {
+
+/**
+ * The page for [HolidaysFragment]. Its logic is kept out of the Fragment class itself on purpose: AndroidX's lint check
+ * for lifecycle observers follows every method a Fragment calls, and this page's methods call each other in a circle
+ * (the page opens a holiday, which changes the list, which redraws the page), which made lint take ten times as long.
+ */
+
+class HolidaysPage(private val fragment: Fragment) {
 
     private lateinit var content: LinearLayout
     private lateinit var holidays: List<Holiday>
     private val soft = 0xFFB0B0C0.toInt()
     private val accent = 0xFF8A83FF.toInt()
 
-    private val d get() = resources.displayMetrics.density
+    private val d get() = fragment.resources.displayMetrics.density
     private fun px(v: Int) = (v * d).toInt()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        val scroll = ScrollView(requireContext()).apply { setBackgroundColor(resources.getColor(R.color.bg_primary, null)) }
-        content = LinearLayout(requireContext()).apply {
+    /** The page's view, to be shown by the fragment. */
+    fun build(): View {
+        val scroll = ScrollView(fragment.requireContext()).apply { setBackgroundColor(fragment.resources.getColor(R.color.bg_primary, null)) }
+        content = LinearLayout(fragment.requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(px(96), px(56), px(96), px(40))
         }
@@ -61,26 +69,26 @@ class HolidaysFragment : Fragment() {
         return scroll
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    /** Fills the page, once its view is in place. */
+    fun start() {
         reload()
         render()
     }
 
-    private fun reload() { holidays = HolidayStore.load(requireContext()) }
+    private fun reload() { holidays = HolidayStore.load(fragment.requireContext()) }
 
     /** Saves [list] as the profile's holidays and redraws the page. */
     private fun commit(list: List<Holiday>) {
-        HolidayStore.save(requireContext(), list)
+        HolidayStore.save(fragment.requireContext(), list)
         reload()
         render()
     }
 
-    private fun text(s: String, sp: Float, color: Int = Color.WHITE, bold: Boolean = false) = TextView(requireContext()).apply {
+    private fun text(s: String, sp: Float, color: Int = Color.WHITE, bold: Boolean = false) = TextView(fragment.requireContext()).apply {
         text = s
         textSize = sp
         setTextColor(color)
-        typeface = resources.getFont(R.font.inter)
+        typeface = fragment.resources.getFont(R.font.inter)
         if (bold) setTypeface(typeface, Typeface.BOLD)
     }
 
@@ -94,13 +102,13 @@ class HolidaysFragment : Fragment() {
     }
 
     private fun thumbInto(iv: ImageView, path: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            VideoThumbnails.load(requireContext(), path)?.let { iv.setImageBitmap(it) }
+        fragment.viewLifecycleOwner.lifecycleScope.launch {
+            VideoThumbnails.load(fragment.requireContext(), path)?.let { iv.setImageBitmap(it) }
         }
     }
 
     private fun dashedBox(widthDp: Int, heightDp: Int, words: String, size: Float): FrameLayout {
-        val box = FrameLayout(requireContext()).apply {
+        val box = FrameLayout(fragment.requireContext()).apply {
             background = GradientDrawable().apply {
                 cornerRadius = px(10).toFloat()
                 setColor(0x22FFFFFF)
@@ -108,7 +116,7 @@ class HolidaysFragment : Fragment() {
             }
         }
         box.addView(text(words, size, accent, true), FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
-        return FrameLayout(requireContext()).apply {
+        return FrameLayout(fragment.requireContext()).apply {
             setPadding(px(3), px(3), px(3), px(3))
             addView(box, FrameLayout.LayoutParams(px(widthDp), px(heightDp)))
         }
@@ -117,7 +125,7 @@ class HolidaysFragment : Fragment() {
     // ---------- The page ----------
 
     private fun render() {
-        val context = requireContext()
+        val context = fragment.requireContext()
         val today = LocalDate.now()
         val on = BackgroundSettings.getHolidayVideos(context)
         content.removeAllViews()
@@ -161,7 +169,7 @@ class HolidaysFragment : Fragment() {
     }
 
     private fun holidayTile(h: Holiday, isNext: Boolean, today: LocalDate): View {
-        val context = requireContext()
+        val context = fragment.requireContext()
         val card = FrameLayout(context).apply { setPadding(px(3), px(3), px(3), px(3)) }
         val thumb = ImageView(context).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
@@ -199,7 +207,7 @@ class HolidaysFragment : Fragment() {
         }
     }
 
-    private fun addTile(): View = LinearLayout(requireContext()).apply {
+    private fun addTile(): View = LinearLayout(fragment.requireContext()).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         setPadding(px(8), px(8), px(8), px(6))
@@ -215,7 +223,7 @@ class HolidaysFragment : Fragment() {
     // ---------- One holiday ----------
 
     private fun showDetail(id: String) {
-        val context = requireContext()
+        val context = fragment.requireContext()
         val h = holidays.firstOrNull { it.id == id } ?: return
         val today = LocalDate.now()
         lateinit var dialog: PortalDialog
@@ -286,7 +294,7 @@ class HolidaysFragment : Fragment() {
     }
 
     private fun removeVideo(h: Holiday, path: String) {
-        val context = requireContext()
+        val context = fragment.requireContext()
         // A download made for this holiday would otherwise come straight back, so it goes back to the ordinary videos.
         DownloadedVideos.find(context, path)?.takeIf { DownloadedVideos.holidayOf(it) == h.id }
             ?.let { DownloadedVideos.setUse(context, path, DownloadedVideos.USE_BACKGROUND) }
@@ -294,7 +302,7 @@ class HolidaysFragment : Fragment() {
     }
 
     private fun confirmRemove(h: Holiday) {
-        val context = requireContext()
+        val context = fragment.requireContext()
         PortalDialog.Builder(context)
             .setDestructive()
             .setTitle("Remove ${h.name}?")
@@ -311,7 +319,7 @@ class HolidaysFragment : Fragment() {
     // ---------- Choosing a holiday's videos ----------
 
     private fun showVideoPicker(id: String) {
-        val context = requireContext()
+        val context = fragment.requireContext()
         val h = holidays.firstOrNull { it.id == id } ?: return
         val chosen = h.videos.toMutableList()
         val grid = GridLayout(context).apply { columnCount = 4 }
@@ -349,7 +357,7 @@ class HolidaysFragment : Fragment() {
         body.addView(text("Choose as many as you like. A different one plays each day.", 15f, soft).apply { setPadding(0, 0, 0, px(10)) })
         // The dialog measures its view without a height limit, so the grid gets a box of its own and scrolls inside it.
         val rows = (HolidayStore.allVideos(context).size + 3) / 4
-        val height = (rows * px(106) + px(8)).coerceAtMost((resources.displayMetrics.heightPixels * 0.5).toInt())
+        val height = (rows * px(106) + px(8)).coerceAtMost((fragment.resources.displayMetrics.heightPixels * 0.5).toInt())
         body.addView(ScrollView(context).apply { addView(grid) }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height))
         body.addView(text("Want more? Search/Manage Videos can download videos for this holiday.", 14f, soft).apply { setPadding(0, px(10), 0, 0) })
 
@@ -370,7 +378,7 @@ class HolidaysFragment : Fragment() {
             .setPositiveButton("Done") { _, _ -> saveChoice(); showDetail(id) }
             .setNeutralButton("Search videos…") { _, _ ->
                 saveChoice()
-                parentFragmentManager.beginTransaction()
+                fragment.parentFragmentManager.beginTransaction()
                     .replace(R.id.container, VideoBrowserFragment())
                     .addToBackStack("videos")
                     .commit()
@@ -393,11 +401,11 @@ class HolidaysFragment : Fragment() {
             items += "${s.name}  ·  ${Holidays.shortDate(Holidays.nextDate(s.rule, today))}" + if (s in missing) "  (put back)" else ""
             actions += {
                 // A holiday put back brings the videos that come with Portal for it.
-                commit(holidays + s.copy(videos = HolidayStore.bundledVideos(requireContext(), s.id)))
+                commit(holidays + s.copy(videos = HolidayStore.bundledVideos(fragment.requireContext(), s.id)))
                 showDetail(s.id)
             }
         }
-        PortalDialog.Builder(requireContext())
+        PortalDialog.Builder(fragment.requireContext())
             .setTitle("Add a holiday")
             .setMessage("Pick one to start from, or make your own.")
             .setItems(items.toTypedArray()) { _, which -> actions[which]() }
@@ -407,7 +415,7 @@ class HolidaysFragment : Fragment() {
 
     /** The form for a name and a date. [existing] is set when changing a holiday's date. */
     private fun showForm(existing: Holiday?) {
-        val context = requireContext()
+        val context = fragment.requireContext()
         var weekday = existing?.rule is Rule.Nth
         var name = existing?.name ?: ""
         val fixed = existing?.rule as? Rule.Fixed
@@ -498,7 +506,7 @@ class HolidaysFragment : Fragment() {
 
     /** A value changed with Up and Down on the remote (wrapping): an up arrow above it and a down arrow below, so they line up. */
     private fun stepper(title: String?, values: List<String>, start: Int, widthDp: Int, onChange: (Int) -> Unit): View {
-        val context = requireContext()
+        val context = fragment.requireContext()
         var i = start.coerceIn(0, values.size - 1)
         val value = text(values[i], 20f).apply { gravity = Gravity.CENTER; maxLines = 1 }
         val box = LinearLayout(context).apply {
@@ -527,5 +535,24 @@ class HolidaysFragment : Fragment() {
                 LinearLayout.LayoutParams(px(widthDp), -2))
             addView(box, LinearLayout.LayoutParams(px(widthDp), -2))
         }
+    }
+}
+
+/** The holidays page: see [HolidaysPage]. */
+class HolidaysFragment : Fragment() {
+
+    private var page: HolidaysPage? = null
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
+        HolidaysPage(this).also { page = it }.build()
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        page?.start()
+    }
+
+    override fun onDestroyView() {
+        page = null
+        super.onDestroyView()
     }
 }
