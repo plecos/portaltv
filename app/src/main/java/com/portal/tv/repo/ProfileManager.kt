@@ -155,6 +155,7 @@ object ProfileManager {
         com.portal.tv.screensaver.ScreensaverSettings.clearForProfile(context, id)
         com.portal.tv.search.SearchSettings.clearForProfile(context, id)
         ProfileCode.clear(context, id)
+        com.portal.tv.reminders.ReminderStore.clearForProfile(context, id)
         profile?.photoFile?.let { photoDir(context).resolve(it).delete() }
         val p = prefs(context)
         if (p.getInt(KEY_ACTIVE_ID, -1) == id) {

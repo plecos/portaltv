@@ -57,11 +57,40 @@ class LlmClientStreamEndTest {
     @Volatile private var body = ""
     @Volatile private var hold = false
 
+    /**
+     * The whole request: its headers and the body they announce. A single read can return only part of it, and closing
+     * a connection with part of the request unread makes the client see a reset instead of the answer.
+     */
+    private fun readRequest(socket: Socket): String {
+        val input = socket.getInputStream()
+        val bytes = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var needed = -1
+        try {
+            while (true) {
+                val text = bytes.toString(Charsets.ISO_8859_1)
+                val headerEnd = text.indexOf("\r\n\r\n")
+                if (headerEnd >= 0) {
+                    if (needed < 0) {
+                        val length = Regex("(?i)content-length:\\s*(\\d+)").find(text.substring(0, headerEnd))?.groupValues?.get(1)?.toInt() ?: 0
+                        needed = headerEnd + 4 + length
+                    }
+                    if (bytes.size() >= needed) break
+                }
+                val n = input.read(buffer)
+                if (n < 0) break
+                bytes.write(buffer, 0, n)
+            }
+        } catch (e: Exception) {
+            // Timed out or reset: use what arrived.
+        }
+        return bytes.toString(Charsets.ISO_8859_1)
+    }
+
     private fun handle(socket: Socket) {
         socket.use {
             socket.soTimeout = 2000
-            val buffer = ByteArray(8192)
-            val request = String(buffer, 0, runCatching { socket.getInputStream().read(buffer) }.getOrDefault(0).coerceAtLeast(0))
+            val request = readRequest(socket)
             val out = socket.getOutputStream()
             if (request.startsWith("GET /status")) {
                 val reply = when (status) {
