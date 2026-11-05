@@ -16,6 +16,9 @@ object Tools {
     const val OPEN_APP = "open_app"
     const val WEB_SEARCH = "web_search"
     const val SET_REMINDER = "set_reminder"
+    const val LIST_REMINDERS = "list_reminders"
+    const val UPDATE_REMINDER = "update_reminder"
+    const val DELETE_REMINDER = "delete_reminder"
 
     /** The `tools` list for a request, or null when no tool is on. */
     fun definitions(openApp: Boolean, webSearch: Boolean, reminders: Boolean = false): JSONArray? {
@@ -30,7 +33,7 @@ object Tools {
             "Search the web for current information, news or facts you don't know. Returns a few results with short snippets.",
             "query", "What to search for"
         ))
-        if (reminders) tools.put(ReminderTool.definition())
+        if (reminders) ReminderTool.definitions().forEach { tools.put(it) }
         return if (tools.length() == 0) null else tools
     }
 
