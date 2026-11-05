@@ -76,6 +76,7 @@ class SettingsFragment : Fragment() {
         setupAppDisplay(view)
         setupScreensaver(view)
         setupBirthdays(view)
+        setupReminders(view)
         setupPin(view)
         setupSystemSettings(view)
         setupAbout(view)
@@ -490,10 +491,12 @@ class SettingsFragment : Fragment() {
     private var refreshCategories: (() -> Unit)? = null
 
     private var refreshOverlayPermission: (() -> Unit)? = null
+    private var refreshReminderOverlay: (() -> Unit)? = null
 
     override fun onResume() {
         super.onResume()
         refreshOverlayPermission?.invoke() // back from the system's permission screen
+        refreshReminderOverlay?.invoke()
     }
 
     /**
@@ -710,6 +713,11 @@ class SettingsFragment : Fragment() {
             Category(R.id.cat_screensaver, R.id.page_screensaver) {
                 val minutes = ScreensaverSettings.idleMinutes(context)
                 if (minutes == 0) "Off" else "After $minutes min"
+            },
+            Category(R.id.cat_reminders, R.id.page_reminders) {
+                val profile = com.portal.tv.repo.ProfileManager.getActive(context)
+                val count = profile?.let { com.portal.tv.reminders.ReminderStore.forProfile(context, it.id).size } ?: 0
+                when (count) { 0 -> "None yet"; 1 -> "1 reminder"; else -> "$count reminders" }
             },
             Category(R.id.cat_family, R.id.page_family) {
                 val count = BirthdayStore.all(context).size
@@ -1746,6 +1754,115 @@ class SettingsFragment : Fragment() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+        refresh()
+    }
+
+    /**
+     * Reminders for the active profile: a row for each (select it to change or delete it), Add, what to do with a
+     * reminder that came due while the TV was off, and the permission to show them over other apps.
+     */
+    private fun setupReminders(view: View) {
+        val context = requireContext()
+        val list = view.findViewById<android.widget.LinearLayout>(R.id.reminders_list)
+        val add = view.findViewById<TextView>(R.id.opt_add_reminder)
+        val label = view.findViewById<TextView>(R.id.reminders_label)
+        val dp = resources.displayMetrics.density
+        fun px(v: Int) = (v * dp).toInt()
+        val profile = com.portal.tv.repo.ProfileManager.getActive(context)
+        if (profile == null || profile.isKids) {
+            // A kid's settings never show this page; with no profile there is nobody to set one for.
+            add.visibility = View.GONE
+            return
+        }
+        label.text = "${profile.name}'s reminders"
+
+        fun refresh() {
+            list.removeAllViews()
+            val reminders = com.portal.tv.reminders.ReminderStore.forProfile(context, profile.id)
+            if (reminders.isEmpty()) {
+                list.addView(TextView(context).apply {
+                    text = "No reminders yet"
+                    textSize = 16f
+                    setTextColor(resources.getColor(R.color.text_secondary, null))
+                    setPadding(0, 0, 0, px(12))
+                })
+            }
+            val now = System.currentTimeMillis()
+            reminders.forEach { r ->
+                val whenText = com.portal.tv.reminders.ReminderLogic.whenLabel(r.atMillis, now) +
+                    if (r.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else "  ·  " + r.repeat.label.lowercase()
+                list.addView(TextView(context).apply {
+                    text = "${r.title}  ·  $whenText"
+                    textSize = 18f
+                    typeface = resources.getFont(R.font.inter)
+                    setTextColor(resources.getColor(R.color.text_primary, null))
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setPadding(px(24), 0, px(24), 0)
+                    minHeight = px(48)
+                    setBackgroundResource(R.drawable.bg_settings_tile)
+                    isFocusable = true
+                    contentDescription = "${r.title}, $whenText. Select to change or delete."
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { bottomMargin = px(8) }
+                    setOnClickListener {
+                        ReminderDialogs.edit(context, profile, r) { refresh(); refreshCategories?.invoke() }
+                    }
+                })
+            }
+        }
+        add.setOnClickListener {
+            ReminderDialogs.edit(context, profile, null) { refresh(); refreshCategories?.invoke() }
+        }
+
+        val missed = view.findViewById<TextView>(R.id.opt_reminder_missed)
+        val missedHint = view.findViewById<TextView>(R.id.reminder_missed_hint)
+        fun showMissed() {
+            val policy = com.portal.tv.reminders.ReminderStore.missedPolicy(context)
+            missed.text = policy.label
+            missedHint.text = policy.hint
+        }
+        missed.setOnClickListener {
+            val all = com.portal.tv.reminders.MissedPolicy.values().toList()
+            PortalDialog.Builder(context)
+                .setTitle("A reminder that came due while the TV was off")
+                .setSingleChoiceItems(
+                    all.map { it.label }.toTypedArray(),
+                    all.indexOf(com.portal.tv.reminders.ReminderStore.missedPolicy(context))
+                ) { d, which ->
+                    com.portal.tv.reminders.ReminderStore.setMissedPolicy(context, all[which])
+                    showMissed()
+                    d.dismiss()
+                }
+                .show()
+        }
+        showMissed()
+
+        val overlay = view.findViewById<TextView>(R.id.opt_reminder_overlay)
+        val overlayHint = view.findViewById<TextView>(R.id.reminder_overlay_hint)
+        val adb = "adb shell appops set ${context.packageName} SYSTEM_ALERT_WINDOW allow"
+        fun showOverlay() {
+            val granted = android.provider.Settings.canDrawOverlays(context)
+            overlay.text = if (granted) "Reminders over apps: On" else "Reminders over apps: Off. Select to allow"
+            overlayHint.text = if (granted) "A card shows on top of whatever app is open."
+            else "Without this a reminder is an ordinary notification, which is easy to miss while watching something."
+        }
+        overlay.setOnClickListener {
+            if (android.provider.Settings.canDrawOverlays(context)) return@setOnClickListener
+            val intent = Intent(
+                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:${context.packageName}")
+            )
+            if (intent.resolveActivity(context.packageManager) != null) startActivity(intent)
+            else PortalDialog.Builder(context)
+                .setTitle("Allow display over other apps")
+                .setMessage("This TV has no screen for this permission. From a computer, run:\n\n$adb")
+                .setPositiveButton("OK", null)
+                .show()
+        }
+        refreshReminderOverlay = ::showOverlay
+        showOverlay()
         refresh()
     }
 

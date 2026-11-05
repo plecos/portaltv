@@ -322,6 +322,54 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/cat_reminders"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:focusable="true"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/bg_settings_tile">
+
+            <ImageView
+                android:tag="icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="14dp"
+                android:src="@drawable/ic_cat_reminders"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reminders"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:tag="summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/cat_family"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -1869,6 +1917,140 @@
                 android:fontFamily="@font/inter"
                 android:textColor="@color/text_secondary" />
 
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/page_reminders"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="40dp"
+            android:paddingEnd="8dp"
+            android:clipToPadding="false"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="48dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Reminders"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/reminders_intro"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="A reminder shows on the screen when it is due, whoever is using the TV and whatever is playing, with the name and picture of the profile that set it."
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="24dp" />
+
+                <TextView
+                    android:id="@+id/reminders_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Your reminders"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/reminders_list"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/opt_add_reminder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:text="Add reminder"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="A reminder that came due while the TV was off"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_reminder_missed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/reminder_missed_hint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="6dp"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Over other apps"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/opt_reminder_overlay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary"
+                    android:background="@drawable/bg_settings_tile"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/reminder_overlay_hint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="6dp"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary" />
             </LinearLayout>
         </ScrollView>
 
