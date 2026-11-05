@@ -64,7 +64,6 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
     }
-    private val cityText = text(20f, secondary = true).apply { visibility = View.GONE }
     private val greetingText = text(24f, bold = true).apply { visibility = View.GONE }
     private val clockBlock = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
 
@@ -103,7 +102,6 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         weatherRow.addView(weatherText)
         clockBlock.addView(timeText)
         clockBlock.addView(weatherRow)
-        clockBlock.addView(cityText)
         clockBlock.addView(greetingText, LinearLayout.LayoutParams(
             LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
         addView(textureView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -378,8 +376,6 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         weatherIcon.addView(WeatherIcons.layered(context, 44, r.code, r.isDay))
         weatherText.text = "$temp  ·  ${WeatherIcons.describe(r.code)}"
         weatherRow.visibility = View.VISIBLE
-        cityText.text = r.city.orEmpty()
-        cityText.visibility = if (r.city.isNullOrEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun showGreeting() {
