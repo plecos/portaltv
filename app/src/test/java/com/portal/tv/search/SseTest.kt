@@ -63,4 +63,28 @@ class SseTest {
         assertNull(delta.name)
         assertEquals("{\"a\":1}", delta.arguments)
     }
+
+    @Test
+    fun aFinishReasonMarksTheEndOfTheAnswer() {
+        assertEquals(true, Sse.isFinal("""data: {"choices":[{"delta":{},"finish_reason":"stop"}]}"""))
+        assertEquals(true, Sse.isFinal("""data: {"choices":[{"delta":{"content":"."},"finish_reason":"length"}]}"""))
+        assertEquals(true, Sse.isFinal("""data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}"""))
+    }
+
+    @Test
+    fun noFinishReasonMeansTheAnswerGoesOn() {
+        assertEquals(false, Sse.isFinal("""data: {"choices":[{"delta":{"content":"Hi"}}]}"""))
+        assertEquals(false, Sse.isFinal("""data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":null}]}"""))
+        assertEquals(false, Sse.isFinal("""data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":""}]}"""))
+        assertEquals(false, Sse.isFinal("""data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":"null"}]}"""))
+        assertEquals(false, Sse.isFinal("""data: {"choices":[]}"""))
+    }
+
+    @Test
+    fun linesThatAreNotFinishChunksAreNotFinal() {
+        assertEquals(false, Sse.isFinal("data: [DONE]"))
+        assertEquals(false, Sse.isFinal(""))
+        assertEquals(false, Sse.isFinal(": keep-alive"))
+        assertEquals(false, Sse.isFinal("data: not json"))
+    }
 }

@@ -121,6 +121,20 @@ class SearchDialogFragment : DialogFragment() {
         setStyle(STYLE_NORMAL, R.style.Theme_Portal_Search)
     }
 
+    /** This panel is a window of its own, so the activity never sees the keys and touches in it; say they happened. */
+    override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog =
+        object : androidx.activity.ComponentDialog(requireContext(), theme) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                (activity as? com.portal.tv.PortalActivity)?.noteActivity()
+                return super.dispatchKeyEvent(event)
+            }
+
+            override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+                (activity as? com.portal.tv.PortalActivity)?.noteActivity()
+                return super.dispatchTouchEvent(ev)
+            }
+        }
+
     override fun onStart() {
         super.onStart()
         dialog?.window?.apply {
@@ -152,7 +166,12 @@ class SearchDialogFragment : DialogFragment() {
                 if (!speaking) clearHighlight()
             }
         }
-        Speaker.onWord = { word -> if (isAdded) highlightWord(word) }
+        Speaker.onWord = { word ->
+            if (isAdded) {
+                (activity as? com.portal.tv.PortalActivity)?.noteActivity()   // being read to is using the TV too
+                highlightWord(word)
+            }
+        }
         // Wake the voice now if replies may be spoken, so the first sentence isn't held up by its start-up.
         if (SearchSettings.spoken(context, active.id) != SearchSettings.SpokenReplies.OFF && Speaker.isAvailable(context)) {
             Speaker.voiceName = SearchSettings.voice(context, active.id)
@@ -186,7 +205,9 @@ class SearchDialogFragment : DialogFragment() {
 
         input.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                (activity as? com.portal.tv.PortalActivity)?.noteActivity()
+            }
             override fun afterTextChanged(s: Editable?) = refreshMatches()
         })
         input.setOnEditorActionListener { _, actionId, event ->
@@ -386,6 +407,8 @@ class SearchDialogFragment : DialogFragment() {
             val reply = withContext(Dispatchers.IO) {
                 LlmClient.streamWithTools(base, model, key, messages, offered) { piece ->
                     partial.append(piece)
+                    // An answer being written is somebody using the TV, even if nobody is pressing keys.
+                    (activity as? com.portal.tv.PortalActivity)?.runOnUiThread { (activity as? com.portal.tv.PortalActivity)?.noteActivity() }
                     // A tool call a model writes as text (<tool_call>...) is run, not shown or spoken.
                     val visible = ToolCallText.visiblePrefix(partial.toString())
                     if (speakReply && visible.length > shown[0]) {
