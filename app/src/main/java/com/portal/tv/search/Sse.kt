@@ -55,6 +55,24 @@ object Sse {
     }
 
     /**
+     * Whether this line says the answer is complete: its choice carries a finish reason ("stop", "tool_calls", "length"
+     * and so on). Servers should follow it with [DONE] and close the connection, but some do neither, and waiting for them
+     * leaves the answer looking unfinished until the read times out.
+     */
+    fun isFinal(line: String): Boolean {
+        if (!line.startsWith("data:")) return false
+        val data = line.removePrefix("data:").trim()
+        if (data.isEmpty() || data == "[DONE]") return false
+        return try {
+            val reason = JSONObject(data).optJSONArray("choices")?.optJSONObject(0)?.takeUnless { it.isNull("finish_reason") }
+                ?.optString("finish_reason").orEmpty()
+            reason.isNotEmpty() && reason != "null"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * The text under [key], or empty if it is missing or a JSON null. (org.json's optString turns a
      * null into the word "null", which is how a server's empty first chunk came to show as a reply.)
      */
