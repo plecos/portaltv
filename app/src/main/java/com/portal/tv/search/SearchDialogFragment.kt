@@ -374,9 +374,11 @@ class SearchDialogFragment : DialogFragment() {
         while (true) {
             val openApp = apps.isNotEmpty() && SearchSettings.toolsSupported(context)
             val web = !profile.isKids && SearchSettings.toolsSupported(context) && SearchSettings.isWebSearchReady(context)
-            val tools = Tools.definitions(openApp, web)
+            // A kid can't set reminders, so the model isn't told it can.
+            val reminders = !profile.isKids && SearchSettings.toolsSupported(context)
+            val tools = Tools.definitions(openApp, web, reminders)
             val messages = ChatPrompt.build(
-                history, profile.isKids, summary.ifEmpty { null }, Tools.note(openApp, web)
+                history, profile.isKids, summary.ifEmpty { null }, Tools.note(openApp, web, reminders)
             ).toMutableList()
             try {
                 return runChat(bubble, base, model, key, messages, tools, web)
@@ -452,6 +454,7 @@ class SearchDialogFragment : DialogFragment() {
     private suspend fun runTool(call: ToolCall, bubble: TextView, web: Boolean): String = when (call.name) {
         Tools.OPEN_APP -> openAppTool(call, bubble)
         Tools.WEB_SEARCH -> if (web) webSearchTool(call, bubble) else "Web search isn't available."
+        Tools.SET_REMINDER -> setReminderTool(call, bubble)
         else -> "Unknown tool ${call.name}."
     }
 
@@ -467,6 +470,50 @@ class SearchDialogFragment : DialogFragment() {
         bubble.text = "Opening ${app.label}…"
         pendingLaunch = app
         return "Opening ${app.label} now."
+    }
+
+    /**
+     * The model proposes a reminder; the person sees it and says yes or no before anything is saved, so a model that
+     * misreads a date, or a web page that tries to steer it, can't leave reminders behind.
+     */
+    private suspend fun setReminderTool(call: ToolCall, bubble: TextView): String {
+        if (profile.isKids) return "Reminders aren't available."
+        val context = requireContext()
+        val proposal = when (val r = ReminderTool.parse(call.arguments)) {
+            is ReminderTool.Result.Error -> return r.message
+            is ReminderTool.Result.Ok -> r
+        }
+        val whenText = com.portal.tv.reminders.ReminderLogic.whenLabel(proposal.atMillis, System.currentTimeMillis()) +
+            if (proposal.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else ", " + proposal.repeat.label.lowercase()
+        stopDots()
+        bubble.text = "Setting a reminder…"
+        val yes = kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { cont ->
+            var answered = false
+            fun answer(value: Boolean) {
+                if (answered) return
+                answered = true
+                if (cont.isActive) cont.resumeWith(Result.success(value))
+            }
+            val dialog = com.portal.tv.ui.PortalDialog.Builder(context)
+                .setTitle("Set this reminder?")
+                .setMessage("${proposal.title}\n$whenText  ·  for ${profile.name}")
+                .setPositiveButton("Add reminder") { _, _ -> answer(true) }
+                .setNegativeButton("No thanks") { _, _ -> answer(false) }
+                .setOnCancelListener { answer(false) }
+                .setOnDismissListener { answer(false) }
+                .show()
+            cont.invokeOnCancellation { dialog.dismiss() }
+        }
+        if (!yes) {
+            addNote("Reminder not set: ${proposal.title}", bubble)
+            startDots(bubble, "Thinking")
+            return "The user declined that reminder, so it was not set."
+        }
+        com.portal.tv.reminders.ReminderStore.add(context, profile.id, proposal.title, proposal.atMillis, proposal.repeat)
+        addNote("Reminder set · ${proposal.title} · $whenText", bubble)
+        val overApps = android.provider.Settings.canDrawOverlays(context)
+        return "Reminder set for $whenText: \"${proposal.title}\"." +
+            if (overApps) "" else " It will be an ordinary notification, because Portal isn't allowed to show over other apps yet (Settings, Reminders)."
     }
 
     private suspend fun webSearchTool(call: ToolCall, bubble: TextView): String {
