@@ -10,16 +10,17 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.ImageView
@@ -37,9 +38,11 @@ import kotlinx.coroutines.launch
 
 /**
  * Keeps time for reminders while there is one to wait for. When one is due it shows a card across the top of the
- * screen, over whatever app is open, with the name and picture of the profile that set it and a tone. The card doesn't
- * take the remote, so the app keeps working, and it goes by itself after [BANNER_MS]. Without "Display over other
- * apps" the reminder is an ordinary notification instead.
+ * screen, over whatever app is open, with the name and picture of the profile that set it and the sound it was set to
+ * make. A reminder set to go by itself leaves after [BANNER_MS] and doesn't take the remote, so the app keeps working.
+ * One set to stay until dismissed, or with Snooze, has buttons and takes the remote until it is dealt with (Back
+ * dismisses). Several due together share one card. Without "Display over other apps" the reminder is an ordinary
+ * notification instead.
  *
  * It looks at the clock every [TICK_MS] and stops itself when no reminders are left. [BootReceiver] starts it again
  * after the TV restarts. What happens to a reminder that came due while the TV was off is [MissedPolicy].
@@ -50,7 +53,10 @@ class ReminderService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var windows: WindowManager
     private var banner: LinearLayout? = null
-    private val showing = mutableListOf<Firing>()
+
+    /** A reminder on the card. [until] is when it goes by itself (uptime milliseconds), or null if it waits to be dismissed. */
+    private class Active(val firing: Firing, val until: Long?)
+    private val active = mutableListOf<Active>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -67,7 +73,7 @@ class ReminderService : Service() {
             while (true) {
                 runCatching { tick() }.onFailure { Log.w(TAG, "Reminder check failed: ${it.message}") }
                 // Nothing left to wait for, and no card still on screen (stopping would take it down).
-                if (ReminderStore.all(this@ReminderService).isEmpty() && banner == null) break
+                if (ReminderStore.all(this@ReminderService).isEmpty() && active.isEmpty()) break
                 delay(TICK_MS)
             }
             stopSelf()
@@ -79,6 +85,7 @@ class ReminderService : Service() {
         looping = false
         scope.cancel()
         handler.removeCallbacksAndMessages(null)
+        active.clear()
         removeBanner()
         super.onDestroy()
     }
@@ -101,9 +108,40 @@ class ReminderService : Service() {
     // ---------- Card over the app ----------
 
     private fun showBanner(fired: List<Firing>) {
-        // One that arrives while another is showing joins it; the card stays up for a fresh [BANNER_MS].
-        showing += fired
+        val now = SystemClock.uptimeMillis()
+        // One that arrives while others are showing joins them.
+        active += fired.map { Active(it, if (it.reminder.manual) null else now + BANNER_MS) }
+        // One sound for the lot: the first that isn't set to silent.
+        fired.firstOrNull { it.reminder.tone != ReminderTones.NONE }?.let { TonePlayer.play(this, it.reminder.tone) }
+        render()
+    }
+
+    private val expire = Runnable {
+        val now = SystemClock.uptimeMillis()
+        if (active.removeAll { it.until != null && it.until <= now }) render() else scheduleExpiry()
+    }
+
+    private fun scheduleExpiry() {
+        handler.removeCallbacks(expire)
+        active.mapNotNull { it.until }.minOrNull()?.let { handler.postAtTime(expire, it) }
+    }
+
+    private fun dismiss(a: Active) {
+        active.remove(a)
+        render()
+    }
+
+    private fun snooze(a: Active) {
+        val later = ReminderLogic.snoozed(a.firing.reminder, System.currentTimeMillis())
+        ReminderStore.add(this, later.profileId, later.title, later.atMillis, later.repeat, like = later)
+        dismiss(a)
+    }
+
+    /** Draws the card for what is [active], or takes it down when nothing is. */
+    private fun render() {
         removeBanner()
+        scheduleExpiry()
+        if (active.isEmpty()) return
         val d = resources.displayMetrics.density
         fun px(v: Int) = (v * d).toInt()
         fun text(sp: Float, bold: Boolean, color: Int = Color.WHITE) = TextView(this).apply {
@@ -113,8 +151,37 @@ class ReminderService : Service() {
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
         }
+        fun button(label: String, onClick: () -> Unit) = TextView(this).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTextColor(Color.WHITE)
+            typeface = resources.getFont(R.font.inter)
+            this.text = label
+            gravity = Gravity.CENTER
+            setPadding(px(26), px(10), px(26), px(10))
+            isFocusable = true
+            isClickable = true
+            fun look(focused: Boolean) {
+                background = GradientDrawable().apply {
+                    cornerRadius = px(14).toFloat()
+                    setColor(if (focused) Color.rgb(138, 131, 255) else Color.rgb(52, 55, 90))
+                    if (focused) setStroke(px(3), Color.WHITE)
+                }
+            }
+            look(false)
+            setOnFocusChangeListener { _, focused -> look(focused) }
+            setOnClickListener { onClick() }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                .apply { marginEnd = px(14) }
+        }
         val now = System.currentTimeMillis()
-        val view = LinearLayout(this).apply {
+        val view = object : LinearLayout(this) {
+            // Back dismisses what is on the card (Snooze is the button for putting it off).
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
+                if (event.action == KeyEvent.ACTION_UP) { active.removeAll { it.firing.reminder.needsButtons }; render() }
+                return true
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
             setPadding(px(28), px(20), px(32), px(20))
             background = GradientDrawable().apply {
@@ -123,8 +190,10 @@ class ReminderService : Service() {
                 setStroke(px(3), Color.rgb(138, 131, 255))
             }
         }
-        val shown = showing.takeLast(MAX_SHOWN)
-        shown.forEachIndexed { i, f ->
+        var firstButton: View? = null
+        val shown = active.takeLast(MAX_SHOWN)
+        shown.forEachIndexed { i, a ->
+            val f = a.firing
             val profile = ProfileManager.getById(this, f.reminder.profileId)
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -141,42 +210,42 @@ class ReminderService : Service() {
                     if (f.late) "MISSED, WAS DUE ${ReminderLogic.whenLabel(f.reminder.atMillis, now).uppercase()}" else "REMINDER"
             })
             words.addView(text(30f, true).apply { this.text = f.reminder.title })
+            if (f.reminder.needsButtons) {
+                val buttons = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, px(12), 0, 0)
+                }
+                if (f.reminder.snoozeMinutes > 0) buttons.addView(button("Snooze ${f.reminder.snoozeMinutes} min") { snooze(a) }.also { if (firstButton == null) firstButton = it })
+                buttons.addView(button("Dismiss") { dismiss(a) }.also { if (firstButton == null) firstButton = it })
+                words.addView(buttons)
+            }
             row.addView(words, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             view.addView(row)
         }
-        if (showing.size > shown.size) view.addView(text(16f, false, Color.rgb(176, 176, 192)).apply {
-            this.text = "+${showing.size - shown.size} more"
+        if (active.size > shown.size) view.addView(text(16f, false, Color.rgb(176, 176, 192)).apply {
+            this.text = "+${active.size - shown.size} more"
             setPadding(0, px(10), 0, 0)
         })
         banner = view
+        // A card with buttons takes the remote; one without leaves it to the app underneath.
+        val takesRemote = firstButton != null
         windows.addView(view, WindowManager.LayoutParams(
             (resources.displayMetrics.widthPixels * 0.7f).toInt(),
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            // Not focusable, so the app underneath keeps the remote.
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                if (takesRemote) WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             y = px(36)
         })
-        tone()
-        handler.removeCallbacksAndMessages(HIDE)
-        handler.postAtTime({ if (banner === view) { removeBanner(); showing.clear() } }, HIDE, android.os.SystemClock.uptimeMillis() + BANNER_MS)
+        firstButton?.let { b -> view.post { b.requestFocus() } }
     }
 
     private fun removeBanner() {
         banner?.let { runCatching { windows.removeView(it) } }
         banner = null
-    }
-
-    /** Two short beeps, on the alarm volume so they're heard even when the TV's media is quiet. */
-    private fun tone() {
-        runCatching {
-            val generator = ToneGenerator(AudioManager.STREAM_ALARM, 90)
-            repeat(2) { i -> handler.postDelayed({ generator.startTone(ToneGenerator.TONE_PROP_BEEP2, 350) }, i * 600L) }
-            handler.postDelayed({ generator.release() }, 2_000L)
-        }
     }
 
     // ---------- Without permission to draw over apps ----------
@@ -216,7 +285,6 @@ class ReminderService : Service() {
         private const val TICK_MS = 10_000L
         private const val MAX_SHOWN = 3
         const val BANNER_MS = 30_000L
-        private val HIDE = Any()
 
         @Volatile private var looping = false
 

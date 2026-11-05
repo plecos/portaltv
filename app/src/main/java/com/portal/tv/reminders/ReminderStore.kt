@@ -1,8 +1,6 @@
 package com.portal.tv.reminders
 
 import android.content.Context
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * Every profile's reminders, in one place: a reminder is set by a profile but has to fire whoever is using the TV, so
@@ -18,30 +16,17 @@ object ReminderStore {
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** All reminders, soonest first. */
-    fun all(context: Context): List<Reminder> {
-        val json = prefs(context).getString(KEY, null) ?: return emptyList()
-        return try {
-            val arr = JSONArray(json)
-            (0 until arr.length()).map { i ->
-                val o = arr.getJSONObject(i)
-                Reminder(
-                    id = o.getInt("id"),
-                    profileId = o.getInt("profile"),
-                    title = o.getString("title"),
-                    atMillis = o.getLong("at"),
-                    repeat = Reminder.Repeat.values().firstOrNull { it.name == o.optString("repeat") } ?: Reminder.Repeat.NONE
-                )
-            }.sortedBy { it.atMillis }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    fun all(context: Context): List<Reminder> = ReminderJson.decode(prefs(context).getString(KEY, null))
 
     fun forProfile(context: Context, profileId: Int): List<Reminder> = all(context).filter { it.profileId == profileId }
 
-    fun add(context: Context, profileId: Int, title: String, atMillis: Long, repeat: Reminder.Repeat): Reminder {
+    /** Adds a reminder; [like] carries the sound, dismissal and snooze settings over (its id, profile, title and time are ignored). */
+    fun add(
+        context: Context, profileId: Int, title: String, atMillis: Long, repeat: Reminder.Repeat, like: Reminder? = null
+    ): Reminder {
         val id = prefs(context).getInt(KEY_NEXT_ID, 1)
-        val reminder = Reminder(id, profileId, title.trim(), atMillis, repeat)
+        val reminder = (like ?: Reminder(id, profileId, "", atMillis))
+            .copy(id = id, profileId = profileId, title = title.trim(), atMillis = atMillis, repeat = repeat)
         persist(context, all(context) + reminder, id + 1)
         ReminderService.ensureRunning(context)
         return reminder
@@ -71,16 +56,8 @@ object ReminderStore {
     }
 
     private fun persist(context: Context, reminders: List<Reminder>, nextId: Int?) {
-        val arr = JSONArray()
-        reminders.forEach {
-            arr.put(
-                JSONObject()
-                    .put("id", it.id).put("profile", it.profileId).put("title", it.title)
-                    .put("at", it.atMillis).put("repeat", it.repeat.name)
-            )
-        }
         prefs(context).edit().apply {
-            putString(KEY, arr.toString())
+            putString(KEY, ReminderJson.encode(reminders))
             if (nextId != null) putInt(KEY_NEXT_ID, nextId)
         }.apply()
     }

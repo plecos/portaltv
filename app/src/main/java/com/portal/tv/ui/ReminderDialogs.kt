@@ -11,6 +11,8 @@ import com.portal.tv.R
 import com.portal.tv.data.Profile
 import com.portal.tv.reminders.Reminder
 import com.portal.tv.reminders.ReminderStore
+import com.portal.tv.reminders.ReminderTones
+import com.portal.tv.reminders.TonePlayer
 import com.portal.tv.settings.BirthdayStore
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -41,6 +43,9 @@ object ReminderDialogs {
         var minute = start.minute
         var pm = start.hour >= 12
         var repeat = existing?.repeat ?: Reminder.Repeat.NONE
+        var tone = existing?.tone ?: ReminderTones.DEFAULT
+        var manual = existing?.manual ?: false
+        var snooze = existing?.snoozeMinutes ?: 0
 
         val title = EditText(context).apply {
             hint = "What to remind you of"
@@ -49,24 +54,28 @@ object ReminderDialogs {
             setPadding(px(16), px(16), px(16), px(16))
         }
 
-        fun chip() = TextView(context).apply {
+        // The date and time share one row, so their buttons are tighter.
+        fun chip(compact: Boolean = false) = TextView(context).apply {
             textSize = 18f
             typeface = context.resources.getFont(R.font.inter)
             setTextColor(context.resources.getColor(R.color.text_primary, null))
             gravity = Gravity.CENTER
-            setPadding(px(24), 0, px(24), 0)
+            setPadding(px(if (compact) 14 else 24), 0, px(if (compact) 14 else 24), 0)
             minHeight = px(48)
             setBackgroundResource(R.drawable.bg_settings_tile)
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                .apply { marginEnd = px(12) }
+                .apply { marginEnd = px(if (compact) 8 else 12) }
         }
-        val monthChip = chip()
-        val dayChip = chip()
-        val hourChip = chip()
-        val minuteChip = chip()
-        val ampmChip = chip()
+        val monthChip = chip(compact = true)
+        val dayChip = chip(compact = true)
+        val hourChip = chip(compact = true)
+        val minuteChip = chip(compact = true)
+        val ampmChip = chip(compact = true)
         val repeatChip = chip()
+        val toneChip = chip()
+        val dismissChip = chip()
+        val snoozeChip = chip()
         val monthNames = java.time.Month.values().map { it.getDisplayName(TextStyle.FULL, Locale.getDefault()) }
 
         fun show() {
@@ -76,6 +85,9 @@ object ReminderDialogs {
             minuteChip.text = "%02d".format(minute)
             ampmChip.text = if (pm) "PM" else "AM"
             repeatChip.text = repeat.label
+            toneChip.text = "Tone: " + TonePlayer.label(context, tone)
+            dismissChip.text = if (manual) "Dismiss: manual" else "Dismiss: automatic"
+            snoozeChip.text = "Snooze: " + ReminderTones.snoozeLabel(snooze)
         }
 
         fun pick(heading: String, labels: List<String>, current: Int, chosen: (Int) -> Unit) {
@@ -105,6 +117,23 @@ object ReminderDialogs {
             val all = Reminder.Repeat.values().toList()
             pick("Repeat", all.map { it.label }, all.indexOf(repeat)) { repeat = all[it] }
         }
+        toneChip.setOnClickListener {
+            val all = TonePlayer.choices(context)
+            val at = all.indexOfFirst { it.key == tone }.coerceAtLeast(0)
+            // Choosing one plays it, so you hear what you picked.
+            pick("Tone", all.map { it.label }, at) { tone = all[it].key; TonePlayer.play(context, tone) }
+        }
+        dismissChip.setOnClickListener {
+            pick("The card on the screen", listOf("Goes away by itself after 30 seconds", "Stays until I dismiss it"), if (manual) 1 else 0) {
+                manual = it == 1
+            }
+        }
+        snoozeChip.setOnClickListener {
+            val all = ReminderTones.snoozeChoices
+            pick("Snooze button", all.map { if (it == 0) "No snooze button" else "Snooze for ${it} minutes" }, all.indexOf(snooze).coerceAtLeast(0)) {
+                snooze = all[it]
+            }
+        }
         show()
 
         fun row(vararg views: TextView) = LinearLayout(context).apply {
@@ -116,9 +145,9 @@ object ReminderDialogs {
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(8), px(24), 0)
             addView(title)
-            addView(row(monthChip, dayChip))
-            addView(row(hourChip, minuteChip, ampmChip))
-            addView(row(repeatChip))
+            addView(row(monthChip, dayChip, hourChip, minuteChip, ampmChip))
+            addView(row(repeatChip, toneChip))
+            addView(row(dismissChip, snoozeChip))
         }
 
         val builder = PortalDialog.Builder(context)
@@ -130,8 +159,15 @@ object ReminderDialogs {
                 when {
                     what.isEmpty() -> Toast.makeText(context, "Say what to remind you of", Toast.LENGTH_SHORT).show()
                     at == null -> Toast.makeText(context, "That time has already passed", Toast.LENGTH_SHORT).show()
-                    existing == null -> { ReminderStore.add(context, profile.id, what, at, repeat); onChanged() }
-                    else -> { ReminderStore.update(context, existing.copy(title = what, atMillis = at, repeat = repeat)); onChanged() }
+                    existing == null -> {
+                        val like = Reminder(0, profile.id, what, at, repeat, tone, manual, snooze)
+                        ReminderStore.add(context, profile.id, what, at, repeat, like = like)
+                        onChanged()
+                    }
+                    else -> {
+                        ReminderStore.update(context, existing.copy(title = what, atMillis = at, repeat = repeat, tone = tone, manual = manual, snoozeMinutes = snooze))
+                        onChanged()
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)
