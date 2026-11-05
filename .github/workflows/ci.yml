@@ -15,6 +15,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25   # a normal run takes about 4; a stuck one should fail by itself
     steps:
       - uses: actions/checkout@v7
         with:
