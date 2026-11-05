@@ -454,7 +454,7 @@ class SearchDialogFragment : DialogFragment() {
     private suspend fun runTool(call: ToolCall, bubble: TextView, web: Boolean): String = when (call.name) {
         Tools.OPEN_APP -> openAppTool(call, bubble)
         Tools.WEB_SEARCH -> if (web) webSearchTool(call, bubble) else "Web search isn't available."
-        Tools.SET_REMINDER -> setReminderTool(call, bubble)
+        Tools.SET_REMINDER, Tools.LIST_REMINDERS, Tools.UPDATE_REMINDER, Tools.DELETE_REMINDER -> reminderTool(call, bubble)
         else -> "Unknown tool ${call.name}."
     }
 
@@ -473,47 +473,96 @@ class SearchDialogFragment : DialogFragment() {
     }
 
     /**
-     * The model proposes a reminder; the person sees it and says yes or no before anything is saved, so a model that
-     * misreads a date, or a web page that tries to steer it, can't leave reminders behind.
+     * The reminder tools. The model can only see and change the active profile's reminders, and anything that changes
+     * something is proposed first: the person sees it and says yes or no before it happens, so a model that misreads a
+     * date, or a web page that tries to steer it, can't add, change or delete reminders on its own.
      */
-    private suspend fun setReminderTool(call: ToolCall, bubble: TextView): String {
+    private suspend fun reminderTool(call: ToolCall, bubble: TextView): String {
         if (profile.isKids) return "Reminders aren't available."
         val context = requireContext()
-        val proposal = when (val r = ReminderTool.parse(call.arguments)) {
-            is ReminderTool.Result.Error -> return r.message
-            is ReminderTool.Result.Ok -> r
+        val now = System.currentTimeMillis()
+        val mine = com.portal.tv.reminders.ReminderStore.forProfile(context, profile.id)
+        return when (call.name) {
+            Tools.LIST_REMINDERS -> ReminderTool.listText(mine)
+            Tools.SET_REMINDER -> {
+                val p = when (val r = ReminderTool.parse(call.arguments)) {
+                    is ReminderTool.Result.Error -> return r.message
+                    is ReminderTool.Result.Ok -> r
+                }
+                mine.firstOrNull { it.atMillis == p.atMillis && it.title.equals(p.title, ignoreCase = true) }
+                    ?.let { return "That reminder already exists (id ${it.id})." }
+                val draft = com.portal.tv.reminders.Reminder(0, profile.id, p.title, p.atMillis, p.repeat, p.tone, p.manual, p.snoozeMinutes)
+                if (!confirmReminder(bubble, "Set this reminder?", ReminderTool.summary(draft, now) + "  ·  for ${profile.name}", "Add reminder")) {
+                    return declined(bubble, "Reminder not set: ${p.title}")
+                }
+                com.portal.tv.reminders.ReminderStore.add(context, profile.id, p.title, p.atMillis, p.repeat, like = draft)
+                addNote("Reminder set · ${p.title} · ${com.portal.tv.reminders.ReminderLogic.whenLabel(p.atMillis, now)}", bubble)
+                "Reminder set for ${com.portal.tv.reminders.ReminderLogic.whenLabel(p.atMillis, now)}: \"${p.title}\"." + overlayWarning(context)
+            }
+            Tools.UPDATE_REMINDER -> {
+                val u = when (val r = ReminderTool.parseUpdate(call.arguments)) {
+                    is ReminderTool.UpdateResult.Error -> return r.message
+                    is ReminderTool.UpdateResult.Ok -> r
+                }
+                val old = mine.firstOrNull { it.id == u.id } ?: return noSuchReminder(u.id)
+                val changed = ReminderTool.apply(old, u.edits)
+                if (!confirmReminder(bubble, "Change this reminder?",
+                        ReminderTool.summary(old, now) + "\n\nTo:\n" + ReminderTool.summary(changed, now), "Change it")) {
+                    return declined(bubble, "Reminder not changed: ${old.title}")
+                }
+                com.portal.tv.reminders.ReminderStore.update(context, changed)
+                addNote("Reminder changed · ${changed.title} · ${com.portal.tv.reminders.ReminderLogic.whenLabel(changed.atMillis, now)}", bubble)
+                "Reminder ${old.id} changed." + overlayWarning(context)
+            }
+            Tools.DELETE_REMINDER -> {
+                val id = ReminderTool.parseId(call.arguments) ?: return "No reminder id was given. Use ${Tools.LIST_REMINDERS} to find it."
+                val old = mine.firstOrNull { it.id == id } ?: return noSuchReminder(id)
+                if (!confirmReminder(bubble, "Delete this reminder?", ReminderTool.summary(old, now), "Delete", destructive = true)) {
+                    return declined(bubble, "Reminder not deleted: ${old.title}")
+                }
+                com.portal.tv.reminders.ReminderStore.remove(context, old.id)
+                addNote("Reminder deleted · ${old.title}", bubble)
+                "Reminder ${old.id} (\"${old.title}\") deleted."
+            }
+            else -> "Unknown tool ${call.name}."
         }
-        val whenText = com.portal.tv.reminders.ReminderLogic.whenLabel(proposal.atMillis, System.currentTimeMillis()) +
-            if (proposal.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else ", " + proposal.repeat.label.lowercase()
+    }
+
+    private fun noSuchReminder(id: Int) = "There is no reminder with id $id. Use ${Tools.LIST_REMINDERS} to see the current ones."
+
+    private fun overlayWarning(context: Context) =
+        if (android.provider.Settings.canDrawOverlays(context)) ""
+        else " It will be an ordinary notification, because Portal isn't allowed to show over other apps yet (Settings, Reminders)."
+
+    private fun declined(bubble: TextView, note: String): String {
+        addNote(note, bubble)
+        startDots(bubble, "Thinking")
+        return "The user declined, so nothing was changed."
+    }
+
+    /** Shows what the model wants to do and waits for the person to say yes or no. Backing out counts as no. */
+    private suspend fun confirmReminder(bubble: TextView, title: String, message: String, yes: String, destructive: Boolean = false): Boolean {
+        val context = requireContext()
         stopDots()
-        bubble.text = "Setting a reminder…"
-        val yes = kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { cont ->
+        bubble.text = "Waiting for you to confirm…"
+        return kotlinx.coroutines.suspendCancellableCoroutine { cont ->
             var answered = false
             fun answer(value: Boolean) {
                 if (answered) return
                 answered = true
                 if (cont.isActive) cont.resumeWith(Result.success(value))
             }
-            val dialog = com.portal.tv.ui.PortalDialog.Builder(context)
-                .setTitle("Set this reminder?")
-                .setMessage("${proposal.title}\n$whenText  ·  for ${profile.name}")
-                .setPositiveButton("Add reminder") { _, _ -> answer(true) }
+            val builder = com.portal.tv.ui.PortalDialog.Builder(context)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(yes) { _, _ -> answer(true) }
                 .setNegativeButton("No thanks") { _, _ -> answer(false) }
                 .setOnCancelListener { answer(false) }
                 .setOnDismissListener { answer(false) }
-                .show()
+            if (destructive) builder.setDestructive()
+            val dialog = builder.show()
             cont.invokeOnCancellation { dialog.dismiss() }
         }
-        if (!yes) {
-            addNote("Reminder not set: ${proposal.title}", bubble)
-            startDots(bubble, "Thinking")
-            return "The user declined that reminder, so it was not set."
-        }
-        com.portal.tv.reminders.ReminderStore.add(context, profile.id, proposal.title, proposal.atMillis, proposal.repeat)
-        addNote("Reminder set · ${proposal.title} · $whenText", bubble)
-        val overApps = android.provider.Settings.canDrawOverlays(context)
-        return "Reminder set for $whenText: \"${proposal.title}\"." +
-            if (overApps) "" else " It will be an ordinary notification, because Portal isn't allowed to show over other apps yet (Settings, Reminders)."
     }
 
     private suspend fun webSearchTool(call: ToolCall, bubble: TextView): String {
