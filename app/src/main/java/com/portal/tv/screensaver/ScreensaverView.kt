@@ -41,8 +41,8 @@ import java.util.Locale
 
 /**
  * The screen saver: the videos in shuffled order, fading through black between them (or, when the
- * background is a shader, that shader), with only the time and weather on top. That block drifts to a new corner every minute so no
- * pixel stays lit. Overnight it can dim or go fully black (see [ScreensaverSettings]).
+ * background is a shader, that shader), with only the time and weather on top. That block bounces around the screen, off
+ * every edge, like the logo on an old DVD player, so no pixel stays lit. Overnight it can dim or go fully black (see [ScreensaverSettings]).
  *
  * Used by both the in-app idle timer ([ScreensaverFragment]) and the system screen saver
  * ([ScreensaverService]); it plays while attached to a window and stops when detached.
@@ -75,7 +75,6 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     private var failures = 0
     private var playing = false
     private var blackout = false
-    private var cornerIndex = -1
     private var playJob: Job? = null
 
     /** The shader being shown instead of videos, when the profile's background is a shader. */
@@ -87,11 +86,25 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
             ui.postDelayed(this, 1000)
         }
     }
-    private val drift = object : Runnable {
+    /** Once a minute, checks whether it has become (or stopped being) night. */
+    private val minuteTick = object : Runnable {
         override fun run() {
-            moveClock()
             applyNight()
-            ui.postDelayed(this, DRIFT_MS)
+            ui.postDelayed(this, MINUTE_MS)
+        }
+    }
+
+    // The clock's place on the screen, in pixels from the top left, and its speed in each direction.
+    private var bounceX = 0f
+    private var bounceY = 0f
+    private var speedX = 0f
+    private var speedY = 0f
+    private var placed = false
+    private var lastFrameNanos = 0L
+    private val bounce = object : Runnable {
+        override fun run() {
+            stepBounce()
+            if (isAttachedToWindow && !blackout) postOnAnimation(this)
         }
     }
 
@@ -107,7 +120,10 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         addView(textureView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(fade, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(nightShade, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        addView(clockBlock, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+        // The clock sits at the top left and is moved from there by [stepBounce].
+        addView(clockBlock, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.TOP or Gravity.START
+        })
     }
 
     override fun onAttachedToWindow() {
@@ -119,8 +135,8 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         if (shader != null) ui.postDelayed({ if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }, 300)
         showGreeting()
         tick.run()
-        moveClock(animate = false)
-        ui.postDelayed(drift, DRIFT_MS)
+        ui.postDelayed(minuteTick, MINUTE_MS)
+        postOnAnimation(bounce)
         applyNight()
         refreshWeatherLoop()
 
@@ -146,6 +162,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         ui.removeCallbacksAndMessages(null)
+        removeCallbacks(bounce)
         stopShader()
         stopPlaylist()
         scope?.cancel()
@@ -318,6 +335,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         blackout = black
         applyVolume()
         clockBlock.visibility = if (black) View.INVISIBLE else View.VISIBLE
+        if (black) removeCallbacks(bounce) else { lastFrameNanos = 0L; postOnAnimation(bounce) }
         if (black) {
             fade.alpha = 1f
             stopPlaylist()
@@ -333,30 +351,40 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
 
     // ---------- Clock and weather ----------
 
-    /** Moves the clock to a different corner, fading out and back in. */
-    private fun moveClock(animate: Boolean = true) {
-        val gravities = listOf(
-            Gravity.TOP or Gravity.START, Gravity.TOP or Gravity.END,
-            Gravity.BOTTOM or Gravity.START, Gravity.BOTTOM or Gravity.END
-        )
-        var next: Int
-        do { next = gravities.indices.random() } while (next == cornerIndex && gravities.size > 1)
-        val apply = {
-            cornerIndex = next
-            clockBlock.layoutParams = (clockBlock.layoutParams as LayoutParams).apply {
-                gravity = gravities[next]
-                setMargins(dp(72), dp(56), dp(72), dp(56))
-            }
-            clockBlock.requestLayout()
+    /**
+     * Moves the clock a little, at a steady speed, turning back when it reaches an edge: the way the logo bounced round
+     * the screen of an old DVD player. The distance covered depends on the time since the last frame, so the speed is
+     * the same however fast frames come.
+     */
+    private fun stepBounce() {
+        val w = width
+        val h = height
+        val blockW = clockBlock.width
+        val blockH = clockBlock.height
+        if (w == 0 || h == 0 || blockW == 0 || blockH == 0) { lastFrameNanos = 0L; return }
+        // Kept a little in from the edges, since some TVs hide a strip around the picture.
+        val margin = dp(40).toFloat()
+        val maxX = (w - blockW - margin).coerceAtLeast(margin)
+        val maxY = (h - blockH - margin).coerceAtLeast(margin)
+        if (!placed) {
+            placed = true
+            bounceX = margin + Math.random().toFloat() * (maxX - margin)
+            bounceY = margin + Math.random().toFloat() * (maxY - margin)
+            val pace = dp(PACE_DP).toFloat()
+            speedX = if (Math.random() < 0.5) pace else -pace
+            speedY = if (Math.random() < 0.5) pace * 0.7f else -pace * 0.7f
         }
-        if (!animate || cornerIndex == -1) {
-            apply()
-            return
-        }
-        clockBlock.animate().alpha(0f).setDuration(CLOCK_FADE_MS).withEndAction {
-            apply()
-            clockBlock.animate().alpha(1f).setDuration(CLOCK_FADE_MS).start()
-        }.start()
+        val now = System.nanoTime()
+        val seconds = if (lastFrameNanos == 0L) 0f else ((now - lastFrameNanos) / 1e9f).coerceAtMost(0.1f)
+        lastFrameNanos = now
+        bounceX += speedX * seconds
+        bounceY += speedY * seconds
+        if (bounceX < margin) { bounceX = margin; speedX = Math.abs(speedX) }
+        if (bounceX > maxX) { bounceX = maxX; speedX = -Math.abs(speedX) }
+        if (bounceY < margin) { bounceY = margin; speedY = Math.abs(speedY) }
+        if (bounceY > maxY) { bounceY = maxY; speedY = -Math.abs(speedY) }
+        clockBlock.translationX = bounceX
+        clockBlock.translationY = bounceY
     }
 
     private fun refreshWeatherLoop() {
@@ -406,8 +434,9 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     private companion object {
         const val TAG = "Portal"
         const val FADE_MS = 700L
-        const val CLOCK_FADE_MS = 900L
-        const val DRIFT_MS = 60_000L
+        const val MINUTE_MS = 60_000L
+        /** How fast the clock moves sideways, in dp a second; up and down it is 70% of that, so it doesn't just trace the diagonal. */
+        const val PACE_DP = 70
         const val WEATHER_REFRESH_MS = 15 * 60 * 1000L
         const val NIGHT_DIM_ALPHA = 0.55f
     }
