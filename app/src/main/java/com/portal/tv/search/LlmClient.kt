@@ -17,6 +17,18 @@ object LlmClient {
      */
     private const val READ_TIMEOUT_MS = 180_000
 
+    /**
+     * A healthy server ends an answer with a finish reason, [DONE] and a closed connection, but some stop after the last
+     * word and send none of them, which left the answer looking unfinished until the long wait above ran out. So once an
+     * answer has begun and the server goes quiet for [statusAfterMs], Portal asks the server (see [ServerStatus]) whether
+     * it is still working. Idle twice running means the answer is over; busy means keep waiting. A server that can't be
+     * asked is taken to be finished after [silenceEndsAnswerMs] of silence. Reasoning and keep-alive lines count as the
+     * server still being there. Tests shorten these.
+     */
+    @Volatile internal var statusAfterMs = 4_000L
+    @Volatile internal var statusPollMs = 2_000L
+    @Volatile internal var silenceEndsAnswerMs = 15_000L
+
     /** Thrown with a short, user-readable reason. */
     open class LlmException(message: String) : Exception(message)
 
@@ -108,16 +120,64 @@ object LlmClient {
 
             val answer = StringBuilder()
             val calls = ToolCallAccumulator()
-            connection.inputStream.bufferedReader().useLines { lines ->
-                for (line in lines) {
-                    when (val event = Sse.parse(line)) {
-                        is Sse.Event.Text -> { answer.append(event.text); onText(event.text) }
-                        is Sse.Event.ToolDeltas -> { sentAnything[0] = true; calls.add(event.deltas) }
-                        is Sse.Event.Error -> throw LlmException(event.message.take(120))
-                        Sse.Event.Done -> return finish(answer.toString(), calls.calls())
-                        null -> {}
+            // A watchdog: if the server goes quiet after the answer has begun, find out whether it is still working, and
+            // if it isn't close the connection, which ends the read.
+            val lastData = java.util.concurrent.atomic.AtomicLong(System.nanoTime())
+            val begun = java.util.concurrent.atomic.AtomicBoolean(false)
+            val silent = java.util.concurrent.atomic.AtomicBoolean(false)
+            val watchdog = Thread {
+                try {
+                    var idleSeen = 0
+                    var seenAt = 0L
+                    while (true) {
+                        Thread.sleep(minOf(250L, statusPollMs))
+                        val lastNanos = lastData.get()
+                        val quietMs = (System.nanoTime() - lastNanos) / 1_000_000
+                        if (!begun.get() || quietMs < statusAfterMs) { idleSeen = 0; continue }
+                        // Ask now and then, not on every tick.
+                        val sinceAsk = (System.nanoTime() - seenAt) / 1_000_000
+                        val askNow = seenAt == 0L || sinceAsk >= statusPollMs
+                        var ended = false
+                        if (askNow) {
+                            seenAt = System.nanoTime()
+                            when (ServerStatus.idle(base, apiKey)) {
+                                // Idle on two asks in a row, with nothing arriving between: it is over, not between words.
+                                true -> { idleSeen++; if (idleSeen >= 2 && lastData.get() == lastNanos) ended = true }
+                                false -> idleSeen = 0
+                                null -> if (quietMs > silenceEndsAnswerMs) ended = true
+                            }
+                        }
+                        if (ended) {
+                            silent.set(true)
+                            connection.disconnect()
+                            return@Thread
+                        }
+                    }
+                } catch (e: InterruptedException) {
+                    // the answer finished by itself
+                }
+            }.apply { isDaemon = true; start() }
+            try {
+                connection.inputStream.bufferedReader().useLines { lines ->
+                    for (line in lines) {
+                        lastData.set(System.nanoTime())
+                        when (val event = Sse.parse(line)) {
+                            is Sse.Event.Text -> { begun.set(true); answer.append(event.text); onText(event.text) }
+                            is Sse.Event.ToolDeltas -> { begun.set(true); sentAnything[0] = true; calls.add(event.deltas) }
+                            is Sse.Event.Error -> throw LlmException(event.message.take(120))
+                            Sse.Event.Done -> return finish(answer.toString(), calls.calls())
+                            null -> {}
+                        }
+                        // The finish reason is the end of the answer, whether or not [DONE] and a closed connection follow.
+                        if (Sse.isFinal(line)) return finish(answer.toString(), calls.calls())
                     }
                 }
+            } catch (e: java.io.IOException) {
+                // The watchdog closed the connection on a server that had finished without saying so.
+                if (silent.get()) return finish(answer.toString(), calls.calls())
+                throw e
+            } finally {
+                watchdog.interrupt()
             }
             val reply = finish(answer.toString(), calls.calls())
             if (reply.text.isEmpty() && reply.toolCalls.isEmpty()) throw RetryableFailure(LlmException("The server sent no answer"))

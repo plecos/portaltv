@@ -73,6 +73,12 @@ class PortalActivity : FragmentActivity() {
         scheduleIdle()
     }
 
+    /**
+     * Restarts the idle countdown. Used by windows of their own, such as the search panel, whose key presses and touches
+     * never reach this activity, and by long jobs such as an answer being written or read aloud.
+     */
+    fun noteActivity() = scheduleIdle()
+
     /** The first key press only wakes the screen saver; it doesn't reach whatever is behind it. */
     // Lint wrongly calls this restricted: it is the platform Activity method, overridden here as usual.
     @android.annotation.SuppressLint("RestrictedApi")
@@ -100,8 +106,13 @@ class PortalActivity : FragmentActivity() {
 
     /** Starts only from the home screen, so it never interrupts setup, Settings or a PIN prompt. */
     private fun onIdle() {
-        if (supportFragmentManager.findFragmentById(R.id.container) is HomeFragment) startScreensaver()
-        else scheduleIdle()
+        if (supportFragmentManager.findFragmentById(R.id.container) is HomeFragment) {
+            // The search panel sits over the home screen. Typing, talking and answers all call noteActivity(), so if the
+            // countdown still ran out the person has really gone; close the panel and let the screen saver start.
+            supportFragmentManager.fragments.filterIsInstance<androidx.fragment.app.DialogFragment>()
+                .forEach { it.dismissAllowingStateLoss() }
+            startScreensaver()
+        } else scheduleIdle()
     }
 
     /** Whether the running screen saver was started from Settings to look at it, which needs no code to leave. */
