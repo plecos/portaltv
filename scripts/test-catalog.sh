@@ -11,6 +11,8 @@
 #   HOST=192.168.1.20 scripts/test-catalog.sh   # a real TV: this computer's address on your network
 #   ANDROID_SERIAL=emulator-5600 scripts/test-catalog.sh   # pick a device when several are connected
 #   MANY=200 scripts/test-catalog.sh        # also list 200 made-up extensions, to see a big catalog
+#   REVOKE_SAMPLE=1 scripts/test-catalog.sh   # the catalog withdraws the sample extension, to see an installed one switched off
+#   UNLIST_SAMPLE=1 scripts/test-catalog.sh   # the sample isn't in the catalog, to see the "not in the catalog" warning
 #   scripts/test-catalog.sh --off           # forget the test address
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -64,6 +66,26 @@ PY
   echo "The sample extension can be installed from Browse (version ${CODE:-1}, signer ${SIGNER:0:16}...)."
 else
   echo "No sample APK yet, so Install can't be tried. Build it: ./gradlew :sample-extension:assembleDebug"
+fi
+if [ -n "${REVOKE_SAMPLE:-}" ]; then
+  python3 - "$SERVE" <<'PY'
+import json, sys, os
+p = os.path.join(sys.argv[1], "catalog.json")
+cat = json.load(open(p))
+cat.setdefault("revoked", []).append({"package": "net.getportaltv.sample", "reason": "Found sending reminders to a server it shouldn't."})
+json.dump(cat, open(p, "w"))
+PY
+  echo "The catalog now withdraws net.getportaltv.sample."
+fi
+if [ -n "${UNLIST_SAMPLE:-}" ]; then
+  python3 - "$SERVE" <<'PY'
+import json, sys, os
+p = os.path.join(sys.argv[1], "catalog.json")
+cat = json.load(open(p))
+cat["extensions"] = [e for e in cat["extensions"] if e["package"] != "net.getportaltv.sample"]
+json.dump(cat, open(p, "w"))
+PY
+  echo "The sample extension is no longer in the catalog."
 fi
 if [ -n "${MANY:-}" ]; then
   python3 - "$SERVE" "$MANY" <<'PY'

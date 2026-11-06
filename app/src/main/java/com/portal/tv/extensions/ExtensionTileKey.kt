@@ -44,6 +44,7 @@ object ExtensionLabels {
         ExtensionState.SIGNER_CHANGED -> "Signed by someone else now. Not allowed"
         ExtensionState.UNSUPPORTED -> "Needs a newer Portal"
         ExtensionState.INVALID -> "Can't be used"
+        ExtensionState.REVOKED -> "Withdrawn from the catalog. Switched off"
     }
 
     /** One line for the Settings category: how many are installed and how many allowed. */

@@ -16,7 +16,9 @@ enum class ExtensionState {
     /** It needs a newer Portal. */
     UNSUPPORTED,
     /** Its extension file is wrong. */
-    INVALID
+    INVALID,
+    /** The catalog has withdrawn it (this version, or everything from this signer). It is switched off until it is removed. */
+    REVOKED
 }
 
 /** The rules for what an extension may do, and helpers for the signer fingerprints those rules are pinned to. */
@@ -30,6 +32,10 @@ object ExtensionAccess {
         if (allowance == null || !signerMatches) return emptySet()
         return Capability.known.filter { it in declared && it in allowance.capabilities }.toCollection(linkedSetOf())
     }
+
+    /** A withdrawn extension is switched off whatever was allowed: nothing is granted, and its state says why. */
+    fun withRevocation(state: ExtensionState, granted: Set<String>, revocation: CatalogRevocation?): Pair<ExtensionState, Set<String>> =
+        if (revocation != null) ExtensionState.REVOKED to emptySet() else state to granted
 
     fun state(parsed: ManifestParser.Result, allowance: Allowance?, signerMatches: Boolean): ExtensionState = when (parsed) {
         is ManifestParser.Result.Invalid -> ExtensionState.INVALID

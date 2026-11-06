@@ -146,3 +146,26 @@ ship another.
 To try it before the real catalog is online, `scripts/test-catalog.sh` serves the sample extension's real debug APK with its
 real checksum, size and signer (build it first with `./gradlew :sample-extension:assembleDebug`, and uninstall the sample
 from the TV). It also lists two entries that must be refused: a wrong checksum and a wrong package.
+
+## When the catalog withdraws an extension
+
+A line in the [revoked list](#the-revoked-list) reaches extensions that are already installed.
+
+- **Checked against what is installed:** each installed extension is matched by its package, its installed version code and
+  its signer. A line that names only a signer withdraws everything that person signed.
+- **Switched off:** a withdrawn extension is **Withdrawn**. Nothing is granted to it (tiles, items, background, reminders,
+  cards, host calls), what was allowed is forgotten, and it can't be allowed again while it is withdrawn. Its page shows the
+  reason and **Uninstall**. If the line is later removed, it comes back as "Not allowed": an adult has to allow it again.
+- **Kept fresh without browsing:** when the home screen comes up and Portal's copy of the catalog is over a day old, Portal
+  fetches it once, but only while at least one extension is installed. A failed try waits an hour. With no extensions installed
+  Portal never contacts the catalog unless you open Browse. Browsing's Refresh also updates it.
+- **Offline:** the copy on the TV is used, so a withdrawal that was already fetched stays in force with no connection.
+
+### Extensions that aren't in the catalog
+
+Once the catalog has been loaded, an installed extension that isn't in it (or is in it but signed by someone else) says so on
+its page, with a stronger warning. When something new is being allowed for it, Portal asks once more, plainly, before saving.
+Before the catalog has ever been loaded, its page says it hasn't been checked yet.
+
+To see these on the emulator: `REVOKE_SAMPLE=1 scripts/test-catalog.sh` (the catalog withdraws the sample), and
+`UNLIST_SAMPLE=1 scripts/test-catalog.sh` (the sample isn't listed). Then press Refresh in Browse.

@@ -24,7 +24,9 @@ data class Extension(
     val signer: String?,
     val state: ExtensionState,
     /** What it may do right now. */
-    val granted: Set<String>
+    val granted: Set<String>,
+    /** Why the catalog withdrew it, when [state] is [ExtensionState.REVOKED]. */
+    val revokedReason: String? = null
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
     val name: String get() = manifest?.label ?: appLabel
@@ -96,6 +98,8 @@ object ExtensionRegistry {
      */
     fun allow(context: Context, packageName: String, capabilities: Set<String>): Boolean {
         val ext = find(context, packageName) ?: return false
+        // A withdrawn extension can't be allowed, whatever is asked.
+        if (ext.state == ExtensionState.REVOKED) return false
         val manifest = ext.manifest ?: return false
         val signer = ext.signer ?: return false
         val wanted = Capability.known.filter { it in capabilities && it in manifest.capabilities }.toCollection(linkedSetOf())
@@ -148,7 +152,13 @@ object ExtensionRegistry {
         val matches = allowance != null && signer != null && signerMatches(pm, pkg, allowance.signer, signer)
         val declared = (parsed as? ManifestParser.Result.Ok)?.manifest?.capabilities.orEmpty()
         val granted = if (parsed is ManifestParser.Result.Ok) ExtensionAccess.granted(declared, allowance, matches) else emptySet()
-        return Extension(pkg, appLabel, parsed, tiles, settings, items, background, problems, signer, ExtensionAccess.state(parsed, allowance, matches), granted)
+        // The catalog's withdrawn list, from the copy kept on the TV (no network here). Withdrawn means off, and what was
+        // allowed is forgotten, so it has to be allowed again by a person if it ever comes back.
+        val installedVersion = runCatching { pm.getPackageInfo(pkg, 0).longVersionCode }.getOrNull()
+        val revocation = CatalogClient.cachedCatalog(context)?.let { CatalogRules.revocation(it, pkg, installedVersion, signer) }
+        if (revocation != null && allowance != null) disallow(context, pkg)
+        val (state, effective) = ExtensionAccess.withRevocation(ExtensionAccess.state(parsed, allowance, matches), granted, revocation)
+        return Extension(pkg, appLabel, parsed, tiles, settings, items, background, problems, signer, state, effective, revocation?.reason)
     }
 
     private fun readManifest(pm: PackageManager, app: ApplicationInfo): ManifestParser.Result {

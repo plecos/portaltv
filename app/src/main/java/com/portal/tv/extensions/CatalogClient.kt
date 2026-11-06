@@ -35,6 +35,26 @@ object CatalogClient {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    private var memo: Triple<Long, Long, Catalog?>? = null
+
+    /**
+     * The catalog from the copy kept on the TV, parsed once per version of the file so asking is cheap. No network.
+     * Null if there is none.
+     */
+    @Synchronized
+    fun cachedCatalog(context: Context): Catalog? {
+        val file = File(context.filesDir, FILE)
+        if (!file.isFile) { memo = null; return null }
+        val key = file.lastModified() to file.length()
+        memo?.let { if (it.first == key.first && it.second == key.second) return it.third }
+        val catalog = cached(context)?.catalog
+        memo = Triple(key.first, key.second, catalog)
+        return catalog
+    }
+
+    /** When a fetch was last tried, good or not, so being offline doesn't mean trying every time. */
+    fun attemptedAt(context: Context): Long = prefs(context).getLong("attempted_at", 0L)
+
     /** The copy kept from the last time, or null if there is none or it can't be read. No network. */
     fun cached(context: Context): Copy? {
         val file = File(context.filesDir, FILE)
@@ -47,6 +67,7 @@ object CatalogClient {
     /** Fetches the catalog now and keeps it. Throws if it can't be reached or isn't a usable catalog; the old copy stays. */
     suspend fun fetch(context: Context): Copy = withContext(Dispatchers.IO) {
         val address = url(context)
+        prefs(context).edit().putLong("attempted_at", System.currentTimeMillis()).apply()
         if (!address.startsWith("https://") && !(BuildConfig.DEBUG && address.startsWith("http://"))) {
             throw IOException("The catalog isn't offered over a secure connection")
         }
