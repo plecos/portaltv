@@ -11,6 +11,9 @@ import android.widget.TextView
 import android.widget.Toast
 import com.portal.tv.R
 import com.portal.tv.extensions.Capability
+import com.portal.tv.extensions.Catalog
+import com.portal.tv.extensions.CatalogClient
+import com.portal.tv.extensions.CatalogLabels
 import com.portal.tv.extensions.Extension
 import com.portal.tv.extensions.ExtensionAccess
 import com.portal.tv.extensions.ExtensionLabels
@@ -38,6 +41,9 @@ class ExtensionsPage(
 ) {
 
     private lateinit var list: LinearLayout
+    private val catalogPages = CatalogPages(context, scope)
+    /** The catalog kept from the last time it was fetched, if any; read with the scan, so drawing a page never waits on it. */
+    private var catalog: Catalog? = null
     private val d get() = context.resources.displayMetrics.density
     private fun px(v: Int) = (v * d).toInt()
 
@@ -49,6 +55,7 @@ class ExtensionsPage(
     fun refresh(focusPackage: String? = null) {
         scope.launch {
             val all = withContext(Dispatchers.IO) { ExtensionRegistry.scan(context) }
+            catalog = withContext(Dispatchers.IO) { CatalogClient.cached(context)?.catalog }
             render(all, focusPackage)
             onCounted(all.size, all.count { it.granted.isNotEmpty() })
         }
@@ -56,6 +63,25 @@ class ExtensionsPage(
 
     private fun render(all: List<Extension>, focusPackage: String?) {
         list.removeAllViews()
+        renderRows(all, focusPackage)
+        list.addView(TextView(context).apply {
+            text = "Browse extensions"
+            textSize = 18f
+            typeface = context.resources.getFont(R.font.inter)
+            setTextColor(context.resources.getColor(R.color.text_primary, null))
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(px(24), 0, px(24), 0)
+            minHeight = px(48)
+            setBackgroundResource(R.drawable.bg_settings_tile)
+            isFocusable = true
+            contentDescription = "Browse extensions in the catalog. Select to open."
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = px(16) }
+            setOnClickListener { catalogPages.browse() }
+        })
+    }
+
+    private fun renderRows(all: List<Extension>, focusPackage: String?) {
         if (all.isEmpty()) {
             list.addView(TextView(context).apply {
                 text = "No extensions installed"
@@ -110,6 +136,12 @@ class ExtensionsPage(
             else -> Color.rgb(255, 120, 120)
         }
         box.addView(text(ExtensionLabels.status(ext.state, ext.granted), 17f, statusColor))
+        // Only said once the catalog has been loaded; an extension that isn't in it hasn't been looked at by anyone but you.
+        catalog?.let {
+            val listing = CatalogLabels.listing(it, ext.packageName, ext.signer)
+            val color = if (listing == com.portal.tv.extensions.Listing.LISTED) Color.rgb(140, 230, 160) else Color.rgb(255, 200, 100)
+            box.addView(text(CatalogLabels.listingText(listing), 15f, color))
+        }
 
         when (val parsed = ext.parsed) {
             is ManifestParser.Result.Invalid -> box.addView(text("\n" + parsed.reason, 16f, soft))

@@ -8,7 +8,7 @@ Portal reads one file, `catalog.json`, over https. The catalog repository (plann
 one file per extension and builds `catalog.json` from them; Portal never reads the individual files and never hosts an APK.
 Authors host their own APKs. The catalog holds a link and a checksum.
 
-This page is the format. The checks that run before anything is installed, and how Portal shows the catalog, come in later pieces.
+This page is the format and how Portal shows it. The checks that run before anything is installed come in a later piece.
 
 ## catalog.json
 
@@ -86,3 +86,23 @@ scripts/validate-catalog.sh path/to/catalog.json
 ```
 
 `docs/catalog/sample-catalog.json` is an example (its signer and checksum are placeholders) and is checked on every test run.
+
+## Browsing it in Portal
+
+Settings, Extensions has a **Browse extensions** button (a kid's Settings never shows Extensions).
+
+- The list opens at once from the copy kept on the TV, and is fetched again when that copy is more than a day old, or when
+  you choose **Refresh**. With no connection it keeps showing the last copy and says it couldn't update.
+- Entries with nothing Portal could offer (every version revoked, or needing a newer contract) are left out.
+- Each row says whether the extension is **Installed**, has an **Update available**, or is installed but **signed by someone
+  else** (then it isn't the listed one).
+- A detail page shows the description, author, licence, what it asks to be allowed to do in plain words, its signer,
+  version and size, and a QR code for the source link. Nothing installs from here yet.
+- On an installed extension's page, Portal says **Listed in the catalog**, **In the catalog, but signed by someone else**,
+  or **Not in the catalog** (once the catalog has been loaded at least once).
+- A QR code on the list is for the catalog's web page, for browsing on a phone.
+- The request carries nothing about the TV: no account, no id, no list of installed apps.
+- The kept copy and when it was fetched are left out of backups and device transfers.
+
+Debug builds can read a test catalog instead: set `url` in the `catalog_debug` preferences to an address (http is allowed
+there only), for example `http://10.0.2.2:8765/catalog.json` for a server on the computer running the emulator.
