@@ -108,5 +108,8 @@ Settings, Extensions has a **Browse extensions** button (a kid's Settings never 
 - The request carries nothing about the TV: no account, no id, no list of installed apps.
 - The kept copy and when it was fetched are left out of backups and device transfers.
 
-Debug builds can read a test catalog instead: set `url` in the `catalog_debug` preferences to an address (http is allowed
-there only), for example `http://10.0.2.2:8765/catalog.json` for a server on the computer running the emulator.
+The real catalog isn't online yet, so a debug build shows "The catalog isn't online yet" (a 404). To try Browse now, run
+`scripts/test-catalog.sh`: it serves the test catalog in `docs/catalog/test` from your computer and points a debug build of
+Portal at it (`HOST=<your computer's address>` for a real TV, `ANDROID_SERIAL=<device>` to pick one device,
+`scripts/test-catalog.sh --off` to undo). Underneath, a debug build reads the address in the `url` preference of
+`catalog_debug` (http is allowed there only).

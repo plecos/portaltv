@@ -58,7 +58,11 @@ object CatalogClient {
             c.connectTimeout = 10_000
             c.readTimeout = 20_000
             c.setRequestProperty("User-Agent", USER_AGENT)
-            if (c.responseCode != 200) throw IOException("The catalog answered ${c.responseCode}")
+            when (val code = c.responseCode) {
+                200 -> {}
+                404 -> throw IOException("The catalog isn't online yet")
+                else -> throw IOException("The catalog answered $code")
+            }
             readCapped(c.inputStream, CatalogParser.MAX_FILE_CHARS * 4)
         } catch (e: UnknownHostException) {
             throw IOException("No connection")
