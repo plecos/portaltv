@@ -41,6 +41,8 @@ The file is at most 2,000,000 characters.
 | `source` | yes | https link to the source. A listing needs a source link. |
 | `license` | no | Up to 40 characters. Shown, not judged. |
 | `capabilities` | yes | What it asks to be allowed to do, from the [contract](EXTENSIONS.md#capabilities). An empty list is fine. An unknown one makes the entry unusable. |
+| `tags` | no | Up to 5 short words for finding it: lowercase letters, digits and dashes, at most 20 characters each (`home`, `kids`, `weather`). |
+| `icon` | no | A `.png` path next to `catalog.json`, like `icons/garage.png`, at most 200 KB, square, 128 to 256 pixels. It is always read from the catalog's own host, so browsing never contacts the author's server. A full address isn't allowed. |
 | `signer` | yes | SHA-256 of the signing certificate, 64 hex characters. For an app with several signers, the fingerprints joined with `+`. |
 | `screenshots` | no | Up to 4 https links. |
 | `versions` | yes | 1 to 20 versions (below). |
@@ -93,6 +95,8 @@ Settings, Extensions has a **Browse extensions** button (a kid's Settings never 
 
 - The list opens at once from the copy kept on the TV, and is fetched again when that copy is more than a day old, or when
   you choose **Refresh**. With no connection it keeps showing the last copy and says it couldn't update.
+- A search box finds extensions by words in the title, the description or the tags: every word must match somewhere, capitals
+  don't matter, and title matches come first. A **Tag** button limits the list to one tag.
 - Entries with nothing Portal could offer (every version revoked, or needing a newer contract) are left out.
 - Each row says whether the extension is **Installed**, has an **Update available**, or is installed but **signed by someone
   else** (then it isn't the listed one).

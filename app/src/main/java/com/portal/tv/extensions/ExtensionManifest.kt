@@ -81,7 +81,9 @@ data class ExtensionManifest(
     /** The buttons and text it puts on the home screen, in the order it lists them. */
     val items: List<ExtensionItem> = emptyList(),
     /** Full class name of the service that draws its home screen background, if it offers one. */
-    val backgroundService: String? = null
+    val backgroundService: String? = null,
+    /** A drawable in its own app that stands for it, or 0 to use the app's icon. */
+    val iconRes: Int = 0
 )
 
 /**
@@ -189,7 +191,7 @@ object ManifestParser {
         items.forEach { capabilities += it.area.capability }
         if (background != null) capabilities += Capability.BACKGROUND
         val ordered = Capability.known.filter { it in capabilities }.toCollection(linkedSetOf())
-        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background))
+        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background, root.attrs["icon"]?.resId ?: 0))
     }
 
     /** ".Foo" and "Foo" are inside the extension's own package; a name with a package in it is used as written. */

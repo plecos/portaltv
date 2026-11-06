@@ -58,3 +58,44 @@ object CatalogLabels {
     /** "3 of the extensions in the catalog", for the top of the list. */
     fun count(n: Int): String = if (n == 1) "1 extension" else "$n extensions"
 }
+
+/** Finding extensions in the list: by words in the title, the description or the tags, and by one tag. */
+object CatalogSearch {
+
+    /**
+     * The entries that match, best first. Every word of [query] must be in the title, the description or a tag (capitals
+     * don't matter); [tag], if given, must be one of the entry's tags. An empty query and no tag shows them all by name.
+     */
+    fun filter(entries: List<CatalogEntry>, query: String, tag: String? = null): List<CatalogEntry> {
+        val words = query.lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        return entries
+            .filter { tag == null || tag in it.tags }
+            .mapNotNull { e ->
+                val name = e.name.lowercase()
+                var score = 0
+                for (w in words) {
+                    score += when {
+                        name.startsWith(w) -> 4
+                        w in name -> 3
+                        e.tags.any { it == w } -> 3
+                        e.tags.any { w in it } -> 2
+                        w in e.description.lowercase() -> 1
+                        else -> return@mapNotNull null
+                    }
+                }
+                e to score
+            }
+            .sortedWith(compareByDescending<Pair<CatalogEntry, Int>> { it.second }.thenBy { it.first.name.lowercase() })
+            .map { it.first }
+    }
+
+    /** The tags in use among [entries], the most common first, so the chooser starts with what is likely wanted. */
+    fun tags(entries: List<CatalogEntry>): List<String> =
+        entries.flatMap { it.tags }.groupingBy { it }.eachCount().entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .map { it.key }
+
+    /** Where an entry's icon is: next to catalog.json, so it comes from the same host as the catalog. */
+    fun iconUrl(catalogUrl: String, iconPath: String): String? =
+        if (iconPath.isEmpty()) null else catalogUrl.substringBeforeLast('/') + "/" + iconPath
+}

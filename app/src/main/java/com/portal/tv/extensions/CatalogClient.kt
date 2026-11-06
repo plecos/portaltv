@@ -31,7 +31,7 @@ object CatalogClient {
     class Copy(val catalog: Catalog, val fetchedAtMs: Long)
 
     /** Debug builds can read a catalog from a test server, through a preference, to try Browse without the real one. */
-    private fun url(context: Context): String {
+    fun url(context: Context): String {
         if (!BuildConfig.DEBUG) return URL
         return context.getSharedPreferences("catalog_debug", Context.MODE_PRIVATE).getString("url", null) ?: URL
     }
@@ -82,7 +82,9 @@ object CatalogClient {
     }
 
     /** All of [input] as text, or an [IOException] if it is longer than [maxBytes]. */
-    internal fun readCapped(input: InputStream, maxBytes: Int): String {
+    internal fun readCapped(input: InputStream, maxBytes: Int): String = readBytesCapped(input, maxBytes).toString(Charsets.UTF_8)
+
+    internal fun readBytesCapped(input: InputStream, maxBytes: Int): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(16 * 1024)
         input.use {
@@ -93,6 +95,6 @@ object CatalogClient {
                 if (out.size() > maxBytes) throw IOException("The catalog is too big")
             }
         }
-        return out.toString(Charsets.UTF_8.name())
+        return out.toByteArray()
     }
 }

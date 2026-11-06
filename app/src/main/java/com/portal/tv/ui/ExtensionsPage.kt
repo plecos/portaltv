@@ -16,6 +16,7 @@ import com.portal.tv.extensions.CatalogClient
 import com.portal.tv.extensions.CatalogLabels
 import com.portal.tv.extensions.Extension
 import com.portal.tv.extensions.ExtensionAccess
+import com.portal.tv.extensions.ExtensionIcons
 import com.portal.tv.extensions.ExtensionLabels
 import com.portal.tv.extensions.ExtensionRegistry
 import com.portal.tv.extensions.ExtensionState
@@ -101,6 +102,12 @@ class ExtensionsPage(
                 setPadding(px(24), 0, px(24), 0)
                 minHeight = px(48)
                 setBackgroundResource(R.drawable.bg_settings_tile)
+                // Its own picture, so it is known at a glance.
+                ExtensionIcons.of(context, ext.packageName, ext.manifest?.iconRes ?: 0)?.let {
+                    it.setBounds(0, 0, px(32), px(32))
+                    setCompoundDrawables(it, null, null, null)
+                    compoundDrawablePadding = px(14)
+                }
                 isFocusable = true
                 contentDescription = "${ext.name}, ${ExtensionLabels.status(ext.state, ext.granted)}. Select for details."
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)

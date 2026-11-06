@@ -5,15 +5,22 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.view.Gravity
 import android.view.ViewGroup
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.portal.tv.BuildConfig
 import com.portal.tv.R
 import com.portal.tv.extensions.Capability
 import com.portal.tv.extensions.Catalog
 import com.portal.tv.extensions.CatalogClient
 import com.portal.tv.extensions.CatalogEntry
+import com.portal.tv.extensions.CatalogIcons
 import com.portal.tv.extensions.CatalogLabels
+import com.portal.tv.extensions.CatalogSearch
 import com.portal.tv.extensions.CatalogRules
 import com.portal.tv.extensions.CatalogState
 import com.portal.tv.extensions.ExtensionAccess
@@ -54,12 +61,55 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
 
     // ---------- The list ----------
 
+    /** A row's picture: the catalog's icon once it arrives, the extension puzzle piece until then or if there isn't one. */
+    private fun iconView(entry: CatalogEntry, sizeDp: Int) = ImageView(context).apply {
+        setImageResource(R.drawable.ic_cat_extensions)
+        alpha = 0.6f
+        scaleType = ImageView.ScaleType.FIT_CENTER
+        layoutParams = LinearLayout.LayoutParams(px(sizeDp), px(sizeDp)).apply { marginEnd = px(14) }
+        val url = CatalogSearch.iconUrl(CatalogClient.url(context), entry.iconPath) ?: return@apply
+        scope.launch {
+            CatalogIcons.load(context, url, BuildConfig.DEBUG)?.let { setImageBitmap(it); alpha = 1f }
+        }
+    }
+
     fun browse() {
         val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
         }
-        val status = text("", 14f, soft).apply { setPadding(0, 0, 0, px(10)) }
+        var query = ""
+        var tag: String? = null
+        var all: Catalog? = null
+
+        val search = EditText(context).apply {
+            hint = "Search by name, description or tag"
+            setSingleLine(true)
+            setTextColor(Color.WHITE)
+            setHintTextColor(soft)
+            textSize = 17f
+            typeface = context.resources.getFont(R.font.inter)
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            setPadding(px(16), px(12), px(16), px(12))
+            setBackgroundResource(R.drawable.bg_settings_tile)
+        }
+        val tagChip = TextView(context).apply {
+            textSize = 16f
+            typeface = context.resources.getFont(R.font.inter)
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(px(18), px(10), px(18), px(10))
+            setBackgroundResource(R.drawable.bg_settings_tile)
+            isFocusable = true
+            isClickable = true
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT).apply { marginStart = px(10) }
+        }
+        box.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(search, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(tagChip)
+        })
+        val status = text("", 14f, soft).apply { setPadding(0, px(10), 0, px(8)) }
         val rows = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         box.addView(status)
         box.addView(rows)
@@ -78,36 +128,65 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
             .setNeutralButton("Refresh", null)
             .show()
 
-        fun fill(catalog: Catalog) {
+        var note = ""
+        fun refill() {
+            val catalog = all ?: return
+            tagChip.text = "Tag: " + (tag ?: "all")
             rows.removeAllViews()
-            val shown = CatalogLabels.shown(catalog)
-            if (shown.isEmpty()) rows.addView(text("Nothing is listed yet.", 16f, soft))
+            val offered = CatalogLabels.shown(catalog)
+            val found = CatalogSearch.filter(offered, query, tag)
+            status.text = (if (query.isNotBlank() || tag != null) "${found.size} of ${CatalogLabels.count(offered.size)}" else CatalogLabels.count(offered.size)) + note
+            if (found.isEmpty()) rows.addView(text(if (offered.isEmpty()) "Nothing is listed yet." else "Nothing matches. Try other words, or choose Tag: all.", 16f, soft))
             val installed = installedVersions()
-            shown.forEach { entry ->
+            found.forEach { entry ->
                 val state = CatalogLabels.state(catalog, entry, installed[entry.packageName]?.first, installed[entry.packageName]?.second)
                 val extra = CatalogLabels.stateText(state)
-                rows.addView(TextView(context).apply {
-                    this.text = entry.name + "  ·  " + entry.author + if (extra.isNotEmpty()) "  ·  $extra" else ""
-                    textSize = 18f
-                    typeface = context.resources.getFont(R.font.inter)
-                    setTextColor(Color.WHITE)
-                    setPadding(px(20), px(10), px(20), px(10))
+                rows.addView(LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(px(16), px(8), px(16), px(8))
                     setBackgroundResource(R.drawable.bg_settings_tile)
                     isFocusable = true
                     isClickable = true
                     contentDescription = "${entry.name} by ${entry.author}. $extra Select for details."
                     layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                         .apply { bottomMargin = px(8) }
+                    addView(iconView(entry, 44))
+                    addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL
+                        addView(text(entry.name + if (extra.isNotEmpty()) "  ·  $extra" else "", 18f))
+                        addView(text(entry.author + if (entry.tags.isNotEmpty()) "  ·  " + entry.tags.joinToString(", ") else "", 13f, soft))
+                    })
                     setOnClickListener { detail(catalog, entry) }
                 })
             }
         }
 
+        search.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { query = s?.toString().orEmpty(); refill() }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+        tagChip.setOnClickListener {
+            val catalog = all ?: return@setOnClickListener
+            val tags = CatalogSearch.tags(CatalogLabels.shown(catalog))
+            val labels = (listOf("All tags") + tags).toTypedArray()
+            PortalDialog.Builder(context)
+                .setTitle("Show only")
+                .setSingleChoiceItems(labels, if (tag == null) 0 else tags.indexOf(tag) + 1) { d, which ->
+                    tag = if (which == 0) null else tags[which - 1]
+                    refill()
+                    d.dismiss()
+                }
+                .show()
+        }
+
         fun load(force: Boolean) {
             val cached = CatalogClient.cached(context)
             if (cached != null) {
-                fill(cached.catalog)
-                status.text = "${CatalogLabels.count(CatalogLabels.shown(cached.catalog).size)} · list from ${cached.catalog.updated.ifEmpty { "an earlier visit" }}"
+                all = cached.catalog
+                note = " · list from ${cached.catalog.updated.ifEmpty { "an earlier visit" }}"
+                refill()
             } else {
                 status.text = "Loading the list…"
             }
@@ -116,12 +195,14 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
                 try {
                     val fresh = CatalogClient.fetch(context)
                     if (!dialog.isShowing) return@launch
-                    fill(fresh.catalog)
-                    status.text = "${CatalogLabels.count(CatalogLabels.shown(fresh.catalog).size)} · up to date"
+                    all = fresh.catalog
+                    note = " · up to date"
+                    refill()
                 } catch (e: Exception) {
                     if (!dialog.isShowing) return@launch
                     val why = e.message ?: "It couldn't be loaded"
-                    status.text = if (cached != null) "Couldn't update the list ($why). Showing the last copy." else "Couldn't load the list: $why"
+                    if (cached != null) { note = " · couldn't update ($why), showing the last copy"; refill() }
+                    else status.text = "Couldn't load the list: $why"
                 }
             }
         }
@@ -150,7 +231,13 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
         }
-        box.addView(text(entry.description, 16f, soft))
+        box.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(iconView(entry, 64))
+            addView(text(entry.description, 16f, soft).apply { layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
+        })
+        if (entry.tags.isNotEmpty()) box.addView(text(entry.tags.joinToString("   ") { "#$it" }, 14f, soft).apply { setPadding(0, px(6), 0, 0) })
         box.addView(text("by ${entry.author}" + if (entry.license.isNotEmpty()) "  ·  ${entry.license}" else "", 14f, soft).apply { setPadding(0, px(6), 0, px(6)) })
 
         val installed = installedVersions()[entry.packageName]
