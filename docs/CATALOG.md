@@ -159,6 +159,11 @@ A line in the [revoked list](#the-revoked-list) reaches extensions that are alre
 - **Kept fresh without browsing:** when the home screen comes up and Portal's copy of the catalog is over a day old, Portal
   fetches it once, but only while at least one extension is installed. A failed try waits an hour. With no extensions installed
   Portal never contacts the catalog unless you open Browse. Browsing's Refresh also updates it.
+- **Easy on the host:** each fetch asks "has it changed?" (the file's `ETag` or `Last-Modified`), and when it hasn't the host
+  answers with a few hundred bytes. Each TV also waits its own random extra 0 to 6 hours beyond the day, picked again after
+  every fetch, so TVs that started together drift apart. If the host answers 429 or 503, Portal stays away for as long as
+  `Retry-After` says (an hour if it doesn't say; never less than a minute or more than a day). The catalog host should send
+  `ETag` or `Last-Modified`; GitHub Pages and most CDNs do.
 - **Offline:** the copy on the TV is used, so a withdrawal that was already fetched stays in force with no connection.
 
 ### Extensions that aren't in the catalog
