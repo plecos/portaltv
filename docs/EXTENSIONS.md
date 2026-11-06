@@ -8,7 +8,8 @@ Nothing an extension asks for happens until an adult allows it, one capability a
 > Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid,
 > opens an extension's settings screen from Settings, and draws the buttons and text an extension declares in the top bar and
 > under the clock. It also answers the calls an extension makes into Portal: reminders, cards over other apps, and changing its own home screen
-> items while running (see *Calling Portal*). Badges on tiles are not there yet. Contract version **1**.
+> items while running (see *Calling Portal*), and can show a background an extension draws (see *Drawing the home screen
+> background*). Badges on tiles are not there yet. Contract version **1**.
 
 ## Writing one
 
