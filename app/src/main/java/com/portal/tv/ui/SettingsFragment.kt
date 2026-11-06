@@ -496,6 +496,9 @@ class SettingsFragment : Fragment() {
     private var refreshOverlayPermission: (() -> Unit)? = null
     private var refreshReminderOverlay: (() -> Unit)? = null
     private var refreshExtensions: (() -> Unit)? = null
+    private var extensionsPage: ExtensionsPage? = null
+    /** The category to show when this screen is drawn again, after something opened from it was closed. */
+    private var returnToCategory = 0
     private var extensionsSummary = ""
 
     override fun onResume() {
@@ -841,7 +844,10 @@ class SettingsFragment : Fragment() {
             val target = if (install.visibility == View.VISIBLE) install else view.findViewById(R.id.opt_update_check)
             target.post { target.requestFocus() }
         } else {
-            items[0].post { items[0].requestFocus() }
+            val back = shown.indexOfFirst { it.itemId == returnToCategory }.takeIf { returnToCategory != 0 && it >= 0 } ?: 0
+            active = back
+            refresh()
+            items[back].post { items[back].requestFocus() }
         }
     }
 
@@ -1803,11 +1809,23 @@ class SettingsFragment : Fragment() {
     /** The Extensions page: what is installed, and what an adult has allowed. A kid's Settings never shows it. */
     private fun setupExtensions(view: View) {
         if (com.portal.tv.repo.ProfileManager.isActiveKids(requireContext())) return
-        val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }) { found, allowed ->
+        val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }, { found, allowed ->
             extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed)
             refreshCategories?.invoke()
+        }) {
+            // Back from the catalog lands on this page again.
+            returnToCategory = R.id.cat_extensions
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.container, ExtensionCatalogFragment())
+                .addToBackStack("extension_catalog")
+                .commit()
         }
         page.bind(view.findViewById(R.id.extensions_list))
+        extensionsPage = page
+        // After installing from the catalog, "Review" comes back here and opens that extension's page.
+        parentFragmentManager.setFragmentResultListener(ExtensionCatalogFragment.REVIEW_KEY, viewLifecycleOwner) { _, result ->
+            result.getString(ExtensionCatalogFragment.REVIEW_PACKAGE)?.let { page.review(it) }
+        }
         refreshExtensions = page::refresh
         page.refresh()
     }

@@ -10,6 +10,7 @@
 #   scripts/test-catalog.sh                 # an emulator (it reaches this computer at 10.0.2.2)
 #   HOST=192.168.1.20 scripts/test-catalog.sh   # a real TV: this computer's address on your network
 #   ANDROID_SERIAL=emulator-5600 scripts/test-catalog.sh   # pick a device when several are connected
+#   MANY=200 scripts/test-catalog.sh        # also list 200 made-up extensions, to see a big catalog
 #   scripts/test-catalog.sh --off           # forget the test address
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -63,5 +64,26 @@ PY
   echo "The sample extension can be installed from Browse (version ${CODE:-1}, signer ${SIGNER:0:16}...)."
 else
   echo "No sample APK yet, so Install can't be tried. Build it: ./gradlew :sample-extension:assembleDebug"
+fi
+if [ -n "${MANY:-}" ]; then
+  python3 - "$SERVE" "$MANY" <<'PY'
+import json, sys, os, random
+d, n = sys.argv[1], int(sys.argv[2])
+random.seed(7)
+cat = json.load(open(os.path.join(d, "catalog.json")))
+tags = ["home", "kids", "weather", "photos", "music", "sports", "news", "reminders", "background", "family", "garage", "lights", "calendar", "clock"]
+words = ["Garden", "Clock", "Radar", "Lights", "Doorbell", "Photo", "Calendar", "Chores", "Recipes", "Trivia", "Sports", "Traffic", "Stocks", "Moon", "Tides", "Pollen", "Plants", "Pets", "Cameras", "Thermostat"]
+icons = ["icons/garage.png", "icons/photos.png", "icons/portal-sample.png"]
+for i in range(n):
+    name = f"{random.choice(words)} {random.choice(['Plus', 'Lite', 'Pro', 'Board', 'Panel', 'Widget'])} {i + 1}"
+    cat["extensions"].append({
+        "package": f"net.example.fake{i:03d}", "name": name, "description": f"{name} for your TV. A made-up extension to fill the list.",
+        "author": random.choice(["Example Co", "A. Person", "Home Labs", "Jo Smith"]), "source": "https://github.com/example/fake",
+        "license": "MIT", "capabilities": random.sample(["tiles", "bar", "reminders", "background"], 2), "signer": "ab" * 32,
+        "tags": random.sample(tags, 3), "icon": random.choice(icons),
+        "versions": [{"version_code": 1, "version_name": "1.0", "apk": "https://example.com/fake.apk", "sha256": "cd" * 32, "size": 1000000, "contract": 1}]})
+json.dump(cat, open(os.path.join(d, "catalog.json"), "w"))
+PY
+  echo "Added $MANY made-up extensions."
 fi
 cd "$SERVE" && exec python3 -m http.server "$PORT" --bind 0.0.0.0

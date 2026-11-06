@@ -91,7 +91,9 @@ scripts/validate-catalog.sh path/to/catalog.json
 
 ## Browsing it in Portal
 
-Settings, Extensions has a **Browse extensions** button (a kid's Settings never shows Extensions).
+Settings, Extensions has a **Browse extensions** button (a kid's Settings never shows Extensions). It opens a full-screen
+browser: a grid of cards, three across, that scrolls and recycles its cards, so it holds a catalog of hundreds. Back returns to
+Settings, Extensions. Selecting a card opens its details.
 
 - The list opens at once from the copy kept on the TV, and is fetched again when that copy is more than a day old, or when
   you choose **Refresh**. With no connection it keeps showing the last copy and says it couldn't update.

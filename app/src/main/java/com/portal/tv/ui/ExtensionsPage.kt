@@ -38,11 +38,12 @@ class ExtensionsPage(
     private val scope: CoroutineScope,
     private val startActivity: (Intent) -> Unit,
     /** Told how many extensions were found and how many have something allowed, for the category's summary. */
-    private val onCounted: (found: Int, allowed: Int) -> Unit
+    private val onCounted: (found: Int, allowed: Int) -> Unit,
+    /** Opens the full-screen catalog. */
+    private val onBrowse: () -> Unit
 ) {
 
     private lateinit var list: LinearLayout
-    private val catalogPages = CatalogPages(context, scope) { pkg -> review(pkg) }
     /** The catalog kept from the last time it was fetched, if any; read with the scan, so drawing a page never waits on it. */
     private var catalog: Catalog? = null
     private val d get() = context.resources.displayMetrics.density
@@ -63,7 +64,7 @@ class ExtensionsPage(
     }
 
     /** Opens the page for a freshly installed extension, so an adult can look at what it asks for. */
-    private fun review(packageName: String) {
+    fun review(packageName: String) {
         scope.launch {
             val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
             refresh(packageName)
@@ -88,7 +89,7 @@ class ExtensionsPage(
             contentDescription = "Browse extensions in the catalog. Select to open."
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = px(16) }
-            setOnClickListener { catalogPages.browse() }
+            setOnClickListener { onBrowse() }
         })
     }
 
