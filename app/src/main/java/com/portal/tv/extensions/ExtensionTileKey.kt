@@ -32,6 +32,8 @@ object ExtensionLabels {
         Capability.SETTINGS -> "settings page"
         Capability.REMINDERS -> "reminders"
         Capability.CARDS -> "cards"
+        Capability.BAR -> "top bar items"
+        Capability.CLOCK -> "items under the clock"
         else -> capability
     }
 

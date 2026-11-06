@@ -2,7 +2,11 @@
 <resources>
     <string name="app_name">Portal sample extension</string>
     <string name="ext_name">Sample extension</string>
-    <string name="ext_description">An example extension: two tiles, a settings screen, and a request to add reminders and show cards.</string>
+    <string name="ext_description">An example extension: two tiles, a settings screen, buttons and text on the home screen, and a request to add reminders and show cards.</string>
     <string name="tile_lights">Lights</string>
     <string name="tile_cameras">Cameras</string>
+    <string name="bar_lights">Lights</string>
+    <string name="bar_mode">Home: day</string>
+    <string name="clock_status">Garage door closed</string>
+    <string name="clock_cameras">Cameras</string>
 </resources>

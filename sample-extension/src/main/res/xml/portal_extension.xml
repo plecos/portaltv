@@ -14,4 +14,10 @@
     <tile id="cameras" label="@string/tile_cameras" icon="@drawable/ic_sample" activity=".CamerasActivity" />
 
     <settings activity=".SettingsActivity" />
+
+    <!-- Things on the home screen: Portal draws them. At most two per area. -->
+    <bar-button id="lights" label="@string/bar_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
+    <bar-text id="mode" text="@string/bar_mode" />
+    <clock-text id="status" text="@string/clock_status" />
+    <clock-button id="cameras" label="@string/clock_cameras" activity=".CamerasActivity" />
 </portal-extension>

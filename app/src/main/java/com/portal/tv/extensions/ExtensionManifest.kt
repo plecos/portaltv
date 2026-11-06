@@ -18,14 +18,18 @@ object Capability {
     const val SETTINGS = "settings"
     const val REMINDERS = "reminders"
     const val CARDS = "cards"
+    const val BAR = "bar"
+    const val CLOCK = "clock"
 
     /** The capabilities this version of Portal knows, in the order they are shown. */
-    val known = listOf(TILES, SETTINGS, REMINDERS, CARDS)
+    val known = listOf(TILES, SETTINGS, BAR, CLOCK, REMINDERS, CARDS)
 
     /** What turning it on means, in plain words. */
     fun describe(capability: String): String = when (capability) {
         TILES -> "Show tiles in your apps"
         SETTINGS -> "Add a settings page"
+        BAR -> "Add buttons or text to the top bar, beside your profile, search and settings"
+        CLOCK -> "Add buttons or text under the time and weather"
         REMINDERS -> "Add and change its own reminders"
         CARDS -> "Show cards over other apps"
         else -> "Something this version of Portal doesn't know ($capability)"
@@ -34,6 +38,30 @@ object Capability {
 
 /** One tile an extension adds to the app grid; [activity] is the full class name of the screen it opens. */
 data class ExtensionTile(val id: String, val label: String, val activity: String, val iconRes: Int)
+
+/** Where on the home screen an extension's items go. */
+enum class ItemArea(val key: String, val title: String) {
+    /** The panel at the top right, with the profile, search and settings buttons. */
+    BAR("bar", "top bar"),
+    /** Under the time and weather at the top left. */
+    CLOCK("clock", "area under the time and weather");
+
+    val capability: String get() = key
+}
+
+/**
+ * A button or a line of text an extension puts on the home screen. Portal draws it; the extension supplies only the
+ * words, an icon and, for a button, the screen it opens ([activity], a full class name; null for text).
+ */
+data class ExtensionItem(
+    val id: String,
+    val area: ItemArea,
+    val text: String,
+    val activity: String?,
+    val iconRes: Int
+) {
+    val isButton: Boolean get() = activity != null
+}
 
 /** What an extension says about itself. */
 data class ExtensionManifest(
@@ -47,7 +75,9 @@ data class ExtensionManifest(
     val unknownCapabilities: Set<String>,
     val tiles: List<ExtensionTile>,
     /** Full class name of its settings screen, if it has one. */
-    val settingsActivity: String?
+    val settingsActivity: String?,
+    /** The buttons and text it puts on the home screen, in the order it lists them. */
+    val items: List<ExtensionItem> = emptyList()
 )
 
 /**
@@ -63,6 +93,11 @@ object ManifestParser {
     const val MAX_DESCRIPTION = 200
     const val MAX_TILES = 8
     const val MAX_TILE_LABEL = 24
+
+    /** Most items one extension may put in each area, so a header can't be filled by one app. */
+    const val MAX_ITEMS_PER_AREA = 2
+    const val MAX_BUTTON_TEXT = 24
+    const val MAX_LINE_TEXT = 40
 
     private val ID = Regex("[a-z0-9][a-z0-9-]{0,39}")
 
@@ -91,6 +126,7 @@ object ManifestParser {
         val unknown = linkedSetOf<String>()
         val tiles = mutableListOf<ExtensionTile>()
         var settings: String? = null
+        val items = mutableListOf<ExtensionItem>()
 
         for (child in root.children) {
             when (child.name) {
@@ -114,13 +150,33 @@ object ManifestParser {
                     settings = child.attr("activity")?.let { className(it, packageName) }
                         ?: return Result.Invalid("Its settings screen names no activity.")
                 }
+                "bar-button", "bar-text", "clock-button", "clock-text" -> {
+                    val area = if (child.name.startsWith("bar")) ItemArea.BAR else ItemArea.CLOCK
+                    val button = child.name.endsWith("button")
+                    val shown = "The ${child.name.replace('-', ' ')}"
+                    val itemId = child.attr("id") ?: return Result.Invalid("$shown has no id.")
+                    if (!ID.matches(itemId)) return Result.Invalid("$shown id \"$itemId\" isn't lowercase letters, digits and dashes.")
+                    if (items.any { it.area == area && it.id == itemId }) return Result.Invalid("Two items in the ${area.title} share the id \"$itemId\".")
+                    if (items.count { it.area == area } >= MAX_ITEMS_PER_AREA) return Result.Invalid("It has more than $MAX_ITEMS_PER_AREA items for the ${area.title}.")
+                    val words = child.attr(if (button) "label" else "text")
+                        ?: return Result.Invalid("$shown \"$itemId\" has no ${if (button) "label" else "text"}.")
+                    val max = if (button) MAX_BUTTON_TEXT else MAX_LINE_TEXT
+                    if (words.length > max) return Result.Invalid("$shown \"$itemId\" is longer than $max characters.")
+                    if (words.any { it.isISOControl() }) return Result.Invalid("$shown \"$itemId\" has characters that can't be shown.")
+                    val activity = if (button) {
+                        child.attr("activity")?.let { className(it, packageName) }
+                            ?: return Result.Invalid("$shown \"$itemId\" names no activity.")
+                    } else null
+                    items += ExtensionItem(itemId, area, words, activity, if (button) child.attrs["icon"]?.resId ?: 0 else 0)
+                }
                 // Anything else is for a newer contract revision or a tool; leave it.
             }
         }
         if (tiles.isNotEmpty()) capabilities += Capability.TILES
         if (settings != null) capabilities += Capability.SETTINGS
+        items.forEach { capabilities += it.area.capability }
         val ordered = Capability.known.filter { it in capabilities }.toCollection(linkedSetOf())
-        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings))
+        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items))
     }
 
     /** ".Foo" and "Foo" are inside the extension's own package; a name with a package in it is used as written. */

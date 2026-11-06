@@ -223,6 +223,16 @@
                     android:maxLines="1" />
             </LinearLayout>
 
+            <!-- Buttons and text that allowed extensions add; empty and hidden otherwise -->
+            <LinearLayout
+                android:id="@+id/ext_bar_items"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/btn_profile"
                 android:layout_width="wrap_content"
@@ -277,6 +287,20 @@
                 android:contentDescription="Settings" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- Buttons and text that allowed extensions add under the time and weather; empty and hidden otherwise.
+             Outside the header so it doesn't change how the header lines up. -->
+        <LinearLayout
+            android:id="@+id/ext_clock_items"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-12dp"
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_header_panel"
+            android:padding="8dp"
+            android:visibility="gone" />
 
         <!-- The app lists scroll together under the fixed header -->
         <androidx.core.widget.NestedScrollView
