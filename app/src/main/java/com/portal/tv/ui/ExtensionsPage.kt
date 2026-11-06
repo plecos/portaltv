@@ -118,6 +118,14 @@ class ExtensionsPage(
                 if (ext.state == ExtensionState.SIGNER_CHANGED) {
                     box.addView(text("\nThis app was allowed before, but it is now signed by someone else. Only allow it again if you expect that.", 15f, Color.rgb(255, 200, 100)))
                 }
+                val shown = parsed.manifest.items
+                if (shown.isNotEmpty()) {
+                    box.addView(text("\nIt would put on your home screen:", 16f, soft).apply { setPadding(0, 0, 0, px(4)) })
+                    shown.forEach { item ->
+                        val kind = if (item.isButton) "button" else "text"
+                        box.addView(text("•  \"${item.text}\" ($kind, ${item.area.title})", 15f, Color.WHITE).apply { setPadding(px(8), 0, 0, px(2)) })
+                    }
+                }
                 box.addView(text("\nAllow it to:", 16f, soft).apply { setPadding(0, 0, 0, px(6)) })
                 parsed.manifest.capabilities.forEach { capability ->
                     val row = TextView(context)

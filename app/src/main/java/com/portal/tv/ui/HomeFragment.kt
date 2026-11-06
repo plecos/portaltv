@@ -179,6 +179,57 @@ class HomeFragment : Fragment() {
             View.VISIBLE else View.GONE
     }
 
+    /**
+     * Draws the buttons and text allowed extensions put in the top bar and under the clock. Kid profiles get none. The
+     * scan is off the main thread; Portal's own buttons are never touched.
+     */
+    private fun refreshExtensionItems() {
+        val context = context ?: return
+        val bar = view?.findViewById<android.widget.LinearLayout>(R.id.ext_bar_items) ?: return
+        val clock = view?.findViewById<android.widget.LinearLayout>(R.id.ext_clock_items) ?: return
+        val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
+        viewLifecycleOwner.lifecycleScope.launch {
+            val extensions = if (kid) emptyList() else withContext(Dispatchers.IO) { com.portal.tv.extensions.ExtensionRegistry.scan(context) }
+            val fill = { area: com.portal.tv.extensions.ItemArea, into: android.widget.LinearLayout ->
+                ExtensionItemViews.fill(
+                    into,
+                    com.portal.tv.extensions.ExtensionItems.pick(extensions, area),
+                    onOpen = { openExtensionItem(it, area) },
+                    onInfo = { showItemInfo(it) }
+                )
+            }
+            fill(com.portal.tv.extensions.ItemArea.BAR, bar)
+            fill(com.portal.tv.extensions.ItemArea.CLOCK, clock)
+        }
+    }
+
+    private fun openExtensionItem(shown: com.portal.tv.extensions.ShownItem, area: com.portal.tv.extensions.ItemArea) {
+        val context = context ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Checked again now, in case the extension changed since the screen was drawn.
+            val intent = withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionItems.resolve(context, shown.packageName, area, shown.item.id)
+            }
+            if (intent == null) {
+                android.widget.Toast.makeText(context, "${shown.item.text} isn't allowed to open any more", android.widget.Toast.LENGTH_LONG).show()
+                refreshExtensionItems()
+                return@launch
+            }
+            runCatching { startActivity(intent) }
+                .onFailure { android.widget.Toast.makeText(context, "Couldn't open ${shown.item.text}", android.widget.Toast.LENGTH_SHORT).show() }
+        }
+    }
+
+    /** Long press on an extension's item: whose it is, since it looks like part of Portal. */
+    private fun showItemInfo(shown: com.portal.tv.extensions.ShownItem) {
+        val context = context ?: return
+        PortalDialog.Builder(context)
+            .setTitle(shown.item.text)
+            .setMessage("Added by the extension ${shown.extensionName} (${shown.packageName}). It isn't part of Portal. An adult can turn it off in Settings, Extensions.")
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
     private fun setupBackground(view: View) {
         applyBackground(view)
     }
@@ -250,6 +301,9 @@ class HomeFragment : Fragment() {
                 if (dark) R.drawable.bg_header_panel_light_focusable else R.drawable.bg_header_panel_focusable
             )
             view.findViewById<View>(R.id.panel_actions).setBackgroundResource(
+                if (dark) R.drawable.bg_header_panel_light else R.drawable.bg_header_panel
+            )
+            view.findViewById<View>(R.id.ext_clock_items).setBackgroundResource(
                 if (dark) R.drawable.bg_header_panel_light else R.drawable.bg_header_panel
             )
         }
@@ -851,6 +905,7 @@ class HomeFragment : Fragment() {
         timeHandler.postDelayed(timeRunnable, 1000)
         applySearchLevel()
         refreshUpdateButton()
+        refreshExtensionItems()
         // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
         viewLifecycleOwner.lifecycleScope.launch {
             if (com.portal.tv.update.UpdateChecks.checkIfDue(requireContext())) refreshUpdateButton()

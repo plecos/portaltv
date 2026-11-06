@@ -15,6 +15,8 @@ data class Extension(
     /** The tiles whose screens exist and can be opened; ones that can't are left out and explained in [problems]. */
     val tiles: List<ExtensionTile>,
     val settingsActivity: String?,
+    /** The home screen items that can be shown: text, and buttons whose screens exist and can be opened. */
+    val items: List<ExtensionItem>,
     val problems: List<String>,
     /** Fingerprint of who signed it now. */
     val signer: String?,
@@ -102,9 +104,14 @@ object ExtensionRegistry {
         val problems = mutableListOf<String>()
         var tiles = emptyList<ExtensionTile>()
         var settings: String? = null
+        var items = emptyList<ExtensionItem>()
         if (parsed is ManifestParser.Result.Ok) {
             tiles = parsed.manifest.tiles.filter { tile ->
                 canOpen(pm, pkg, tile.activity).also { if (!it) problems += "The tile \"${tile.label}\" opens a screen that isn't there or isn't open to Portal." }
+            }
+            items = parsed.manifest.items.filter { item ->
+                val screen = item.activity
+                (screen == null || canOpen(pm, pkg, screen)).also { if (!it) problems += "The button \"${item.text}\" opens a screen that isn't there or isn't open to Portal." }
             }
             settings = parsed.manifest.settingsActivity?.takeIf { canOpen(pm, pkg, it).also { ok -> if (!ok) problems += "Its settings screen isn't there or isn't open to Portal." } }
         }
@@ -113,7 +120,7 @@ object ExtensionRegistry {
         val matches = allowance != null && signer != null && signerMatches(pm, pkg, allowance.signer, signer)
         val declared = (parsed as? ManifestParser.Result.Ok)?.manifest?.capabilities.orEmpty()
         val granted = if (parsed is ManifestParser.Result.Ok) ExtensionAccess.granted(declared, allowance, matches) else emptySet()
-        return Extension(pkg, appLabel, parsed, tiles, settings, problems, signer, ExtensionAccess.state(parsed, allowance, matches), granted)
+        return Extension(pkg, appLabel, parsed, tiles, settings, items, problems, signer, ExtensionAccess.state(parsed, allowance, matches), granted)
     }
 
     private fun readManifest(pm: PackageManager, app: ApplicationInfo): ManifestParser.Result {

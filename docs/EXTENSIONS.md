@@ -5,9 +5,10 @@ it reads a small XML file the extension names in its manifest, and opens the ext
 Nothing an extension asks for happens until an adult allows it, one capability at a time.
 
 > **Status: draft.** This version of Portal finds extensions, reads and checks their declaration, lists them under
-> Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid, and
-> opens an extension's settings screen from Settings. The calls an extension can make into Portal (reminders, cards, tile
-> badges) come in a later piece and are listed at the end. Contract version **1**.
+> Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid,
+> opens an extension's settings screen from Settings, and draws the buttons and text an extension declares in the top bar and
+> under the clock. The calls an extension can make into Portal (reminders, cards, tile
+> badges, and changing its home screen items while running) come in a later piece and are listed at the end. Contract version **1**.
 
 ## Writing one
 
@@ -40,6 +41,11 @@ You need no SDK and no library. Any Android app can be an extension, written in 
     <tile id="cameras" label="@string/tile_cameras" icon="@drawable/ic_cameras" activity=".CamerasActivity" />
 
     <settings activity=".SettingsActivity" />
+
+    <bar-button   id="lights" label="@string/bar_lights" icon="@drawable/ic_lights" activity=".LightsActivity" />
+    <bar-text     id="mode"   text="@string/bar_mode" />
+    <clock-text   id="door"   text="@string/clock_door" />
+    <clock-button id="cams"   label="@string/clock_cams" activity=".CamerasActivity" />
 </portal-extension>
 ```
 
@@ -65,7 +71,14 @@ All attributes are plain (no namespace). Text can be a literal or a `@string/...
 | | `icon` | no | A drawable resource. |
 | `<settings>` | `activity` | yes | Your settings screen, which Portal opens from its own Settings. At most one. |
 
-At most 8 tiles. Elements Portal doesn't know are ignored, so a file can carry things for later contract versions.
+| `<bar-button>`, `<clock-button>` | `id` | yes | Same rules as the extension id; unique among the items for that area. |
+| | `label` | yes | At most 24 characters, plain text. |
+| | `activity` | yes | The exported screen it opens. |
+| | `icon` | no | A drawable resource. |
+| `<bar-text>`, `<clock-text>` | `id` | yes | As above. |
+| | `text` | yes | At most 40 characters, plain text. A line of text isn't pressed, so it has no activity or icon. |
+
+At most 8 tiles, and at most 2 items for each area (the top bar and the clock area), in any mix of buttons and text. Elements Portal doesn't know are ignored, so a file can carry things for later contract versions.
 Anything wrong in the parts it does know is reported to the person looking at the extension, not guessed at.
 
 ## Capabilities
@@ -74,6 +87,8 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | --- | --- | --- |
 | `tiles` | declaring a `<tile>` | Show your tiles in the person's apps. |
 | `settings` | declaring `<settings>` | Add a settings page for you. |
+| `bar` | declaring a `<bar-...>` item | Add buttons or text to the top bar, next to the profile, search and settings buttons. |
+| `clock` | declaring a `<clock-...>` item | Add buttons or text under the time and weather. |
 | `reminders` | `<uses capability="reminders"/>` | Add and change reminders that belong to you. |
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
 
@@ -94,6 +109,13 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 - **Kid profiles.** A kid's Settings never shows Extensions. An extension's tile appears on a kid's home screen only if a
   parent has allowed that tile for them (Manage apps, in the profile's menu). A kid's bedtime and daily limit are checked before a
   tile opens, as for any app.
+- **Home screen items.** The top bar is the panel at the top right with the profile, search and settings buttons; the
+  clock area is under the time and weather. Portal draws every item itself, in its own style, from the words and icon
+  you give; you never supply a view. An extension can only have its own items: the profile, search, settings and update
+  buttons, the weather and any alert or kid time-left text can't be removed, hidden or changed by an extension, and
+  never move out of place. Items are limited (2 per extension per area, and about 4 in the bar and 3 under the clock over
+  all extensions; the extras are not shown, in extension name order), and a button opens its screen the same way a tile
+  does, checked again on each press. Long-pressing an item says whose it is. Kid profiles don't show extension items.
 - **Third-party apps.** Extensions are not part of Portal and are not covered by its no-ads, no-tracking promise.
   What an extension does with your data is between you and its author.
 
@@ -105,7 +127,9 @@ A capability name Portal doesn't know is never granted. You can list one for a n
   page is allowed.
 - **The app grid** gets one tile per `<tile>` of an allowed extension, with the tile's icon and label, among the other
   apps. They can be hidden, moved, and appear under Frequently Used like any app, and the search box finds them.
-- **Opening a tile or the settings screen is checked again each time**: the extension must still be installed, still
+- **The detail page lists the items** the extension would put on the home screen, so an adult sees exactly what turning
+  on `bar` or `clock` will show.
+- **Opening a tile, a button or the settings screen is checked again each time**: the extension must still be installed, still
   signed by who was allowed, and still allowed that capability. If not, Portal says so and takes the tile away.
 - Tiles open one of your own exported activities in your own task. Back returns to Portal.
 
@@ -117,7 +141,7 @@ an older contract. An older Portal won't use an extension written for a newer on
 ## Coming in later pieces (not available yet)
 
 - **Calls into Portal:** a provider Portal exposes so an extension can add its own reminders, show a card over other
-  apps, and update a tile's badge. Every call will be checked against what was allowed, with limits on how often.
+  apps, update a tile's badge, and add, change or remove its own home screen items while running (so the text can stay current). Every call will be checked against what was allowed, with limits on how often.
 - **Later still:** tools the AI search can use, and a catalog to find and install extensions.
 
 Nothing here is a promise about dates, and details may change until the first release that includes extensions.
