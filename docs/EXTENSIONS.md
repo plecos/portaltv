@@ -67,6 +67,7 @@ All attributes are plain (no namespace). Text can be a literal or a `@string/...
 | | `id` | yes | Lowercase letters, digits and dashes, starting with a letter or digit, at most 40 characters. |
 | | `label` | yes | The name shown to people, at most 40 characters. |
 | | `description` | no | One or two sentences, at most 200 characters. |
+| | `icon` | no | A drawable resource that stands for the extension in Portal's lists. If it is missing, your app's icon is used. |
 | `<uses>` | `capability` | one per capability | `reminders` or `cards`. See below. |
 | `<tile>` | `id` | yes | Same rules as the extension id; unique within the file. |
 | | `label` | yes | At most 24 characters. |
@@ -267,4 +268,4 @@ scripts/conformance.sh
 
 ## Coming in later pieces (not available yet)
 
-- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal doesn't use it yet.
+- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it, not install from it yet.

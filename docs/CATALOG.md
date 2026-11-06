@@ -8,7 +8,7 @@ Portal reads one file, `catalog.json`, over https. The catalog repository (plann
 one file per extension and builds `catalog.json` from them; Portal never reads the individual files and never hosts an APK.
 Authors host their own APKs. The catalog holds a link and a checksum.
 
-This page is the format. The checks that run before anything is installed, and how Portal shows the catalog, come in later pieces.
+This page is the format and how Portal shows it. The checks that run before anything is installed come in a later piece.
 
 ## catalog.json
 
@@ -41,6 +41,8 @@ The file is at most 2,000,000 characters.
 | `source` | yes | https link to the source. A listing needs a source link. |
 | `license` | no | Up to 40 characters. Shown, not judged. |
 | `capabilities` | yes | What it asks to be allowed to do, from the [contract](EXTENSIONS.md#capabilities). An empty list is fine. An unknown one makes the entry unusable. |
+| `tags` | no | Up to 5 short words for finding it: lowercase letters, digits and dashes, at most 20 characters each (`home`, `kids`, `weather`). |
+| `icon` | no | A `.png` path next to `catalog.json`, like `icons/garage.png`, at most 200 KB, square, 128 to 256 pixels. It is always read from the catalog's own host, so browsing never contacts the author's server. A full address isn't allowed. |
 | `signer` | yes | SHA-256 of the signing certificate, 64 hex characters. For an app with several signers, the fingerprints joined with `+`. |
 | `screenshots` | no | Up to 4 https links. |
 | `versions` | yes | 1 to 20 versions (below). |
@@ -86,3 +88,27 @@ scripts/validate-catalog.sh path/to/catalog.json
 ```
 
 `docs/catalog/sample-catalog.json` is an example (its signer and checksum are placeholders) and is checked on every test run.
+
+## Browsing it in Portal
+
+Settings, Extensions has a **Browse extensions** button (a kid's Settings never shows Extensions).
+
+- The list opens at once from the copy kept on the TV, and is fetched again when that copy is more than a day old, or when
+  you choose **Refresh**. With no connection it keeps showing the last copy and says it couldn't update.
+- A search box finds extensions by words in the title, the description or the tags: every word must match somewhere, capitals
+  don't matter, and title matches come first. A **Tag** button limits the list to one tag.
+- Entries with nothing Portal could offer (every version revoked, or needing a newer contract) are left out.
+- Each row says whether the extension is **Installed**, has an **Update available**, or is installed but **signed by someone
+  else** (then it isn't the listed one).
+- A detail page shows the description, author, licence, what it asks to be allowed to do in plain words, its signer,
+  version and size, and the source link. Nothing installs from here yet.
+- On an installed extension's page, Portal says **Listed in the catalog**, **In the catalog, but signed by someone else**,
+  or **Not in the catalog** (once the catalog has been loaded at least once).
+- The request carries nothing about the TV: no account, no id, no list of installed apps.
+- The kept copy and when it was fetched are left out of backups and device transfers.
+
+The real catalog isn't online yet, so a debug build shows "The catalog isn't online yet" (a 404). To try Browse now, run
+`scripts/test-catalog.sh`: it serves the test catalog in `docs/catalog/test` from your computer and points a debug build of
+Portal at it (`HOST=<your computer's address>` for a real TV, `ANDROID_SERIAL=<device>` to pick one device,
+`scripts/test-catalog.sh --off` to undo). Underneath, a debug build reads the address in the `url` preference of
+`catalog_debug` (http is allowed there only).

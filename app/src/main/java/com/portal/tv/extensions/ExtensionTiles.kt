@@ -57,3 +57,12 @@ object ExtensionTiles {
         return pm.getApplicationIcon(packageName)
     }
 }
+
+/** The picture for an extension itself: the one it names in its manifest, else its app's icon. */
+object ExtensionIcons {
+    fun of(context: Context, packageName: String, iconRes: Int): Drawable? {
+        val pm = context.packageManager
+        if (iconRes != 0) runCatching { pm.getResourcesForApplication(packageName).getDrawable(iconRes, null) }.getOrNull()?.let { return it }
+        return runCatching { pm.getApplicationIcon(packageName) }.getOrNull()
+    }
+}

@@ -9,7 +9,15 @@
       "author": "Portal TV",
       "source": "https://github.com/plecos/portaltv/tree/main/sample-extension",
       "license": "PolyForm Noncommercial 1.0.0",
-      "capabilities": ["tiles", "settings", "bar", "clock", "background", "reminders", "cards"],
+      "capabilities": [
+        "tiles",
+        "settings",
+        "bar",
+        "clock",
+        "background",
+        "reminders",
+        "cards"
+      ],
       "signer": "0000000000000000000000000000000000000000000000000000000000000000",
       "screenshots": [],
       "versions": [
@@ -21,7 +29,12 @@
           "size": 1500000,
           "contract": 1
         }
-      ]
+      ],
+      "tags": [
+        "sample",
+        "developer"
+      ],
+      "icon": "icons/portal-sample.png"
     }
   ],
   "revoked": []

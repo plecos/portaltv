@@ -9,6 +9,8 @@
     <exclude domain="sharedpref" path="portal_extensions.xml" />
     <exclude domain="sharedpref" path="portal_extension_items.xml" />
     <exclude domain="sharedpref" path="portal_extension_tiles.xml" />
+    <exclude domain="file" path="extension_catalog.json" />
+    <exclude domain="sharedpref" path="extension_catalog.xml" />
     <!--
    <include domain="sharedpref" path="."/>
    <exclude domain="sharedpref" path="device.xml"/>

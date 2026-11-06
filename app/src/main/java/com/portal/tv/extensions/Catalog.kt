@@ -30,6 +30,13 @@ data class CatalogEntry(
     val capabilities: Set<String>,
     /** The signing certificate, in the form [ExtensionAccess.combineSigners] gives. */
     val signer: String,
+    /** Short lowercase words for finding it, like "weather" or "kids". Up to [CatalogParser.MAX_TAGS]. */
+    val tags: List<String>,
+    /**
+     * A small PNG in the catalog's own folder, as a path relative to catalog.json (like `icons/garage.png`), or empty.
+     * Always the catalog's host, so browsing never contacts the author's server.
+     */
+    val iconPath: String,
     val screenshots: List<String>,
     /** Newest first. */
     val versions: List<CatalogVersion>
@@ -69,6 +76,8 @@ object CatalogParser {
     const val MAX_REVOKED = 1000
     const val MAX_VERSIONS = 20
     const val MAX_SCREENSHOTS = 4
+    const val MAX_TAGS = 5
+    const val MAX_TAG = 20
     const val MAX_URL = 300
     const val MAX_AUTHOR = 60
     const val MAX_LICENSE = 40
@@ -78,6 +87,8 @@ object CatalogParser {
 
     private val PACKAGE = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+")
     private val HEX64 = Regex("[0-9a-f]{64}")
+    private val TAG = Regex("[a-z0-9][a-z0-9-]{0,19}")
+    private val ICON = Regex("[a-z0-9][a-z0-9_./-]{0,99}\\.png")
 
     sealed class Result {
         data class Ok(val catalog: Catalog, val problems: List<String>) : Result()
@@ -152,6 +163,21 @@ object CatalogParser {
 
         val signer = signer(o.opt("signer")) ?: return bad("its signer isn't a SHA-256 fingerprint.")
 
+        val tags = mutableListOf<String>()
+        val tl = o.opt("tags")
+        if (tl != null) {
+            if (tl !is JSONArray || tl.length() > MAX_TAGS) return bad("its tags aren't a list of at most $MAX_TAGS.")
+            for (i in 0 until tl.length()) {
+                val t = (tl.opt(i) as? String)?.lowercase()?.takeIf { TAG.matches(it) }
+                    ?: return bad("a tag isn't lowercase letters, digits and dashes, up to $MAX_TAG characters.")
+                if (t !in tags) tags += t
+            }
+        }
+        val icon = if (o.has("icon")) {
+            (o.opt("icon") as? String)?.takeIf { ICON.matches(it) && ".." !in it && "//" !in it }
+                ?: return bad("its icon isn't a .png path inside the catalog's folder.")
+        } else ""
+
         val shots = mutableListOf<String>()
         val sl = o.opt("screenshots")
         if (sl != null) {
@@ -174,7 +200,7 @@ object CatalogParser {
             versions += CatalogVersion(code, vname, apk, sha, size, contract)
         }
         return Entry.Good(
-            CatalogEntry(pkg, name, description, author, source, license, capabilities, signer, shots, versions.sortedByDescending { it.versionCode })
+            CatalogEntry(pkg, name, description, author, source, license, capabilities, signer, tags, icon, shots, versions.sortedByDescending { it.versionCode })
         )
     }
 
