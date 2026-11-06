@@ -1,9 +1,11 @@
 package net.getportaltv.sample
 
 import android.app.Activity
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -55,7 +57,8 @@ private fun Activity.page(title: String, body: ViewGroup.() -> Unit) {
         addView(View(this@page), LinearLayout.LayoutParams(1, dp(28)))
     }
     root.body()
-    setContentView(root)
+    // Scrolls, so a long page can be reached with the remote.
+    setContentView(android.widget.ScrollView(this).apply { isFillViewport = true; setBackgroundColor(BACKGROUND); addView(root) })
 }
 
 /** The "Lights" tile: rooms that switch on and off with OK. */
@@ -111,6 +114,9 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         page("Sample extension settings") {
+            // Calls into Portal further down. Each answer is shown here; "not_allowed" until an adult turns the capability on.
+            val answer = label("Press one of the calls below to try it.", 18f, Color.rgb(255, 214, 130))
+            addView(answer, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(14) })
             listOf("Home server" to "http://homeassistant.local:8123", "Refresh every" to "30 seconds", "Show cameras in the apps row" to "On").forEach { (name, value) ->
                 val col = LinearLayout(this@SettingsActivity).apply {
                     orientation = LinearLayout.VERTICAL
@@ -119,8 +125,39 @@ class SettingsActivity : Activity() {
                 }
                 addView(card(col), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(14) })
             }
+            fun action(name: String, method: String, extras: Bundle.() -> Unit = {}) {
+                addView(card(label(name, 22f)) {
+                    answer.text = Portal.call(this@SettingsActivity, method, Bundle().apply(extras))
+                    // The page scrolls, so the answer at the top can be out of sight: say it again where it can be seen.
+                    android.util.Log.i("PortalSample", answer.text.toString())
+                    android.widget.Toast.makeText(this@SettingsActivity, answer.text, android.widget.Toast.LENGTH_SHORT).show()
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) })
+            }
+            action("Ask Portal what it supports", "host.info")
+            action("Add a reminder in 2 minutes", "reminders.add") {
+                putString("title", "Sample reminder"); putLong("at_millis", System.currentTimeMillis() + 2 * 60_000L)
+            }
+            action("List my reminders", "reminders.list")
+            action("Show a card over the screen", "card.show") { putString("title", "Garage door is open"); putString("text", "Sent by the sample extension") }
+            action("Change the clock-area text", "items.set") { putString("area", "clock"); putString("id", "status"); putString("text", "Garage door open") }
+            action("Add a second clock-area line", "items.set") { putString("area", "clock"); putString("id", "extra"); putString("text", "Front door locked") }
+            action("Take the clock-area text away", "items.remove") { putString("area", "clock"); putString("id", "status") }
+            action("Try to remove Portal's settings button", "items.remove") { putString("area", "bar"); putString("id", "settings") }
             requestFocusOnFirst()
         }
+    }
+}
+
+/** A call into Portal's host provider, with the answer written out for the screen. */
+private object Portal {
+    private val URI = Uri.parse("content://net.getportaltv.host")
+
+    fun call(context: Context, method: String, extras: Bundle): String = try {
+        val reply = context.contentResolver.call(URI, method, null, extras)
+        if (reply == null) "$method: no answer (is Portal installed?)"
+        else "$method: " + reply.keySet().sorted().joinToString(", ") { "$it=${reply.get(it)}" }
+    } catch (e: Exception) {
+        "$method failed: ${e.javaClass.simpleName}"
     }
 }
 

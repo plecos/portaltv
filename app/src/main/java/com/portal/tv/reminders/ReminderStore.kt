@@ -41,6 +41,14 @@ object ReminderStore {
         persist(context, all(context).filter { it.id != id }, null)
     }
 
+    /** The reminders made by the extension [source], whichever profile they belong to. */
+    fun forSource(context: Context, source: String): List<Reminder> = all(context).filter { it.source == source }
+
+    /** An extension was turned off for reminders, or removed: what it made goes with it. */
+    fun clearForSource(context: Context, source: String) {
+        if (all(context).any { it.source == source }) persist(context, all(context).filter { it.source != source }, null)
+    }
+
     /** A profile was deleted, and its reminders go with it. */
     fun clearForProfile(context: Context, profileId: Int) {
         persist(context, all(context).filter { it.profileId != profileId }, null)

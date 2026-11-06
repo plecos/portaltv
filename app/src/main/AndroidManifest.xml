@@ -85,6 +85,13 @@
                 android:value="Keeps time for reminders people have set and shows a card over the open app when one is due" />
         </service>
 
+        <!-- The calls extensions make into Portal. Anyone can reach it, so every call checks who is calling and what an adult
+             allowed them (see HostProvider); it has no data to read or write. -->
+        <provider
+            android:name=".extensions.HostProvider"
+            android:authorities="net.getportaltv.host"
+            android:exported="true" />
+
         <receiver android:name=".reminders.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

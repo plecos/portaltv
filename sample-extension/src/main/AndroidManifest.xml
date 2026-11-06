@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Android 11 and later hide other apps' providers unless asked for: this is what lets the sample call Portal. -->
+    <queries>
+        <provider android:authorities="net.getportaltv.host" />
+    </queries>
+
     <!-- No launcher entry: this app only appears in Portal through the tiles it declares. -->
     <application
         android:allowBackup="false"
