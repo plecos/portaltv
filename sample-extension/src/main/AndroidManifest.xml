@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- No launcher entry: this app only appears in Portal through the tiles it declares. -->
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_sample"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <!-- This is what makes the app a Portal extension: it points at the file that describes it. -->
+        <meta-data
+            android:name="net.getportaltv.extension"
+            android:resource="@xml/portal_extension" />
+
+        <!-- Screens Portal opens must be exported. -->
+        <activity android:name=".LightsActivity" android:exported="true" />
+        <activity android:name=".CamerasActivity" android:exported="true" />
+        <activity android:name=".SettingsActivity" android:exported="true" />
+    </application>
+
+</manifest>

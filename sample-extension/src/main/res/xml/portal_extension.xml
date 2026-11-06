@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Describes this extension to Portal. See docs/EXTENSIONS.md in the Portal repository. -->
+<portal-extension
+    contract="1"
+    id="sample"
+    label="@string/ext_name"
+    description="@string/ext_description">
+
+    <!-- What it asks to be allowed to do. Tiles and a settings page are asked for by declaring them. -->
+    <uses capability="reminders" />
+    <uses capability="cards" />
+
+    <tile id="lights" label="@string/tile_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
+    <tile id="cameras" label="@string/tile_cameras" icon="@drawable/ic_sample" activity=".CamerasActivity" />
+
+    <settings activity=".SettingsActivity" />
+</portal-extension>

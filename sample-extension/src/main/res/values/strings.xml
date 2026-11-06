@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Portal sample extension</string>
+    <string name="ext_name">Sample extension</string>
+    <string name="ext_description">An example extension: two tiles, a settings screen, and a request to add reminders and show cards.</string>
+    <string name="tile_lights">Lights</string>
+    <string name="tile_cameras">Cameras</string>
+</resources>

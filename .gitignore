@@ -16,3 +16,4 @@ local.properties
 
 # IDE settings stay local
 /.idea/
+/sample-extension/build
