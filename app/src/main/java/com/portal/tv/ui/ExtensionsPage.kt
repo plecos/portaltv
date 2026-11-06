@@ -104,7 +104,7 @@ class ExtensionsPage(
         }
         all.forEach { ext ->
             val row = TextView(context).apply {
-                text = "${ext.name}  ·  ${ExtensionLabels.status(ext.state, ext.granted)}"
+                text = ext.name
                 textSize = 18f
                 typeface = context.resources.getFont(R.font.inter)
                 setTextColor(context.resources.getColor(R.color.text_primary, null))
@@ -179,9 +179,36 @@ class ExtensionsPage(
                     }
                 }
                 box.addView(text("\nAllow it to:", 16f, soft).apply { setPadding(0, 0, 0, px(6)) })
+                val all = parsed.manifest.capabilities
+                val redraws = mutableListOf<() -> Unit>()
+                if (all.size > 1) {
+                    // One press turns everything on, or, when everything is on, everything off.
+                    val toggle = TextView(context)
+                    fun label() { toggle.text = if (chosen.containsAll(all)) "Deselect all" else "Select all" }
+                    toggle.apply {
+                        textSize = 17f
+                        typeface = context.resources.getFont(R.font.inter)
+                        setTextColor(Color.WHITE)
+                        setPadding(px(20), px(8), px(20), px(8))
+                        setBackgroundResource(R.drawable.bg_settings_tile)
+                        isFocusable = true
+                        isClickable = true
+                        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                            .apply { bottomMargin = px(8) }
+                        setOnClickListener {
+                            if (chosen.containsAll(all)) chosen.clear() else chosen.addAll(all)
+                            redraws.forEach { it() }
+                            label()
+                        }
+                    }
+                    label()
+                    redraws += { label() }
+                    box.addView(toggle)
+                }
                 parsed.manifest.capabilities.forEach { capability ->
                     val row = TextView(context)
                     fun show() { row.text = (if (capability in chosen) "✔  " else "☐  ") + Capability.describe(capability) }
+                    redraws += { show() }
                     row.apply {
                         textSize = 18f
                         typeface = context.resources.getFont(R.font.inter)
@@ -192,7 +219,7 @@ class ExtensionsPage(
                         isClickable = true
                         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                             .apply { bottomMargin = px(8) }
-                        setOnClickListener { if (!chosen.add(capability)) chosen.remove(capability); show() }
+                        setOnClickListener { if (!chosen.add(capability)) chosen.remove(capability); redraws.forEach { it() } }
                     }
                     show()
                     box.addView(row)
