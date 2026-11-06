@@ -76,15 +76,6 @@ class CatalogPages(
         }
     }
 
-    /** Package to (version code, signer) for what is installed, only for what could be in the catalog. */
-    private fun installedVersions(): Map<String, Pair<Long, String?>> {
-        val pm = context.packageManager
-        return pm.getInstalledPackages(PackageManager.GET_SIGNING_CERTIFICATES).associate { p ->
-            val signers = p.signingInfo?.apkContentsSigners?.map { ExtensionAccess.sha256Hex(it.toByteArray()) }
-            p.packageName to (p.longVersionCode to signers?.let { ExtensionAccess.combineSigners(it) })
-        }
-    }
-
     // ---------- One extension ----------
 
     fun showDetail(catalog: Catalog, entry: CatalogEntry) {
@@ -102,8 +93,8 @@ class CatalogPages(
         if (entry.tags.isNotEmpty()) box.addView(text(entry.tags.joinToString("   ") { "#$it" }, 14f, soft).apply { setPadding(0, px(6), 0, 0) })
         box.addView(text("by ${entry.author}" + if (entry.license.isNotEmpty()) "  ·  ${entry.license}" else "", 14f, soft).apply { setPadding(0, px(6), 0, px(6)) })
 
-        val installed = installedVersions()[entry.packageName]
-        val state = CatalogLabels.state(catalog, entry, installed?.first, installed?.second)
+        val installed = CatalogInstaller.installedFacts(context, entry.packageName)
+        val state = CatalogLabels.state(catalog, entry, installed?.versionCode, installed?.signer)
         val stateLine = CatalogLabels.stateText(state)
         if (stateLine.isNotEmpty()) {
             val color = if (state == CatalogState.SIGNED_BY_OTHER) Color.rgb(255, 200, 100) else Color.rgb(140, 230, 160)

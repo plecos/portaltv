@@ -31,9 +31,10 @@ object CatalogChecks {
     /** Fetches now if one is due. Returns true if it tried. Quiet about failures: the next try is soon enough. */
     suspend fun checkIfDue(context: Context, now: Long = System.currentTimeMillis()): Boolean {
         val app = context.applicationContext
-        val has = withContext(Dispatchers.IO) { ExtensionRegistry.scan(app).isNotEmpty() }
-        val fetchedAt = CatalogClient.cached(app)?.fetchedAtMs ?: 0L
-        if (!isDue(has, fetchedAt, CatalogClient.attemptedAt(app), now, CatalogClient.jitterMs(app), CatalogClient.retryUntil(app))) return false
+        // Cheap things first: this runs every time the home screen comes back, and is usually not due.
+        val fetchedAt = withContext(Dispatchers.IO) { CatalogClient.cached(app)?.fetchedAtMs ?: 0L }
+        if (!isDue(true, fetchedAt, CatalogClient.attemptedAt(app), now, CatalogClient.jitterMs(app), CatalogClient.retryUntil(app))) return false
+        if (!withContext(Dispatchers.IO) { ExtensionRegistry.anyInstalled(app) }) return false
         runCatching { CatalogClient.fetch(app) }
         return true
     }

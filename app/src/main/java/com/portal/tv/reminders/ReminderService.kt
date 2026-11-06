@@ -100,10 +100,16 @@ class ReminderService : Service() {
 
     private fun tick() {
         val all = ReminderStore.all(this)
+        // Whether an extension may still make reminders is looked up once for each extension, not once for each reminder.
+        val allowedSources = HashMap<String, Boolean>()
         val resolution = ReminderLogic.resolve(
             all, System.currentTimeMillis(), policy = ReminderStore.missedPolicy(this),
             exists = { ProfileManager.getById(this, it) != null },
-            sourceAllowed = { com.portal.tv.extensions.Capability.REMINDERS in com.portal.tv.extensions.ExtensionRegistry.granted(this, it) }
+            sourceAllowed = { src ->
+                allowedSources.getOrPut(src) {
+                    com.portal.tv.extensions.Capability.REMINDERS in com.portal.tv.extensions.ExtensionRegistry.granted(this, src)
+                }
+            }
         )
         if (resolution.keep == all) return
         ReminderStore.replace(this, resolution.keep)

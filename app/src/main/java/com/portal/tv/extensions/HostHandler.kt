@@ -58,6 +58,12 @@ class HostHandler(
     private val cards: RateLimiter = RateLimiter(1, HostLimits.CARD_INTERVAL_MS)
 ) {
 
+    /** Whether [caller] is an installed extension at all. Asked before a call's arguments are read. */
+    fun knows(caller: String): Boolean = env.extension(caller) != null
+
+    /** One at a time, so two calls can't both see room for a reminder and both add one. */
+    private val remindersLock = Any()
+
     fun call(caller: String, method: String, args: Map<String, Any?>): HostReply {
         val ext = env.extension(caller) ?: return HostReply.fail(HostApi.Error.NOT_ALLOWED)
         if (method == HostApi.INFO) return info(ext)
@@ -112,8 +118,10 @@ class HostHandler(
         val at = args.long("at_millis") ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
         HostChecks.reminderTime(at, env.nowMillis())?.let { return HostReply.fail(it) }
         val like = reminderFields(args, Reminder(0, profileId, "", at, source = ext.packageName)) ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
-        if (env.remindersFrom(ext.packageName).size >= HostLimits.MAX_REMINDERS) return HostReply.fail(HostApi.Error.LIMIT)
-        val made = env.addReminder(profileId, title!!, at, like)
+        val made = synchronized(remindersLock) {
+            if (env.remindersFrom(ext.packageName).size >= HostLimits.MAX_REMINDERS) return HostReply.fail(HostApi.Error.LIMIT)
+            env.addReminder(profileId, title!!, at, like)
+        }
         return HostReply.ok(mapOf("id" to made.id))
     }
 

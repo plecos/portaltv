@@ -5,6 +5,9 @@ import android.content.Context
 /**
  * Every profile's reminders, in one place: a reminder is set by a profile but has to fire whoever is using the TV, so
  * they can't live in the per-profile settings. The way missed reminders are handled is also here, for the whole TV.
+ *
+ * Reminders are changed from the main thread, from the reminder service and, for extensions, from the host provider's
+ * binder threads, so every change reads, alters and saves the list under one lock.
  */
 object ReminderStore {
 
@@ -21,6 +24,7 @@ object ReminderStore {
     fun forProfile(context: Context, profileId: Int): List<Reminder> = all(context).filter { it.profileId == profileId }
 
     /** Adds a reminder; [like] carries the sound, dismissal and snooze settings over (its id, profile, title and time are ignored). */
+    @Synchronized
     fun add(
         context: Context, profileId: Int, title: String, atMillis: Long, repeat: Reminder.Repeat, like: Reminder? = null
     ): Reminder {
@@ -32,11 +36,13 @@ object ReminderStore {
         return reminder
     }
 
+    @Synchronized
     fun update(context: Context, reminder: Reminder) {
         persist(context, all(context).map { if (it.id == reminder.id) reminder else it }, null)
         ReminderService.ensureRunning(context)
     }
 
+    @Synchronized
     fun remove(context: Context, id: Int) {
         persist(context, all(context).filter { it.id != id }, null)
     }
@@ -45,16 +51,19 @@ object ReminderStore {
     fun forSource(context: Context, source: String): List<Reminder> = all(context).filter { it.source == source }
 
     /** An extension was turned off for reminders, or removed: what it made goes with it. */
+    @Synchronized
     fun clearForSource(context: Context, source: String) {
         if (all(context).any { it.source == source }) persist(context, all(context).filter { it.source != source }, null)
     }
 
     /** A profile was deleted, and its reminders go with it. */
+    @Synchronized
     fun clearForProfile(context: Context, profileId: Int) {
         persist(context, all(context).filter { it.profileId != profileId }, null)
     }
 
     /** Replaces the whole list, for the service after it has shown what was due. */
+    @Synchronized
     fun replace(context: Context, reminders: List<Reminder>) = persist(context, reminders, null)
 
     fun missedPolicy(context: Context): MissedPolicy = MissedPolicy.fromKey(prefs(context).getString(KEY_MISSED, null))
@@ -63,6 +72,7 @@ object ReminderStore {
         prefs(context).edit().putString(KEY_MISSED, policy.key).apply()
     }
 
+    @Synchronized
     private fun persist(context: Context, reminders: List<Reminder>, nextId: Int?) {
         prefs(context).edit().apply {
             putString(KEY, ReminderJson.encode(reminders))

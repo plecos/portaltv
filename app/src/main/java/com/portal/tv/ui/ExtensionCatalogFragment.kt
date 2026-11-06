@@ -27,11 +27,13 @@ import com.portal.tv.extensions.Catalog
 import com.portal.tv.extensions.CatalogClient
 import com.portal.tv.extensions.CatalogEntry
 import com.portal.tv.extensions.CatalogIcons
+import com.portal.tv.extensions.CatalogInstaller
 import com.portal.tv.extensions.CatalogLabels
 import com.portal.tv.extensions.CatalogSearch
 import com.portal.tv.extensions.ExtensionAccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Browse extensions, full screen: a grid of everything in the catalog, with a search box and a tag filter. The list opens at
@@ -52,8 +54,10 @@ class ExtensionCatalogFragment : Fragment() {
     private var tag: String? = null
     private var note = ""
     private var focused = false
+    private var installedLoaded = false
     private var shown = emptyList<CatalogEntry>()
-    private var installed = emptyMap<String, Pair<Long, String?>>()
+    private var installed = emptyMap<String, com.portal.tv.extensions.InstalledFacts>()
+    private var installedJob: kotlinx.coroutines.Job? = null
     private val icons = object : LruCache<String, Bitmap>(96) {}
 
     private lateinit var adapter: Adapter
@@ -103,7 +107,25 @@ class ExtensionCatalogFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         // Something may have been installed or removed since the cards were drawn.
-        if (catalog != null) refill()
+        if (catalog != null) loadInstalled()
+    }
+
+    override fun onDestroyView() {
+        // The result of an install goes to whoever is showing; nobody is, once this screen is gone.
+        CatalogInstaller.onOutcome = null
+        installedJob?.cancel()
+        super.onDestroyView()
+    }
+
+    /** What is installed, for the cards' Installed / Update labels. Read off the main thread, and not on every keystroke. */
+    private fun loadInstalled() {
+        val c = catalog ?: return
+        val appContext = requireContext().applicationContext
+        installedJob?.cancel()
+        installedJob = viewLifecycleOwner.lifecycleScope.launch {
+            val now = withContext(kotlinx.coroutines.Dispatchers.IO) { CatalogInstaller.installedFacts(appContext, c.extensions.map { it.packageName }) }
+            if (now != installed) { installed = now; adapter.notifyDataSetChanged() }
+        }
     }
 
     // ---------- Loading and filtering ----------
@@ -136,13 +158,13 @@ class ExtensionCatalogFragment : Fragment() {
 
     private fun refill() {
         val c = catalog ?: return
-        installed = installedVersions()
         tagChip.text = "Tag: " + (tag ?: "all")
         val offered = CatalogLabels.shown(c)
         shown = CatalogSearch.filter(offered, query, tag)
         status.text = (if (query.isNotBlank() || tag != null) "${shown.size} of ${CatalogLabels.count(offered.size)}" else CatalogLabels.count(offered.size)) + note +
             if (shown.isEmpty() && offered.isNotEmpty()) " · nothing matches, try other words or Tag: all" else ""
         adapter.notifyDataSetChanged()
+        if (!installedLoaded) { installedLoaded = true; loadInstalled() }
         if (!focused && shown.isNotEmpty()) {
             focused = true
             results.post { results.requestFocus() }
@@ -163,23 +185,21 @@ class ExtensionCatalogFragment : Fragment() {
             .show()
     }
 
-    /** Package to (version code, signer) for what is installed. */
-    private fun installedVersions(): Map<String, Pair<Long, String?>> {
-        val pm = requireContext().packageManager
-        return pm.getInstalledPackages(PackageManager.GET_SIGNING_CERTIFICATES).associate { p ->
-            val signers = p.signingInfo?.apkContentsSigners?.map { ExtensionAccess.sha256Hex(it.toByteArray()) }
-            p.packageName to (p.longVersionCode to signers?.let { ExtensionAccess.combineSigners(it) })
-        }
-    }
-
     // ---------- The grid ----------
 
     private inner class Holder(val card: LinearLayout, val icon: ImageView, val name: TextView, val line: TextView, val tagLine: TextView, val state: TextView) :
         RecyclerView.ViewHolder(card) {
         var iconUrl: String? = null
+        var iconJob: kotlinx.coroutines.Job? = null
     }
 
     private inner class Adapter : RecyclerView.Adapter<Holder>() {
+
+        // A card that scrolls away stops loading its icon.
+        override fun onViewRecycled(holder: Holder) {
+            holder.iconJob?.cancel()
+            holder.iconJob = null
+        }
 
         override fun getItemCount() = shown.size
 
@@ -224,7 +244,7 @@ class ExtensionCatalogFragment : Fragment() {
             val entry = shown[position]
             val c = catalog ?: return
             val here = installed[entry.packageName]
-            val state = CatalogLabels.state(c, entry, here?.first, here?.second)
+            val state = CatalogLabels.state(c, entry, here?.versionCode, here?.signer)
             val stateText = CatalogLabels.stateText(state)
             h.name.text = entry.name
             h.line.text = entry.author
@@ -237,13 +257,14 @@ class ExtensionCatalogFragment : Fragment() {
 
             // The icon: the puzzle piece until the catalog's own arrives.
             val url = CatalogSearch.iconUrl(CatalogClient.url(requireContext()), entry.iconPath)
+            h.iconJob?.cancel()
             h.iconUrl = url
             val have = url?.let { icons.get(it) }
             if (have != null) {
                 h.icon.setImageBitmap(have); h.icon.alpha = 1f
             } else {
                 h.icon.setImageResource(R.drawable.ic_cat_extensions); h.icon.alpha = 0.6f
-                if (url != null) viewLifecycleOwner.lifecycleScope.launch {
+                if (url != null) h.iconJob = viewLifecycleOwner.lifecycleScope.launch {
                     val bitmap = CatalogIcons.load(requireContext(), url, BuildConfig.DEBUG) ?: return@launch
                     icons.put(url, bitmap)
                     if (h.iconUrl == url) { h.icon.setImageBitmap(bitmap); h.icon.alpha = 1f }

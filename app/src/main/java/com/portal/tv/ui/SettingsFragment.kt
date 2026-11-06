@@ -1861,10 +1861,12 @@ class SettingsFragment : Fragment() {
                 })
             }
             val now = System.currentTimeMillis()
+            // One lookup for each extension, not one for each of its reminders.
+            val sourceNames = HashMap<String, String>()
             reminders.forEach { r ->
                 val whenText = com.portal.tv.reminders.ReminderLogic.whenLabel(r.atMillis, now) +
                     (if (r.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else "  ·  " + r.repeat.label.lowercase()) +
-                    (r.source?.let { src -> "  ·  via " + (com.portal.tv.extensions.ExtensionRegistry.find(context, src)?.name ?: src) } ?: "")
+                    (r.source?.let { src -> "  ·  via " + sourceNames.getOrPut(src) { com.portal.tv.extensions.ExtensionRegistry.find(context, src)?.name ?: src } } ?: "")
                 list.addView(TextView(context).apply {
                     text = "${r.title}  ·  $whenText"
                     textSize = 18f

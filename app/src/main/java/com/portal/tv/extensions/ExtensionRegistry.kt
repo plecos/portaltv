@@ -53,6 +53,11 @@ object ExtensionRegistry {
             .sortedBy { it.name.lowercase() }
     }
 
+    /** Whether any extension is installed, without reading any of them. */
+    fun anyInstalled(context: Context): Boolean =
+        context.packageManager.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+            .any { it.packageName != context.packageName && it.enabled && it.metaData?.containsKey(META_KEY) == true }
+
     /**
      * What was allowed for an app that has been uninstalled is forgotten, so putting it back later starts from nothing
      * (a disabled app is still installed, so it keeps what it was allowed).
