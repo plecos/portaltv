@@ -119,6 +119,9 @@ class ExtensionsPage(
                     box.addView(text("\nThis app was allowed before, but it is now signed by someone else. Only allow it again if you expect that.", 15f, Color.rgb(255, 200, 100)))
                 }
                 val shown = parsed.manifest.items
+                if (parsed.manifest.backgroundService != null) {
+                    box.addView(text("\nIt can draw your home screen background, if you choose it under Settings, Background.", 15f, Color.WHITE))
+                }
                 if (shown.isNotEmpty()) {
                     box.addView(text("\nIt would put on your home screen:", 16f, soft).apply { setPadding(0, 0, 0, px(4)) })
                     shown.forEach { item ->

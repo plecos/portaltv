@@ -61,13 +61,18 @@ object ExtensionItemViews {
         return row
     }
 
-    /** A line of text: not focusable, so the remote passes over it. */
+    /**
+     * A line of text. Pressing it does nothing, but the remote can stop on it so a long press can say whose it is (an
+     * extension's text looks like part of Portal, so there must be a way to find out).
+     */
     private fun line(context: Context, shown: ShownItem): View =
         label(context, shown.item.text, 16f, R.color.text_primary).apply {
             setPadding(px(context, 8), 0, px(context, 8), 0)
             contentDescription = "${shown.item.text}, from ${shown.extensionName}"
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(context, 48))
             gravity = Gravity.CENTER_VERTICAL
+            setBackgroundResource(R.drawable.bg_app_tile)
+            isFocusable = true
             isClickable = true
         }
 

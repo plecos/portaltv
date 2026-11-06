@@ -23,6 +23,13 @@
         <activity android:name=".LightsActivity" android:exported="true" />
         <activity android:name=".CamerasActivity" android:exported="true" />
         <activity android:name=".SettingsActivity" android:exported="true" />
+
+        <!-- Portal binds to this to ask for a background; it must be exported. -->
+        <service android:name=".BackgroundService" android:exported="true">
+            <intent-filter>
+                <action android:name="net.getportaltv.BACKGROUND" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
