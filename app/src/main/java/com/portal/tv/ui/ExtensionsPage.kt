@@ -269,7 +269,7 @@ class ExtensionsPage(
         if (manifest != null) {
             builder.setPositiveButton("Save") { _, _ -> withPin { save(ext, chosen) } }
             if (Capability.SETTINGS in ext.granted && ext.settingsActivity != null) {
-                builder.setNeutralButton("Open its settings") { _, _ -> openSettings(ext) }
+                builder.setNeutralButton("Settings") { _, _ -> openSettings(ext) }
             }
         }
         shown = builder.show()
