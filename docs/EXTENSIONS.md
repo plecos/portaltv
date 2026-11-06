@@ -267,4 +267,4 @@ scripts/conformance.sh
 
 ## Coming in later pieces (not available yet)
 
-- A catalog of extensions.
+- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal doesn't use it yet.

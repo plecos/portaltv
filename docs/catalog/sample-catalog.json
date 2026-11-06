@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "updated": "2026-11-06",
+  "extensions": [
+    {
+      "package": "net.getportaltv.sample",
+      "name": "Portal sample",
+      "description": "Shows every part of the extension contract: a tile, a settings page, top bar items, a background and reminders.",
+      "author": "Portal TV",
+      "source": "https://github.com/plecos/portaltv/tree/main/sample-extension",
+      "license": "PolyForm Noncommercial 1.0.0",
+      "capabilities": ["tiles", "settings", "bar", "clock", "background", "reminders", "cards"],
+      "signer": "0000000000000000000000000000000000000000000000000000000000000000",
+      "screenshots": [],
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "1.0",
+          "apk": "https://example.com/portal-sample-1.0.apk",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "size": 1500000,
+          "contract": 1
+        }
+      ]
+    }
+  ],
+  "revoked": []
+}

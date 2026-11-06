@@ -1,0 +1,88 @@
+# The Portal extensions catalog (format 1, draft)
+
+The catalog is a list of extensions that people have submitted for Portal to show under **Settings, Extensions, Browse**.
+It is a review by pull request, **not an audit**: being listed means someone read the entry and checked the source link,
+not that the extension is safe. Portal says so wherever it shows the list.
+
+Portal reads one file, `catalog.json`, over https. The catalog repository (planned: `plecos/portaltv-extensions`) keeps
+one file per extension and builds `catalog.json` from them; Portal never reads the individual files and never hosts an APK.
+Authors host their own APKs. The catalog holds a link and a checksum.
+
+This page is the format. The checks that run before anything is installed, and how Portal shows the catalog, come in later pieces.
+
+## catalog.json
+
+```json
+{
+  "format": 1,
+  "updated": "2026-11-06",
+  "extensions": [ { ... } ],
+  "revoked":    [ { ... } ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `format` | Whole number. Portal reads the formats it knows and ignores a file with a higher one. |
+| `updated` | Free text date, shown to the person. Optional. |
+| `extensions` | Up to 500 entries. |
+| `revoked` | Up to 1000 lines. Optional. |
+
+The file is at most 2,000,000 characters.
+
+## An extension entry
+
+| Field | Required | Rules |
+|---|---|---|
+| `package` | yes | The Android package name. Listed once. |
+| `name` | yes | Up to 40 characters, plain text. |
+| `description` | yes | Up to 200 characters. |
+| `author` | yes | Up to 60 characters. |
+| `source` | yes | https link to the source. A listing needs a source link. |
+| `license` | no | Up to 40 characters. Shown, not judged. |
+| `capabilities` | yes | What it asks to be allowed to do, from the [contract](EXTENSIONS.md#capabilities). An empty list is fine. An unknown one makes the entry unusable. |
+| `signer` | yes | SHA-256 of the signing certificate, 64 hex characters. For an app with several signers, the fingerprints joined with `+`. |
+| `screenshots` | no | Up to 4 https links. |
+| `versions` | yes | 1 to 20 versions (below). |
+
+Anything beyond these fields is ignored, so the format can grow.
+
+### A version
+
+| Field | Rules |
+|---|---|
+| `version_code` | The APK's `versionCode`, 1 or more. Not repeated. |
+| `version_name` | Up to 40 characters. |
+| `apk` | https link to the APK file, hosted by the author. |
+| `sha256` | SHA-256 of the APK file, 64 hex characters. |
+| `size` | Size of the APK in bytes, up to 100 MB. |
+| `contract` | The extension contract number it needs. A version needing a newer contract than Portal speaks is never offered. |
+
+All links are at most 300 characters, with a host and no name or password in them.
+
+## The revoked list
+
+A line switches an extension off in Portal wherever it is installed. A line names a package, a signer, or both, and may
+add a version. What a line leaves out matches anything.
+
+```json
+{ "package": "net.example.panel", "version_code": 3, "reason": "Sends reminders to a server it shouldn't." }
+{ "package": "net.example.panel", "reason": "Withdrawn by its author." }
+{ "signer": "aa11...", "reason": "The signing key was stolen." }
+```
+
+- A line needs a `package` or a `signer`, and a `reason` (up to 200 characters, shown to the person).
+- A `version_code` needs a `package`.
+- An extension doesn't have to be listed to be revoked.
+- A revoked version is never offered; Portal offers the newest version that isn't revoked and that it can use.
+
+## One bad entry
+
+Portal leaves out an entry that breaks these rules and keeps the rest, so one mistake can't hide the catalog. The
+catalog repository's checks are stricter: any problem at all fails the pull request. They run the very parser Portal uses:
+
+```bash
+scripts/validate-catalog.sh path/to/catalog.json
+```
+
+`docs/catalog/sample-catalog.json` is an example (its signer and checksum are placeholders) and is checked on every test run.
