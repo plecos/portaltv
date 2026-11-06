@@ -204,6 +204,36 @@ class ExtensionsPage(
         }
         ext.problems.forEach { box.addView(text("\n⚠ $it", 14f, Color.rgb(255, 200, 100))) }
 
+        var shown: PortalDialog? = null
+        // Taking it off the TV: Android asks to confirm, and Portal forgets what was allowed once it is gone.
+        val system = runCatching {
+            context.packageManager.getApplicationInfo(ext.packageName, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+        }.getOrDefault(true)
+        if (!system) {
+            box.addView(TextView(context).apply {
+                text = "Uninstall this extension"
+                textSize = 18f
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(Color.rgb(255, 140, 140))
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(px(20), px(10), px(20), px(10))
+                setBackgroundResource(R.drawable.bg_settings_tile)
+                isFocusable = true
+                isClickable = true
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = px(14) }
+                setOnClickListener {
+                    shown?.dismiss()
+                    withPin {
+                        startActivity(
+                            Intent(Intent.ACTION_DELETE, android.net.Uri.fromParts("package", ext.packageName, null))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+            })
+        }
+
         val builder = PortalDialog.Builder(context)
             .setTitle(ext.name)
             .setView(box)
@@ -215,7 +245,7 @@ class ExtensionsPage(
                 builder.setNeutralButton("Open its settings") { _, _ -> openSettings(ext) }
             }
         }
-        builder.show()
+        shown = builder.show()
     }
 
     private fun save(ext: Extension, capabilities: Set<String>) {
