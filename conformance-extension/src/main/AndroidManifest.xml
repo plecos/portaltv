@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <queries>
+        <provider android:authorities="net.getportaltv.host" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="Portal conformance extension"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <meta-data android:name="net.getportaltv.extension" android:resource="@xml/portal_extension" />
+
+        <!-- The script starts this with an extra named suite; it logs lines starting with CONFORMANCE. -->
+        <activity android:name=".RunActivity" android:exported="true" />
+    </application>
+
+</manifest>

@@ -229,14 +229,37 @@ What Portal does with it:
 - You are asked to stop whenever the home screen isn't showing (another app, the screen saver), and started again when it is back.
 - Kid profiles never use it.
 
+## How Portal tests this
+
+Everything above that says "refused" is tested, because the host API is open to every app on the TV:
+
+- **Rules, on the JVM.** [`HostConformanceTest`](../app/src/test/java/com/portal/tv/extensions/HostConformanceTest.kt) runs the real
+  rules ([`HostHandler`](../app/src/main/java/com/portal/tv/extensions/HostHandler.kt)) against a fake TV: an unknown caller,
+  nothing allowed, each capability opening only its own calls, a kid profile, one extension reaching for another's or Portal's
+  reminders, names claimed in the arguments, every kind of bad value, the 50-reminder and 2-item limits, the rate limits, Portal's
+  own buttons under every name, and 3000 random calls that must never throw. Every refusal is also checked to have changed nothing.
+- **Real IPC, on an emulator.** [`scripts/conformance.sh`](../scripts/conformance.sh) installs Portal, the
+  [sample](../sample-extension) and [`conformance-extension`](../conformance-extension), a misbehaving extension. It checks what
+  only Android can show: the shell (not an extension) can't call, an extension signed by someone else than the one allowed is
+  refused, a kid profile is refused, Portal's own and another extension's reminders can't be touched, a spoofed `source` is
+  ignored, wrong types and a 200 KB value are refused, a flood is limited, and uninstalling removes what the extension made and
+  what was allowed for it. It exits non-zero on any failure. CI runs it on an emulator for every pull request.
+
+Run it yourself on an emulator (it wipes Portal's data there):
+
+```
+./gradlew assembleDebug :sample-extension:assembleDebug :conformance-extension:assembleDebug
+scripts/conformance.sh
+```
+
 ## Housekeeping
 
 - What was allowed, and what an extension changed about its items, is not part of Android's backup or a device-to-device
   transfer: it belongs to the apps installed on this TV.
 - A change to what an extension may do takes effect on its next call. Turning a capability off also removes what the
-  extension made with it.
+  extension made with it, and uninstalling an extension removes everything Portal kept for it at once.
 
 ## Coming in later pieces (not available yet)
 
 - **Badges on tiles:** a short badge or subtitle on a tile in the app grid.
-- Conformance tests that install a misbehaving extension, and a catalog of extensions.
+- A catalog of extensions.
