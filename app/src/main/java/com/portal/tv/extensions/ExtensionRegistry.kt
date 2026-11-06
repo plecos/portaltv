@@ -17,6 +17,8 @@ data class Extension(
     val settingsActivity: String?,
     /** The home screen items that can be shown: text, and buttons whose screens exist and can be opened. */
     val items: List<ExtensionItem>,
+    /** The service that draws its home screen background, if it exists and Portal may bind to it. */
+    val backgroundService: String?,
     val problems: List<String>,
     /** Fingerprint of who signed it now. */
     val signer: String?,
@@ -124,6 +126,7 @@ object ExtensionRegistry {
         var tiles = emptyList<ExtensionTile>()
         var settings: String? = null
         var items = emptyList<ExtensionItem>()
+        var background: String? = null
         if (parsed is ManifestParser.Result.Ok) {
             tiles = parsed.manifest.tiles.filter { tile ->
                 canOpen(pm, pkg, tile.activity).also { if (!it) problems += "The tile \"${tile.label}\" opens a screen that isn't there or isn't open to Portal." }
@@ -134,6 +137,7 @@ object ExtensionRegistry {
             }
             // What it has changed while running (new words, taken away, lines it added) is applied on top.
             items = ItemOverrides.apply(usable, ExtensionItemStore.get(context, pkg))
+            background = parsed.manifest.backgroundService?.takeIf { canBind(pm, pkg, it).also { ok -> if (!ok) problems += "Its background service isn't there or isn't open to Portal." } }
             settings = parsed.manifest.settingsActivity?.takeIf { canOpen(pm, pkg, it).also { ok -> if (!ok) problems += "Its settings screen isn't there or isn't open to Portal." } }
         }
         val signer = signerOf(pm, pkg)
@@ -141,7 +145,7 @@ object ExtensionRegistry {
         val matches = allowance != null && signer != null && signerMatches(pm, pkg, allowance.signer, signer)
         val declared = (parsed as? ManifestParser.Result.Ok)?.manifest?.capabilities.orEmpty()
         val granted = if (parsed is ManifestParser.Result.Ok) ExtensionAccess.granted(declared, allowance, matches) else emptySet()
-        return Extension(pkg, appLabel, parsed, tiles, settings, items, problems, signer, ExtensionAccess.state(parsed, allowance, matches), granted)
+        return Extension(pkg, appLabel, parsed, tiles, settings, items, background, problems, signer, ExtensionAccess.state(parsed, allowance, matches), granted)
     }
 
     private fun readManifest(pm: PackageManager, app: ApplicationInfo): ManifestParser.Result {
@@ -165,6 +169,14 @@ object ExtensionRegistry {
     /** A screen of the extension that Portal is allowed to open: it exists, is turned on, and is exported. */
     private fun canOpen(pm: PackageManager, packageName: String, className: String): Boolean = try {
         val info = pm.getActivityInfo(ComponentName(packageName, className), 0)
+        info.exported && info.enabled && info.applicationInfo?.enabled != false
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    /** A service of the extension that Portal may bind to: it exists, is turned on, and is exported. */
+    private fun canBind(pm: PackageManager, packageName: String, className: String): Boolean = try {
+        val info = pm.getServiceInfo(ComponentName(packageName, className), 0)
         info.exported && info.enabled && info.applicationInfo?.enabled != false
     } catch (e: PackageManager.NameNotFoundException) {
         false

@@ -20,9 +20,10 @@ object Capability {
     const val CARDS = "cards"
     const val BAR = "bar"
     const val CLOCK = "clock"
+    const val BACKGROUND = "background"
 
     /** The capabilities this version of Portal knows, in the order they are shown. */
-    val known = listOf(TILES, SETTINGS, BAR, CLOCK, REMINDERS, CARDS)
+    val known = listOf(TILES, SETTINGS, BAR, CLOCK, BACKGROUND, REMINDERS, CARDS)
 
     /** What turning it on means, in plain words. */
     fun describe(capability: String): String = when (capability) {
@@ -30,6 +31,7 @@ object Capability {
         SETTINGS -> "Add a settings page"
         BAR -> "Add buttons or text to the top bar, beside your profile, search and settings"
         CLOCK -> "Add buttons or text under the time and weather"
+        BACKGROUND -> "Draw the background of your home screen, if you choose it in Settings, Background"
         REMINDERS -> "Add and change its own reminders"
         CARDS -> "Show cards over other apps"
         else -> "Something this version of Portal doesn't know ($capability)"
@@ -77,7 +79,9 @@ data class ExtensionManifest(
     /** Full class name of its settings screen, if it has one. */
     val settingsActivity: String?,
     /** The buttons and text it puts on the home screen, in the order it lists them. */
-    val items: List<ExtensionItem> = emptyList()
+    val items: List<ExtensionItem> = emptyList(),
+    /** Full class name of the service that draws its home screen background, if it offers one. */
+    val backgroundService: String? = null
 )
 
 /**
@@ -129,6 +133,7 @@ object ManifestParser {
         val tiles = mutableListOf<ExtensionTile>()
         var settings: String? = null
         val items = mutableListOf<ExtensionItem>()
+        var background: String? = null
 
         for (child in root.children) {
             when (child.name) {
@@ -151,6 +156,11 @@ object ManifestParser {
                     if (settings != null) return Result.Invalid("It has more than one settings screen.")
                     settings = child.attr("activity")?.let { className(it, packageName) }
                         ?: return Result.Invalid("Its settings screen names no activity.")
+                }
+                "background" -> {
+                    if (background != null) return Result.Invalid("It has more than one background.")
+                    background = child.attr("service")?.let { className(it, packageName) }
+                        ?: return Result.Invalid("Its background names no service.")
                 }
                 "bar-button", "bar-text", "clock-button", "clock-text" -> {
                     val area = if (child.name.startsWith("bar")) ItemArea.BAR else ItemArea.CLOCK
@@ -177,8 +187,9 @@ object ManifestParser {
         if (tiles.isNotEmpty()) capabilities += Capability.TILES
         if (settings != null) capabilities += Capability.SETTINGS
         items.forEach { capabilities += it.area.capability }
+        if (background != null) capabilities += Capability.BACKGROUND
         val ordered = Capability.known.filter { it in capabilities }.toCollection(linkedSetOf())
-        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items))
+        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background))
     }
 
     /** ".Foo" and "Foo" are inside the extension's own package; a name with a package in it is used as written. */

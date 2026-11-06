@@ -9,7 +9,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.portal.tv.R
 import com.portal.tv.repo.ParentPin
 import com.portal.tv.repo.WeatherRepository
@@ -672,6 +674,10 @@ class SettingsFragment : Fragment() {
             Category(R.id.cat_background, R.id.page_background) {
                 when (BackgroundSettings.getMode(context)) {
                     "off" -> "Off"
+                    com.portal.tv.extensions.BackgroundChoice.MODE ->
+                        "Extension" + (BackgroundSettings.getExtension(context)?.let { pkg ->
+                            com.portal.tv.extensions.ExtensionRegistry.find(context, pkg)?.name?.let { " · $it" }
+                        } ?: "")
                     "shader" -> "Shader · " + ShaderStyles.find(BackgroundSettings.getShaderStyle(context)).label +
                         " · " + ShaderPalettes.find(BackgroundSettings.getShaderColor(context)).label
                     else -> {
@@ -1127,10 +1133,11 @@ class SettingsFragment : Fragment() {
         val off = view.findViewById<TextView>(R.id.opt_bg_off)
         val shader = view.findViewById<TextView>(R.id.opt_bg_shader)
         val video = view.findViewById<TextView>(R.id.opt_bg_video)
+        val extension = view.findViewById<TextView>(R.id.opt_bg_extension)
 
         fun highlight() {
             val mode = BackgroundSettings.getMode(requireContext())
-            listOf(off to "off", shader to "shader", video to "video").forEach { (tv, m) ->
+            listOf(off to "off", shader to "shader", video to "video", extension to com.portal.tv.extensions.BackgroundChoice.MODE).forEach { (tv, m) ->
                 val selected = mode == m
                 tv.setBackgroundResource(
                     if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile
@@ -1164,6 +1171,37 @@ class SettingsFragment : Fragment() {
             Log.d("Portal", "settings: background=video")
             highlight()
             onBackgroundChanged?.invoke()
+        }
+
+        // "Extension" is offered when an extension that an adult allowed to draw the background is installed (never for kids).
+        val context = requireContext()
+        val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val drawers = if (kid) emptyList() else withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
+                    com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
+                }
+            }
+            val inUse = BackgroundSettings.getMode(context) == com.portal.tv.extensions.BackgroundChoice.MODE
+            extension.visibility = if (drawers.isNotEmpty() || (inUse && !kid)) View.VISIBLE else View.GONE
+            extension.setOnClickListener {
+                val choose = { pkg: String ->
+                    BackgroundSettings.setExtension(context, pkg)
+                    BackgroundSettings.setMode(context, com.portal.tv.extensions.BackgroundChoice.MODE)
+                    Log.d("Portal", "settings: background=extension $pkg")
+                    highlight()
+                    onBackgroundChanged?.invoke()
+                }
+                when (drawers.size) {
+                    0 -> Toast.makeText(context, "No extension is allowed to draw the background. Allow one under Extensions.", Toast.LENGTH_LONG).show()
+                    1 -> choose(drawers[0].packageName)
+                    else -> PortalDialog.Builder(context)
+                        .setTitle("Background drawn by")
+                        .setItems(drawers.map { it.name }.toTypedArray()) { _, which -> choose(drawers[which].packageName) }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
         }
 
         highlight()

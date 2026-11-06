@@ -78,7 +78,7 @@ class ExtensionItemsPickTest {
         ExtensionItem(id, area, id, if (button) ".A" else null, 0)
 
     private fun ext(pkg: String, name: String, granted: Set<String>, vararg items: ExtensionItem) = Extension(
-        pkg, name, ManifestParser.Result.Invalid("x"), emptyList(), null, items.toList(), emptyList(), "ab", ExtensionState.ALLOWED, granted
+        pkg, name, ManifestParser.Result.Invalid("x"), emptyList(), null, items.toList(), null, emptyList(), "ab", ExtensionState.ALLOWED, granted
     )
 
     @Test

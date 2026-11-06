@@ -8,7 +8,8 @@ Nothing an extension asks for happens until an adult allows it, one capability a
 > Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid,
 > opens an extension's settings screen from Settings, and draws the buttons and text an extension declares in the top bar and
 > under the clock. It also answers the calls an extension makes into Portal: reminders, cards over other apps, and changing its own home screen
-> items while running (see *Calling Portal*). Badges on tiles are not there yet. Contract version **1**.
+> items while running (see *Calling Portal*), and can show a background an extension draws (see *Drawing the home screen
+> background*). Badges on tiles are not there yet. Contract version **1**.
 
 ## Writing one
 
@@ -46,6 +47,8 @@ You need no SDK and no library. Any Android app can be an extension, written in 
     <bar-text     id="mode"   text="@string/bar_mode" />
     <clock-text   id="door"   text="@string/clock_door" />
     <clock-button id="cams"   label="@string/clock_cams" activity=".CamerasActivity" />
+
+    <background service=".BackgroundService" />
 </portal-extension>
 ```
 
@@ -76,7 +79,9 @@ All attributes are plain (no namespace). Text can be a literal or a `@string/...
 | | `activity` | yes | The exported screen it opens. |
 | | `icon` | no | A drawable resource. |
 | `<bar-text>`, `<clock-text>` | `id` | yes | As above. |
-| | `text` | yes | At most 40 characters, plain text. A line of text isn't pressed, so it has no activity or icon. |
+| | `text` | yes | At most 40 characters, plain text. A line of text can't be pressed, so it has no activity or icon (the remote can still stop on it, and a long press says whose it is). |
+
+| `<background>` | `service` | yes | A service of yours that draws the home screen background. At most one. |
 
 At most 8 tiles, and at most 2 items for each area (the top bar and the clock area), in any mix of buttons and text. Elements Portal doesn't know are ignored, so a file can carry things for later contract versions.
 Anything wrong in the parts it does know is reported to the person looking at the extension, not guessed at.
@@ -89,6 +94,7 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | `settings` | declaring `<settings>` | Add a settings page for you. |
 | `bar` | declaring a `<bar-...>` item | Add buttons or text to the top bar, next to the profile, search and settings buttons. |
 | `clock` | declaring a `<clock-...>` item | Add buttons or text under the time and weather. |
+| `background` | declaring `<background>` | Draw the home screen background, when an adult chooses "Extension" under Settings, Background. |
 | `reminders` | `<uses capability="reminders"/>` | Add and change reminders that belong to you. |
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
 
@@ -198,6 +204,30 @@ shows a notification instead.
 can add lines of text beyond the declared ones, always within two items per area. A button's label changes, but the screen it
 opens is always one you declared. The profile, search, settings and update buttons, the weather and any alert are not yours:
 there is no way to name them, and a call that tries gets `not_found`. If the home screen is showing, it redraws at once.
+
+## Drawing the home screen background
+
+An extension with `background` allowed can be chosen as the background in Settings, Background (a fourth option beside Off, Shader
+and Video, set per profile). You draw in your own process and Portal shows the result; none of your code runs in Portal.
+
+1. Declare `<background service=".BackgroundService"/>` and export that service (`android:exported="true"`). Portal binds it
+   with the action `net.getportaltv.BACKGROUND`, and you answer on a `Messenger`.
+2. Portal sends `MSG_START` (1) with `width`, `height`, `host_token` (a binder), `display_id` and `max_fps` in the message data,
+   and its reply `Messenger` in `replyTo`. Make a `SurfaceControlViewHost(context, display, hostToken)`, call `setView(view, width,
+   height)`, and reply with `MSG_READY` (2) whose data holds `surface_package` (the host's `surfacePackage`).
+3. When you get `MSG_STOP` (3), or Portal unbinds, `release()` the host and stop drawing.
+
+The [sample](../sample-extension/src/main/java/net/getportaltv/sample/BackgroundService.kt) is about 80 lines.
+
+What Portal does with it:
+- Your picture sits behind everything on the home screen, under the same dark layer Portal puts over its own backgrounds, so
+  text stays readable. It can't take the remote or a touch. It is asked for at most 1920 by 1080 and 30 frames a second; the
+  frame rate is a request (Portal can't count your frames), so draw sparingly.
+- Until your first picture arrives the screen shows Portal's own gradient, so it is never blank.
+- If you don't answer within 5 seconds, your process stops, you are no longer allowed, or you are signed by someone else now,
+  Portal goes back to its own gradient and keeps the choice, trying you again the next time the home screen opens.
+- You are asked to stop whenever the home screen isn't showing (another app, the screen saver), and started again when it is back.
+- Kid profiles never use it.
 
 ## Housekeeping
 

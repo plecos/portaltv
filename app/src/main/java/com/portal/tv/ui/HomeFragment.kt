@@ -236,6 +236,9 @@ class HomeFragment : Fragment() {
 
     private var shaderView: ShaderBackgroundView? = null
 
+    /** The background an extension draws, while that is what is chosen and it is working. */
+    private var extensionBackground: ExtensionBackgroundView? = null
+
     /** What the background is showing now: "off", "shader", "video" or "birthday". */
     private var activeMode = "video"
 
@@ -326,6 +329,32 @@ class HomeFragment : Fragment() {
             root.removeView(it)
         }
         shaderView = null
+        extensionBackground?.let {
+            it.stop()
+            root.removeView(it)
+        }
+        extensionBackground = null
+
+        // The animated gradient: the "shader" background, and what an extension's background gives way to if it can't be used.
+        fun showShader() {
+            textureView.visibility = View.GONE
+            val shader = ShaderBackgroundView(
+                requireContext(),
+                ShaderPalettes.find(BackgroundSettings.getShaderColor(requireContext())),
+                ShaderStyles.find(BackgroundSettings.getShaderStyle(requireContext())),
+                BackgroundSettings.getSpeed(requireContext()),
+                BackgroundSettings.getShaderCycle(requireContext())
+            )
+            shader.onFirstFrame = { IntroAnimation.release(BACKGROUND_READY) }
+            root.addView(shader, 1, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ))
+            shaderView = shader
+            shader.onResume()
+            Log.d("Portal", "shader view added and started")
+            dimOverlay.visibility = View.GONE  // shader is already dark, no extra dim
+        }
 
         when (mode) {
             "off" -> {
@@ -333,24 +362,38 @@ class HomeFragment : Fragment() {
                 dimOverlay.visibility = View.GONE
                 IntroAnimation.release(BACKGROUND_READY)
             }
-            "shader" -> {
+            "shader" -> showShader()
+            com.portal.tv.extensions.BackgroundChoice.MODE -> {
+                // Drawn by an extension in its own process. It sits under the usual dim layer, so the screen stays readable.
                 textureView.visibility = View.GONE
-                val shader = ShaderBackgroundView(
-                    requireContext(),
-                    ShaderPalettes.find(BackgroundSettings.getShaderColor(requireContext())),
-                    ShaderStyles.find(BackgroundSettings.getShaderStyle(requireContext())),
-                    BackgroundSettings.getSpeed(requireContext()),
-                    BackgroundSettings.getShaderCycle(requireContext())
-                )
-                shader.onFirstFrame = { IntroAnimation.release(BACKGROUND_READY) }
-                root.addView(shader, 1, FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                ))
-                shaderView = shader
-                shader.onResume()
-                Log.d("Portal", "shader view added and started")
-                dimOverlay.visibility = View.GONE  // shader is already dark, no extra dim
+                dimOverlay.visibility = View.VISIBLE
+                val context = requireContext()
+                val chosen = BackgroundSettings.getExtension(context)
+                val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
+                if (chosen == null || kid || this.view == null) {
+                    // The home screen's view is gone (Settings is open over it): the extension is started when it is back.
+                    showShader()
+                } else {
+                    val bg = ExtensionBackgroundView(context)
+                    // Until it shows its first picture the screen has Portal's own gradient, so there is never a blank.
+                    showShader()
+                    root.addView(bg, 1, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                    bg.onReady = {
+                        // The extension's picture is on, so the gradient under it can stop.
+                        shaderView?.let { it.onPause(); root.removeView(it) }
+                        shaderView = null
+                        dimOverlay.visibility = View.VISIBLE
+                        IntroAnimation.release(BACKGROUND_READY)
+                    }
+                    bg.onFailed = { reason ->
+                        Log.w("Portal", "Extension background $chosen not used: $reason")
+                        extensionBackground?.let { root.removeView(it) }
+                        extensionBackground = null
+                        if (shaderView == null) showShader()
+                    }
+                    extensionBackground = bg
+                    bg.start(chosen, lifecycleScope)
+                }
             }
             "video", "birthday" -> {
                 lifecycleScope.launch {
@@ -884,6 +927,8 @@ class HomeFragment : Fragment() {
         com.portal.tv.alerts.SevereAlertService.homeShowing = false
         backgroundPlayer?.stop()
         shaderView?.onPause()
+        // An extension's background is let go of while the home screen isn't showing, so it isn't running for nothing.
+        extensionBackground?.stop()
         launchAnimation?.appStarted()
         timeHandler.removeCallbacks(timeRunnable)
         weatherHandler.removeCallbacksAndMessages(null)
@@ -936,6 +981,9 @@ class HomeFragment : Fragment() {
             backgroundPlayer?.start(lifecycleScope)
         } else if (activeMode == "shader") {
             shaderView?.onResume()
+        } else if (activeMode == com.portal.tv.extensions.BackgroundChoice.MODE) {
+            // Starts the extension again (Portal's gradient shows until its first picture is back).
+            applyBackground(view)
         }
     }
 

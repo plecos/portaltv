@@ -20,6 +20,14 @@ object BackgroundSettings {
         prefs(context).edit { putString("mode", mode) }
     }
 
+    /** The extension whose drawing is the background when the mode is "extension" (a package name), or null. */
+    fun getExtension(context: Context): String? =
+        prefs(context).string("extension", "").takeIf { it.isNotEmpty() }
+
+    fun setExtension(context: Context, packageName: String?) {
+        prefs(context).edit { putString("extension", packageName.orEmpty()) }
+    }
+
     /** 0.25, 0.5, 0.75, 1.0 — how bright the video is (overlay dimming) */
     fun getBrightness(context: Context): Float =
         prefs(context).float("brightness", 0.75f)
