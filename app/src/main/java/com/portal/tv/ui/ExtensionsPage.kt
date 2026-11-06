@@ -38,11 +38,12 @@ class ExtensionsPage(
     private val scope: CoroutineScope,
     private val startActivity: (Intent) -> Unit,
     /** Told how many extensions were found and how many have something allowed, for the category's summary. */
-    private val onCounted: (found: Int, allowed: Int) -> Unit
+    private val onCounted: (found: Int, allowed: Int) -> Unit,
+    /** Opens the full-screen catalog. */
+    private val onBrowse: () -> Unit
 ) {
 
     private lateinit var list: LinearLayout
-    private val catalogPages = CatalogPages(context, scope)
     /** The catalog kept from the last time it was fetched, if any; read with the scan, so drawing a page never waits on it. */
     private var catalog: Catalog? = null
     private val d get() = context.resources.displayMetrics.density
@@ -62,6 +63,16 @@ class ExtensionsPage(
         }
     }
 
+    /** Opens the page for a freshly installed extension, so an adult can look at what it asks for. */
+    fun review(packageName: String) {
+        scope.launch {
+            val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
+            refresh(packageName)
+            if (ext != null) showDetail(ext)
+            else Toast.makeText(context, "It isn't an extension Portal can use", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun render(all: List<Extension>, focusPackage: String?) {
         list.removeAllViews()
         renderRows(all, focusPackage)
@@ -78,7 +89,7 @@ class ExtensionsPage(
             contentDescription = "Browse extensions in the catalog. Select to open."
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = px(16) }
-            setOnClickListener { catalogPages.browse() }
+            setOnClickListener { onBrowse() }
         })
     }
 
@@ -94,7 +105,7 @@ class ExtensionsPage(
         }
         all.forEach { ext ->
             val row = TextView(context).apply {
-                text = "${ext.name}  ·  ${ExtensionLabels.status(ext.state, ext.granted)}"
+                text = ext.name
                 textSize = 18f
                 typeface = context.resources.getFont(R.font.inter)
                 setTextColor(context.resources.getColor(R.color.text_primary, null))
@@ -169,9 +180,36 @@ class ExtensionsPage(
                     }
                 }
                 box.addView(text("\nAllow it to:", 16f, soft).apply { setPadding(0, 0, 0, px(6)) })
+                val all = parsed.manifest.capabilities
+                val redraws = mutableListOf<() -> Unit>()
+                if (all.size > 1) {
+                    // One press turns everything on, or, when everything is on, everything off.
+                    val toggle = TextView(context)
+                    fun label() { toggle.text = if (chosen.containsAll(all)) "Deselect all" else "Select all" }
+                    toggle.apply {
+                        textSize = 17f
+                        typeface = context.resources.getFont(R.font.inter)
+                        setTextColor(Color.WHITE)
+                        setPadding(px(20), px(8), px(20), px(8))
+                        setBackgroundResource(R.drawable.bg_settings_tile)
+                        isFocusable = true
+                        isClickable = true
+                        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                            .apply { bottomMargin = px(8) }
+                        setOnClickListener {
+                            if (chosen.containsAll(all)) chosen.clear() else chosen.addAll(all)
+                            redraws.forEach { it() }
+                            label()
+                        }
+                    }
+                    label()
+                    redraws += { label() }
+                    box.addView(toggle)
+                }
                 parsed.manifest.capabilities.forEach { capability ->
                     val row = TextView(context)
                     fun show() { row.text = (if (capability in chosen) "✔  " else "☐  ") + Capability.describe(capability) }
+                    redraws += { show() }
                     row.apply {
                         textSize = 18f
                         typeface = context.resources.getFont(R.font.inter)
@@ -182,7 +220,7 @@ class ExtensionsPage(
                         isClickable = true
                         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                             .apply { bottomMargin = px(8) }
-                        setOnClickListener { if (!chosen.add(capability)) chosen.remove(capability); show() }
+                        setOnClickListener { if (!chosen.add(capability)) chosen.remove(capability); redraws.forEach { it() } }
                     }
                     show()
                     box.addView(row)
@@ -194,6 +232,36 @@ class ExtensionsPage(
         }
         ext.problems.forEach { box.addView(text("\n⚠ $it", 14f, Color.rgb(255, 200, 100))) }
 
+        var shown: PortalDialog? = null
+        // Taking it off the TV: Android asks to confirm, and Portal forgets what was allowed once it is gone.
+        val system = runCatching {
+            context.packageManager.getApplicationInfo(ext.packageName, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+        }.getOrDefault(true)
+        if (!system) {
+            box.addView(TextView(context).apply {
+                text = "Uninstall this extension"
+                textSize = 18f
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(Color.rgb(255, 140, 140))
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(px(20), px(10), px(20), px(10))
+                setBackgroundResource(R.drawable.bg_settings_tile)
+                isFocusable = true
+                isClickable = true
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = px(14) }
+                setOnClickListener {
+                    shown?.dismiss()
+                    withPin {
+                        startActivity(
+                            Intent(Intent.ACTION_DELETE, android.net.Uri.fromParts("package", ext.packageName, null))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+            })
+        }
+
         val builder = PortalDialog.Builder(context)
             .setTitle(ext.name)
             .setView(box)
@@ -202,10 +270,10 @@ class ExtensionsPage(
         if (manifest != null) {
             builder.setPositiveButton("Save") { _, _ -> withPin { save(ext, chosen) } }
             if (Capability.SETTINGS in ext.granted && ext.settingsActivity != null) {
-                builder.setNeutralButton("Open its settings") { _, _ -> openSettings(ext) }
+                builder.setNeutralButton("Settings") { _, _ -> openSettings(ext) }
             }
         }
-        builder.show()
+        shown = builder.show()
     }
 
     private fun save(ext: Extension, capabilities: Set<String>) {

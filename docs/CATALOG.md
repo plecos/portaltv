@@ -91,7 +91,9 @@ scripts/validate-catalog.sh path/to/catalog.json
 
 ## Browsing it in Portal
 
-Settings, Extensions has a **Browse extensions** button (a kid's Settings never shows Extensions).
+Settings, Extensions has a **Browse extensions** button (a kid's Settings never shows Extensions). It opens a full-screen
+browser: a grid of cards, three across, that scrolls and recycles its cards, so it holds a catalog of hundreds. Back returns to
+Settings, Extensions. Selecting a card opens its details.
 
 - The list opens at once from the copy kept on the TV, and is fetched again when that copy is more than a day old, or when
   you choose **Refresh**. With no connection it keeps showing the last copy and says it couldn't update.
@@ -101,7 +103,7 @@ Settings, Extensions has a **Browse extensions** button (a kid's Settings never 
 - Each row says whether the extension is **Installed**, has an **Update available**, or is installed but **signed by someone
   else** (then it isn't the listed one).
 - A detail page shows the description, author, licence, what it asks to be allowed to do in plain words, its signer,
-  version and size, and the source link. Nothing installs from here yet.
+  version and size, and the source link. 
 - On an installed extension's page, Portal says **Listed in the catalog**, **In the catalog, but signed by someone else**,
   or **Not in the catalog** (once the catalog has been loaded at least once).
 - The request carries nothing about the TV: no account, no id, no list of installed apps.
@@ -112,3 +114,35 @@ The real catalog isn't online yet, so a debug build shows "The catalog isn't onl
 Portal at it (`HOST=<your computer's address>` for a real TV, `ANDROID_SERIAL=<device>` to pick one device,
 `scripts/test-catalog.sh --off` to undo). Underneath, a debug build reads the address in the `url` preference of
 `catalog_debug` (http is allowed there only).
+
+## Installing from it
+
+An extension's card has **Install** (or **Update**, when the catalog has a newer version than the one on the TV). It is not
+shown for an app that is signed by someone other than the catalog's signer, or when nothing is offerable. Portal never
+installs another app silently: Android's own confirmation always comes last.
+
+In order:
+
+1. **Before anything is downloaded:** the extension isn't withdrawn, there is a version this Portal can use, the app on
+   the TV (if any) is signed by the catalog's signer, and it is older than the version offered.
+2. **Install unknown apps:** if Android hasn't allowed Portal to install apps, Portal says so and opens that setting.
+3. **Parent PIN:** asked when one is set, before the download starts.
+4. **Download:** https only (http only in debug builds). The size is the catalog's size, and a file that keeps going past it
+   is stopped.
+5. **Checks on the file**, all of which must pass or the file is deleted and the reason shown:
+   - its size and SHA-256 are the catalog's;
+   - its package name and version code are the listed ones;
+   - its signer is the catalog's signer (and, for an update, the installed app's signer);
+   - that version hasn't been withdrawn;
+   - it is newer than what is installed;
+   - it is a Portal extension, and asks for no more than the catalog lists (nothing unknown, nothing extra).
+6. **Android's confirmation screen**, then Android installs it.
+7. **Review:** Portal says it is installed and that nothing is allowed yet. **Review** opens the extension's page, which
+   says "Listed in the catalog", where an adult allows each capability as for any other extension.
+
+The catalog says what a file should be, and the file is checked to be that. A listing can't be reviewed for one thing and
+ship another.
+
+To try it before the real catalog is online, `scripts/test-catalog.sh` serves the sample extension's real debug APK with its
+real checksum, size and signer (build it first with `./gradlew :sample-extension:assembleDebug`, and uninstall the sample
+from the TV). It also lists two entries that must be refused: a wrong checksum and a wrong package.

@@ -130,7 +130,7 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 
 - **Settings, Extensions** lists what is installed, with where each one stands (*Not allowed*, *Allowed: tiles, cards*, and so
   on). Selecting one shows its description, package, signer and what it asks for. An adult turns each capability on or off
-  and saves; if a parent PIN is set it is asked for before anything changes. *Open its settings* appears when the settings
+  and saves; if a parent PIN is set it is asked for before anything changes. *Settings* appears when the settings
   page is allowed.
 - **The app grid** gets one tile per `<tile>` of an allowed extension, with the tile's icon and label, among the other
   apps. They can be hidden, moved, and appear under Frequently Used like any app, and the search box finds them.
@@ -268,4 +268,4 @@ scripts/conformance.sh
 
 ## Coming in later pieces (not available yet)
 
-- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it, not install from it yet.
+- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it and install from it.
