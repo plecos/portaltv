@@ -113,12 +113,12 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
         val rows = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         box.addView(status)
         box.addView(rows)
-        // One focusable block at the end, so the remote can scroll down to it when the list is long.
-        box.addView(qr(
-            CatalogClient.WEB_PAGE,
+        // Focusable, so the remote can scroll down to it when the list is long.
+        box.addView(text(
             "Each listed extension was looked at by a person. That is a review, not a guarantee, and they are made by other people. " +
-                "This list sends nothing about your TV; the site that hosts it sees your address, as any website does.\n\nBrowse on your phone:"
-        ).apply { setPadding(0, px(14), 0, 0) })
+                "This list sends nothing about your TV; the site that hosts it sees your address, as any website does.",
+            13f, soft
+        ).apply { setPadding(0, px(14), 0, px(4)); isFocusable = true })
 
         val dialog = PortalDialog.Builder(context)
             .setTitle("Browse extensions")

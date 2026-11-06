@@ -104,7 +104,6 @@ Settings, Extensions has a **Browse extensions** button (a kid's Settings never 
   version and size, and a QR code for the source link. Nothing installs from here yet.
 - On an installed extension's page, Portal says **Listed in the catalog**, **In the catalog, but signed by someone else**,
   or **Not in the catalog** (once the catalog has been loaded at least once).
-- A QR code on the list is for the catalog's web page, for browsing on a phone.
 - The request carries nothing about the TV: no account, no id, no list of installed apps.
 - The kept copy and when it was fetched are left out of backups and device transfers.
 

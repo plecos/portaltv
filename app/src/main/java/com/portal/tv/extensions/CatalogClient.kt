@@ -20,9 +20,6 @@ object CatalogClient {
 
     const val URL = "https://getportaltv.net/extensions/catalog.json"
 
-    /** The page the catalog is shown on, for a phone. Shown as a QR code. */
-    const val WEB_PAGE = "https://getportaltv.net/extensions"
-
     private const val USER_AGENT = "Portal TV (https://github.com/plecos/portaltv)"
     private const val PREFS = "extension_catalog"
     private const val FILE = "extension_catalog.json"
