@@ -92,6 +92,14 @@
             android:authorities="net.getportaltv.host"
             android:exported="true" />
 
+        <!-- An app was uninstalled: if it was an extension, what was allowed for it and what it made goes too. -->
+        <receiver android:name=".extensions.PackageRemovedReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".reminders.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

@@ -68,7 +68,7 @@ object ExtensionRegistry {
     }
 
     /** Everything Portal kept for [packageName]: what was allowed, its reminders and its item changes. */
-    private fun forget(context: Context, packageName: String) {
+    fun forget(context: Context, packageName: String) {
         ExtensionStore.remove(context, packageName)
         ExtensionItemStore.remove(context, packageName)
         com.portal.tv.reminders.ReminderStore.clearForSource(context, packageName)

@@ -17,3 +17,5 @@ local.properties
 # IDE settings stay local
 /.idea/
 /sample-extension/build
+/conformance-extension/build
+conformance-logcat.txt

@@ -29,3 +29,4 @@ dependencyResolutionManagement {
 rootProject.name = "Portal"
 include(":app")
 include(":sample-extension")
+include(":conformance-extension")
