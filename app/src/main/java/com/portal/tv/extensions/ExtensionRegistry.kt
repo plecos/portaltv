@@ -1,0 +1,169 @@
+package com.portal.tv.extensions
+
+import android.content.ComponentName
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.util.Log
+
+/** An installed app that declares itself an extension, and where it stands. */
+data class Extension(
+    val packageName: String,
+    /** What the app is called on the TV, for when its own file can't be read. */
+    val appLabel: String,
+    val parsed: ManifestParser.Result,
+    /** The tiles whose screens exist and can be opened; ones that can't are left out and explained in [problems]. */
+    val tiles: List<ExtensionTile>,
+    val settingsActivity: String?,
+    val problems: List<String>,
+    /** Fingerprint of who signed it now. */
+    val signer: String?,
+    val state: ExtensionState,
+    /** What it may do right now. */
+    val granted: Set<String>
+) {
+    val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
+    val name: String get() = manifest?.label ?: appLabel
+}
+
+/**
+ * Finds the extensions installed on the TV and answers what each may do. Portal never loads an extension's code: it
+ * reads the file an extension names in its manifest, and checks the app's signer against the one an adult approved.
+ */
+object ExtensionRegistry {
+
+    /** The application metadata key an extension uses to point at its `portal-extension` XML resource. */
+    const val META_KEY = "net.getportaltv.extension"
+
+    private const val TAG = "Portal"
+
+    /** Every installed extension, in name order. */
+    fun scan(context: Context): List<Extension> {
+        val pm = context.packageManager
+        forgetUninstalled(context, pm)
+        val apps = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+        return apps.filter { it.packageName != context.packageName && it.enabled && it.metaData?.containsKey(META_KEY) == true }
+            .map { describe(context, pm, it) }
+            .sortedBy { it.name.lowercase() }
+    }
+
+    /**
+     * What was allowed for an app that has been uninstalled is forgotten, so putting it back later starts from nothing
+     * (a disabled app is still installed, so it keeps what it was allowed).
+     */
+    private fun forgetUninstalled(context: Context, pm: PackageManager) {
+        for (pkg in ExtensionStore.all(context).keys) {
+            val installed = try { pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0)); true } catch (e: PackageManager.NameNotFoundException) { false }
+            if (!installed) ExtensionStore.remove(context, pkg)
+        }
+    }
+
+    /** One installed package, or null if it isn't an extension. */
+    fun find(context: Context, packageName: String): Extension? {
+        val pm = context.packageManager
+        val app = try {
+            pm.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+        } catch (e: PackageManager.NameNotFoundException) {
+            return null
+        }
+        if (packageName == context.packageName || !app.enabled || app.metaData?.containsKey(META_KEY) != true) return null
+        return describe(context, pm, app)
+    }
+
+    /** What [packageName] may do right now: nothing if it isn't an extension, isn't allowed, or its signer has changed. */
+    fun granted(context: Context, packageName: String): Set<String> = find(context, packageName)?.granted ?: emptySet()
+
+    /**
+     * An adult allows [capabilities] for [packageName] (only ones it asks for count). This pins the signer it has now. It
+     * does nothing for an extension that can't be used, and returns whether anything was saved.
+     */
+    fun allow(context: Context, packageName: String, capabilities: Set<String>): Boolean {
+        val ext = find(context, packageName) ?: return false
+        val manifest = ext.manifest ?: return false
+        val signer = ext.signer ?: return false
+        val wanted = Capability.known.filter { it in capabilities && it in manifest.capabilities }.toCollection(linkedSetOf())
+        if (wanted.isEmpty()) {
+            ExtensionStore.remove(context, packageName)
+        } else {
+            ExtensionStore.put(context, packageName, Allowance(signer, wanted))
+        }
+        return true
+    }
+
+    /** Takes back everything allowed for [packageName]. */
+    fun disallow(context: Context, packageName: String) = ExtensionStore.remove(context, packageName)
+
+    // ---------- Reading one extension ----------
+
+    private fun describe(context: Context, pm: PackageManager, app: ApplicationInfo): Extension {
+        val pkg = app.packageName
+        val appLabel = runCatching { pm.getApplicationLabel(app).toString() }.getOrDefault(pkg)
+        val parsed = readManifest(pm, app)
+        val problems = mutableListOf<String>()
+        var tiles = emptyList<ExtensionTile>()
+        var settings: String? = null
+        if (parsed is ManifestParser.Result.Ok) {
+            tiles = parsed.manifest.tiles.filter { tile ->
+                canOpen(pm, pkg, tile.activity).also { if (!it) problems += "The tile \"${tile.label}\" opens a screen that isn't there or isn't open to Portal." }
+            }
+            settings = parsed.manifest.settingsActivity?.takeIf { canOpen(pm, pkg, it).also { ok -> if (!ok) problems += "Its settings screen isn't there or isn't open to Portal." } }
+        }
+        val signer = signerOf(pm, pkg)
+        val allowance = ExtensionStore.get(context, pkg)
+        val matches = allowance != null && signer != null && signerMatches(pm, pkg, allowance.signer, signer)
+        val declared = (parsed as? ManifestParser.Result.Ok)?.manifest?.capabilities.orEmpty()
+        val granted = if (parsed is ManifestParser.Result.Ok) ExtensionAccess.granted(declared, allowance, matches) else emptySet()
+        return Extension(pkg, appLabel, parsed, tiles, settings, problems, signer, ExtensionAccess.state(parsed, allowance, matches), granted)
+    }
+
+    private fun readManifest(pm: PackageManager, app: ApplicationInfo): ManifestParser.Result {
+        val id = app.metaData?.getInt(META_KEY, 0) ?: 0
+        if (id == 0) return ManifestParser.Result.Invalid("Its extension file couldn't be found.")
+        return try {
+            val res = pm.getResourcesForApplication(app)
+            val parser = res.getXml(id)
+            try {
+                val root = XmlAdapter.read(parser, res) ?: return ManifestParser.Result.Invalid("Its extension file is empty.")
+                ManifestParser.parse(root, app.packageName)
+            } finally {
+                parser.close()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Couldn't read the extension file of ${app.packageName}: ${e.message}")
+            ManifestParser.Result.Invalid("Its extension file couldn't be read.")
+        }
+    }
+
+    /** A screen of the extension that Portal is allowed to open: it exists, is turned on, and is exported. */
+    private fun canOpen(pm: PackageManager, packageName: String, className: String): Boolean = try {
+        val info = pm.getActivityInfo(ComponentName(packageName, className), 0)
+        info.exported && info.enabled && info.applicationInfo?.enabled != false
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    // ---------- Signers ----------
+
+    /** One fingerprint for everyone who signed the app now, or null if it can't be read. */
+    private fun signerOf(pm: PackageManager, packageName: String): String? = try {
+        val info = pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong()))
+        info.signingInfo?.apkContentsSigners?.takeIf { it.isNotEmpty() }
+            ?.let { signers -> ExtensionAccess.combineSigners(signers.map { ExtensionAccess.sha256Hex(it.toByteArray()) }) }
+    } catch (e: Exception) {
+        null
+    }
+
+    /**
+     * Whether the app is still signed by who was approved: the same signer, or (for an app that changed its signing key
+     * the way Android allows, with a proof signed by the old key) one whose history includes the approved signer.
+     */
+    private fun signerMatches(pm: PackageManager, packageName: String, pinned: String, current: String): Boolean {
+        if (pinned == current) return true
+        val bytes = ExtensionAccess.fromHex(pinned) ?: return false
+        return try {
+            pm.hasSigningCertificate(packageName, bytes, PackageManager.CERT_INPUT_SHA256)
+        } catch (e: Exception) {
+            false
+        }
+    }
+}
