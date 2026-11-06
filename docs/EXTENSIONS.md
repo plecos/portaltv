@@ -4,9 +4,10 @@ An extension is an ordinary Android app that tells Portal what it offers. Portal
 it reads a small XML file the extension names in its manifest, and opens the extension's own screens like any other app.
 Nothing an extension asks for happens until an adult allows it, one capability at a time.
 
-> **Status: draft.** This version of Portal finds extensions, reads and checks their declaration, and keeps track of
-> what has been allowed and who signed the app. Tiles in the app grid, the Settings page, and the calls an extension can
-> make into Portal (reminders, cards) come in later pieces and are listed at the end. Contract version **1**.
+> **Status: draft.** This version of Portal finds extensions, reads and checks their declaration, lists them under
+> Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid, and
+> opens an extension's settings screen from Settings. The calls an extension can make into Portal (reminders, cards, tile
+> badges) come in a later piece and are listed at the end. Contract version **1**.
 
 ## Writing one
 
@@ -90,9 +91,23 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 - **Uninstalling forgets.** What was allowed for an app is forgotten once it is uninstalled. A disabled app keeps it.
 - **Newer contract.** If `contract` is higher than the version Portal speaks (currently 1), Portal can't use the
   extension and says it needs a newer Portal. It doesn't try to read the rest of the file.
-- **Kid profiles (planned).** Extensions will be off for kid profiles unless a parent allows them.
+- **Kid profiles.** A kid's Settings never shows Extensions. An extension's tile appears on a kid's home screen only if a
+  parent has allowed that tile for them (Manage apps, in the profile's menu). A kid's bedtime and daily limit are checked before a
+  tile opens, as for any app.
 - **Third-party apps.** Extensions are not part of Portal and are not covered by its no-ads, no-tracking promise.
   What an extension does with your data is between you and its author.
+
+## What it looks like in Portal
+
+- **Settings, Extensions** lists what is installed, with where each one stands (*Not allowed*, *Allowed: tiles, cards*, and so
+  on). Selecting one shows its description, package, signer and what it asks for. An adult turns each capability on or off
+  and saves; if a parent PIN is set it is asked for before anything changes. *Open its settings* appears when the settings
+  page is allowed.
+- **The app grid** gets one tile per `<tile>` of an allowed extension, with the tile's icon and label, among the other
+  apps. They can be hidden, moved, and appear under Frequently Used like any app, and the search box finds them.
+- **Opening a tile or the settings screen is checked again each time**: the extension must still be installed, still
+  signed by who was allowed, and still allowed that capability. If not, Portal says so and takes the tile away.
+- Tiles open one of your own exported activities in your own task. Back returns to Portal.
 
 ## Versioning
 
@@ -101,8 +116,6 @@ an older contract. An older Portal won't use an extension written for a newer on
 
 ## Coming in later pieces (not available yet)
 
-- **Tiles and Settings:** your tiles in Portal's app grid (with an optional badge or subtitle), and an Extensions page in
-  Portal's Settings where an adult allows each capability and opens your settings screen.
 - **Calls into Portal:** a provider Portal exposes so an extension can add its own reminders, show a card over other
   apps, and update a tile's badge. Every call will be checked against what was allowed, with limits on how often.
 - **Later still:** tools the AI search can use, and a catalog to find and install extensions.

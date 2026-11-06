@@ -437,7 +437,8 @@ class HomeFragment : Fragment() {
             AppSettings.hideApp(context, app.packageName)
             loadApps()
         }
-        actions += "App info" to {
+        // An extension's tile isn't an installed app of its own, so it has no app info to show.
+        if (!com.portal.tv.extensions.ExtensionTileKey.isTile(app.packageName)) actions += "App info" to {
             startActivity(
                 Intent(
                     android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -477,6 +478,14 @@ class HomeFragment : Fragment() {
     /** [from] is the icon's view in the grid, or null when the app was opened from search or a menu. */
     private fun launchApp(app: AppInfo, from: android.widget.ImageView? = null) {
         if (launchAnimation?.active == true) return
+        // A tile from an extension opens one of the extension's own screens, if it is still allowed to.
+        val isTile = com.portal.tv.extensions.ExtensionTileKey.isTile(app.packageName)
+        val tile = if (isTile) com.portal.tv.extensions.ExtensionTiles.resolve(requireContext(), app.packageName) else null
+        if (isTile && tile == null) {
+            android.widget.Toast.makeText(requireContext(), "${app.label} isn't allowed to open any more", android.widget.Toast.LENGTH_LONG).show()
+            loadApps()
+            return
+        }
         // A kid's bedtime or daily limit can stop the launch.
         val kid = com.portal.tv.repo.ProfileManager.getActive(requireContext())?.takeIf { it.isKids }
         if (kid != null) {
@@ -487,13 +496,13 @@ class HomeFragment : Fragment() {
             }
             KidsSchedule.startSession(requireContext(), kid.id)
             // Keep watching the clock, and show the time left over the app, while it's open.
-            KidsSchedule.setSessionPackage(requireContext(), app.packageName)
+            KidsSchedule.setSessionPackage(requireContext(), tile?.packageName ?: app.packageName)
             if (!KidsSchedule.config(requireContext(), kid.id).isEmpty) KidsMonitorService.start(requireContext())
         }
         UsageTracker.recordLaunch(requireContext(), app.packageName)
         // TV apps usually only have a leanback entry point.
         val pm = requireContext().packageManager
-        val intent = pm.getLeanbackLaunchIntentForPackage(app.packageName)
+        val intent = tile?.intent ?: pm.getLeanbackLaunchIntentForPackage(app.packageName)
             ?: pm.getLaunchIntentForPackage(app.packageName)
         if (intent != null) {
             val root = view as? android.view.ViewGroup

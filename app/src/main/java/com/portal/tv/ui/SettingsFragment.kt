@@ -77,6 +77,7 @@ class SettingsFragment : Fragment() {
         setupScreensaver(view)
         setupBirthdays(view)
         setupReminders(view)
+        setupExtensions(view)
         setupPin(view)
         setupSystemSettings(view)
         setupAbout(view)
@@ -492,11 +493,14 @@ class SettingsFragment : Fragment() {
 
     private var refreshOverlayPermission: (() -> Unit)? = null
     private var refreshReminderOverlay: (() -> Unit)? = null
+    private var refreshExtensions: (() -> Unit)? = null
+    private var extensionsSummary = ""
 
     override fun onResume() {
         super.onResume()
         refreshOverlayPermission?.invoke() // back from the system's permission screen
         refreshReminderOverlay?.invoke()
+        refreshExtensions?.invoke() // an extension may have been installed or removed
     }
 
     /**
@@ -719,6 +723,7 @@ class SettingsFragment : Fragment() {
                 val count = profile?.let { com.portal.tv.reminders.ReminderStore.forProfile(context, it.id).size } ?: 0
                 when (count) { 0 -> "None yet"; 1 -> "1 reminder"; else -> "$count reminders" }
             },
+            Category(R.id.cat_extensions, R.id.page_extensions) { extensionsSummary },
             Category(R.id.cat_family, R.id.page_family) {
                 val count = BirthdayStore.all(context).size
                 val birthdays = if (count == 1) "1 birthday" else "$count birthdays"
@@ -1755,6 +1760,18 @@ class SettingsFragment : Fragment() {
                 .show()
         }
         refresh()
+    }
+
+    /** The Extensions page: what is installed, and what an adult has allowed. A kid's Settings never shows it. */
+    private fun setupExtensions(view: View) {
+        if (com.portal.tv.repo.ProfileManager.isActiveKids(requireContext())) return
+        val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }) { found, allowed ->
+            extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed)
+            refreshCategories?.invoke()
+        }
+        page.bind(view.findViewById(R.id.extensions_list))
+        refreshExtensions = page::refresh
+        page.refresh()
     }
 
     /**
