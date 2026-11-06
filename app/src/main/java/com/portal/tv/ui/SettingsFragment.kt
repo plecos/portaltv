@@ -1807,7 +1807,8 @@ class SettingsFragment : Fragment() {
             val now = System.currentTimeMillis()
             reminders.forEach { r ->
                 val whenText = com.portal.tv.reminders.ReminderLogic.whenLabel(r.atMillis, now) +
-                    if (r.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else "  ·  " + r.repeat.label.lowercase()
+                    (if (r.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else "  ·  " + r.repeat.label.lowercase()) +
+                    (r.source?.let { src -> "  ·  via " + (com.portal.tv.extensions.ExtensionRegistry.find(context, src)?.name ?: src) } ?: "")
                 list.addView(TextView(context).apply {
                     text = "${r.title}  ·  $whenText"
                     textSize = 18f

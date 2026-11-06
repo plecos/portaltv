@@ -101,6 +101,8 @@ object ManifestParser {
 
     private val ID = Regex("[a-z0-9][a-z0-9-]{0,39}")
 
+    fun isValidId(id: String) = ID.matches(id)
+
     sealed class Result {
         data class Ok(val manifest: ExtensionManifest) : Result()
         /** The file is wrong; [reason] says how, for the person looking at the extension. */

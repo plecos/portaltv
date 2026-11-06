@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Keep Portal's adb key out of backups and device-to-device transfers: it lets Portal talk to this TV's own debug service. -->
+<!-- Keep Portal's adb key out of backups and device-to-device transfers: it lets Portal talk to this TV's own debug service.
+     What an adult allowed for extensions stays on this TV too: it is tied to each app's signer and to what is installed here. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="adb_key.pk8" />
         <exclude domain="file" path="adb_cert.der" />
+        <exclude domain="sharedpref" path="portal_extensions.xml" />
+        <exclude domain="sharedpref" path="portal_extension_items.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="adb_key.pk8" />
         <exclude domain="file" path="adb_cert.der" />
+        <exclude domain="sharedpref" path="portal_extensions.xml" />
+        <exclude domain="sharedpref" path="portal_extension_items.xml" />
     </device-transfer>
 </data-extraction-rules>

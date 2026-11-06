@@ -7,8 +7,8 @@ Nothing an extension asks for happens until an adult allows it, one capability a
 > **Status: draft.** This version of Portal finds extensions, reads and checks their declaration, lists them under
 > Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid,
 > opens an extension's settings screen from Settings, and draws the buttons and text an extension declares in the top bar and
-> under the clock. The calls an extension can make into Portal (reminders, cards, tile
-> badges, and changing its home screen items while running) come in a later piece and are listed at the end. Contract version **1**.
+> under the clock. It also answers the calls an extension makes into Portal: reminders, cards over other apps, and changing its own home screen
+> items while running (see *Calling Portal*). Badges on tiles are not there yet. Contract version **1**.
 
 ## Writing one
 
@@ -138,10 +138,75 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 The `contract` number only goes up, and an existing attribute or capability never changes meaning. A new Portal can read
 an older contract. An older Portal won't use an extension written for a newer one.
 
+## Calling Portal
+
+Portal exposes one provider, `content://net.getportaltv.host`, and you call it with `ContentResolver.call(uri, method, null, extras)`.
+There is nothing to bind to and no library: the answer is a `Bundle`.
+
+**Android 11 and later: ask to see it**, or the system hides Portal's provider from your app:
+
+```xml
+<queries><provider android:authorities="net.getportaltv.host" /></queries>
+```
+
+```kotlin
+val reply = contentResolver.call(Uri.parse("content://net.getportaltv.host"), "reminders.add", null, Bundle().apply {
+    putString("title", "Take the bins out")
+    putLong("at_millis", System.currentTimeMillis() + 60 * 60_000L)
+})
+if (reply?.getBoolean("ok") == true) { val id = reply.getInt("id") } else { val why = reply?.getString("error") }
+```
+
+Every answer has `ok`. When it is `false`, `error` says why and nothing was changed:
+
+| `error` | Meaning |
+| --- | --- |
+| `not_allowed` | You aren't an installed extension, an adult hasn't allowed you the capability the call needs, or you are no longer signed by who was allowed. |
+| `kid_profile` | A kid's profile is in use. Nothing is done for it. |
+| `bad_argument` | A value is missing, too long, in the past, not plain text, or not one of the allowed choices. |
+| `limit` | You are at a limit (reminders you may keep, items you may show, changes you may keep). |
+| `rate_limited` | Too many calls lately (20 changes a minute, 1 card a minute). Try later. |
+| `not_found` | There is no such reminder or item of yours. |
+| `no_such_method` | Portal doesn't have that method. |
+| `unavailable` | Portal couldn't do it right now. |
+
+Portal works out who is calling from Android itself, never from anything you send, so you can't act for another app and
+nobody can act for you.
+
+| Method | Needs | Arguments | Answer |
+| --- | --- | --- | --- |
+| `host.info` | nothing | none | `contract`, `portal_version_code`, `granted` (the capabilities you have now), `max_reminders` |
+| `reminders.add` | `reminders` | `title` (up to 80 characters), `at_millis` (in the future, within 2 years); optional `repeat` (`none`, `daily`, `weekly`), `tone` (`none`, `beeps`, `chirp`, `prompt`, `alert`), `manual` (stays until dismissed), `snooze_minutes` (0, 5, 10, 15 or 30) | `id` |
+| `reminders.list` | `reminders` | none | `reminders`: a list of Bundles with `id`, `title`, `at_millis`, `repeat`, `tone`, `manual`, `snooze_minutes` |
+| `reminders.update` | `reminders` | `id`, and any of the add arguments to change | |
+| `reminders.delete` | `reminders` | `id` | |
+| `card.show` | `cards` | `title` (up to 60), optional `text` (up to 140) and `seconds` (default 10, at most 30) | |
+| `items.set` | `bar` or `clock` | `area` (`bar` or `clock`), `id`, `text` | |
+| `items.remove` | `bar` or `clock` | `area`, `id` | |
+| `items.list` | `bar` or `clock` | `area` | `items`: a list of Bundles with `id`, `text`, `button` |
+
+**Reminders** are yours: `list`, `update` and `delete` only see the ones you made, and they belong to the profile that was in
+use when you added them. Portal's own reminders and other extensions' are out of reach. They are marked "via <your name>" on
+the card and in Settings, you may keep 50, and they are removed when an adult turns reminders off for you or you are
+uninstalled. A reminder whose extension is no longer allowed is dropped rather than shown. You can pick only the built-in tones.
+
+**Cards** use the same card as reminders, over whatever app is open, headed "via <your name>" so they can't pass for
+Portal. They have no buttons and no sound and go away by themselves. Without the "Display over other apps" permission Portal
+shows a notification instead.
+
+**Items** you declared can change their words, be taken away with `items.remove` (they come back with `items.set`), and you
+can add lines of text beyond the declared ones, always within two items per area. A button's label changes, but the screen it
+opens is always one you declared. The profile, search, settings and update buttons, the weather and any alert are not yours:
+there is no way to name them, and a call that tries gets `not_found`. If the home screen is showing, it redraws at once.
+
+## Housekeeping
+
+- What was allowed, and what an extension changed about its items, is not part of Android's backup or a device-to-device
+  transfer: it belongs to the apps installed on this TV.
+- A change to what an extension may do takes effect on its next call. Turning a capability off also removes what the
+  extension made with it.
+
 ## Coming in later pieces (not available yet)
 
-- **Calls into Portal:** a provider Portal exposes so an extension can add its own reminders, show a card over other
-  apps, update a tile's badge, and add, change or remove its own home screen items while running (so the text can stay current). Every call will be checked against what was allowed, with limits on how often.
-- **Later still:** tools the AI search can use, and a catalog to find and install extensions.
-
-Nothing here is a promise about dates, and details may change until the first release that includes extensions.
+- **Badges on tiles:** a short badge or subtitle on a tile in the app grid.
+- Conformance tests that install a misbehaving extension, and a catalog of extensions.
