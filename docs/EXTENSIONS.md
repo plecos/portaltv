@@ -266,6 +266,12 @@ scripts/conformance.sh
 - A change to what an extension may do takes effect on its next call. Turning a capability off also removes what the
   extension made with it, and uninstalling an extension removes everything Portal kept for it at once.
 
+## A withdrawn extension
+
+The catalog ([CATALOG.md](CATALOG.md#when-the-catalog-withdraws-an-extension)) can withdraw an extension or everything a signer
+made. Portal then switches it off: every call to the host API is refused as `not_allowed`, its tiles, items and background
+are gone, and what was allowed is forgotten.
+
 ## Coming in later pieces (not available yet)
 
 - Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it and install from it.

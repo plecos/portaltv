@@ -958,6 +958,12 @@ class HomeFragment : Fragment() {
         // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
         viewLifecycleOwner.lifecycleScope.launch {
             if (com.portal.tv.update.UpdateChecks.checkIfDue(requireContext())) refreshUpdateButton()
+            // The catalog's withdrawn list, kept fresh while extensions are installed.
+            if (com.portal.tv.extensions.CatalogChecks.checkIfDue(requireContext())) {
+                // A withdrawal may have switched something off.
+                refreshExtensionItems()
+                loadApps()
+            }
         }
         // Rebuild the app lists so launches and installs made elsewhere show up.
         loadApps()

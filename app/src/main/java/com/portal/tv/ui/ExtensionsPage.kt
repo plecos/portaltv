@@ -105,7 +105,7 @@ class ExtensionsPage(
         }
         all.forEach { ext ->
             val row = TextView(context).apply {
-                text = ext.name
+                text = ext.name + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
                 textSize = 18f
                 typeface = context.resources.getFont(R.font.inter)
                 setTextColor(context.resources.getColor(R.color.text_primary, null))
@@ -151,20 +151,39 @@ class ExtensionsPage(
         val statusColor = when (ext.state) {
             ExtensionState.ALLOWED -> Color.rgb(140, 230, 160)
             ExtensionState.NOT_ALLOWED -> Color.rgb(255, 200, 100)
-            else -> Color.rgb(255, 120, 120)
+            else -> Color.rgb(255, 120, 120)  // withdrawn, signed by someone else, can't be used
         }
         box.addView(text(ExtensionLabels.status(ext.state, ext.granted), 17f, statusColor))
         // Only said once the catalog has been loaded; an extension that isn't in it hasn't been looked at by anyone but you.
-        catalog?.let {
-            val listing = CatalogLabels.listing(it, ext.packageName, ext.signer)
-            val color = if (listing == com.portal.tv.extensions.Listing.LISTED) Color.rgb(140, 230, 160) else Color.rgb(255, 200, 100)
+        val listing = catalog?.let { CatalogLabels.listing(it, ext.packageName, ext.signer) }
+        val unlisted = listing != null && listing != com.portal.tv.extensions.Listing.LISTED
+        if (listing != null && ext.state != ExtensionState.REVOKED) {
+            val color = if (!unlisted) Color.rgb(140, 230, 160) else Color.rgb(255, 200, 100)
             box.addView(text(CatalogLabels.listingText(listing), 15f, color))
+            if (unlisted) {
+                box.addView(text(
+                    "Nobody has looked at this extension. Anything it can do, it can do on your TV and in front of your family. " +
+                        "Only allow it if you got it from someone you trust.",
+                    14f, Color.rgb(255, 200, 100)
+                ).apply { setPadding(0, px(4), 0, 0) })
+            }
+        } else if (catalog == null && ext.state != ExtensionState.REVOKED) {
+            box.addView(text("Not checked against the catalog yet. Open Browse extensions once to check it.", 14f, soft))
+        }
+        if (ext.state == ExtensionState.REVOKED) {
+            box.addView(text(
+                "\n" + (ext.revokedReason?.let { "Reason given: $it" } ?: "No reason was given.") +
+                    "\n\nIt has been switched off and what you allowed has been forgotten. Uninstall it below.",
+                16f, Color.rgb(255, 120, 120)
+            ))
         }
 
         when (val parsed = ext.parsed) {
             is ManifestParser.Result.Invalid -> box.addView(text("\n" + parsed.reason, 16f, soft))
             is ManifestParser.Result.NeedsNewerPortal -> box.addView(text("\nIt was written for a newer version of the extension contract (${parsed.contract}) than this Portal speaks (${ManifestParser.CONTRACT_VERSION}).", 16f, soft))
-            is ManifestParser.Result.Ok -> {
+            is ManifestParser.Result.Ok -> if (ext.state == ExtensionState.REVOKED) {
+                // Nothing to allow: it is off. Only Uninstall is left.
+            } else {
                 if (ext.state == ExtensionState.SIGNER_CHANGED) {
                     box.addView(text("\nThis app was allowed before, but it is now signed by someone else. Only allow it again if you expect that.", 15f, Color.rgb(255, 200, 100)))
                 }
@@ -266,9 +285,23 @@ class ExtensionsPage(
             .setTitle(ext.name)
             .setView(box)
             .setBodyMaxHeightFraction(0.62f)
-            .setNegativeButton(if (manifest == null) "Close" else "Cancel", null)
-        if (manifest != null) {
-            builder.setPositiveButton("Save") { _, _ -> withPin { save(ext, chosen) } }
+            .setNegativeButton(if (manifest == null || ext.state == ExtensionState.REVOKED) "Close" else "Cancel", null)
+        if (manifest != null && ext.state != ExtensionState.REVOKED) {
+            builder.setPositiveButton("Save") { _, _ ->
+                val adding = chosen.any { it !in ext.granted }
+                if (unlisted && adding) {
+                    // Something new is being turned on for an extension nobody has looked at: ask once more, plainly.
+                    PortalDialog.Builder(context)
+                        .setTitle("Allow ${ext.name}?")
+                        .setMessage("It isn't in the catalog, so nobody has looked at it. You are about to allow ${chosen.size} thing" +
+                            "${if (chosen.size == 1) "" else "s"}. Only go on if you trust where it came from.")
+                        .setPositiveButton("Allow") { _, _ -> withPin { save(ext, chosen) } }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                } else {
+                    withPin { save(ext, chosen) }
+                }
+            }
             if (Capability.SETTINGS in ext.granted && ext.settingsActivity != null) {
                 builder.setNeutralButton("Settings") { _, _ -> openSettings(ext) }
             }
