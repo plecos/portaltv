@@ -12,4 +12,24 @@
         android:layout_width="96dp"
         android:layout_height="96dp"
         android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/app_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:minWidth="24dp"
+            android:gravity="center"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:background="@drawable/bg_ext_badge"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/inter"
+            android:maxLines="1"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
 </FrameLayout>

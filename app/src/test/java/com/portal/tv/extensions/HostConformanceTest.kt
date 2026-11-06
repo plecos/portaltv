@@ -22,6 +22,8 @@ private class FakeTv : HostEnv {
     var cardsShown = mutableListOf<List<String>>()
     var cardWorks = true
     var itemEvents = 0
+    val tileDecor = mutableMapOf<String, Map<String, TileDecor>>()
+    var tileEvents = 0
     private var nextId = 1
 
     /** Counts everything that changed, so a refusal can be shown to have changed nothing. */
@@ -41,13 +43,16 @@ private class FakeTv : HostEnv {
     override fun itemChanges(packageName: String) = itemChanges[packageName].orEmpty()
     override fun saveItemChanges(packageName: String, changes: List<ItemOverride>) { writes++; itemChanges[packageName] = changes }
     override fun itemsChanged() { itemEvents++ }
+    override fun tileDecorations(packageName: String) = tileDecor[packageName].orEmpty()
+    override fun saveTileDecorations(packageName: String, decorations: Map<String, TileDecor>) { writes++; tileDecor[packageName] = decorations }
+    override fun tilesChanged() { tileEvents++ }
     override fun showCard(from: String, title: String, text: String, seconds: Int): Boolean {
         if (cardWorks) { writes++; cardsShown += listOf(from, title, text, seconds.toString()) }
         return cardWorks
     }
 
-    fun install(pkg: String, granted: Set<String>, items: List<ExtensionItem> = emptyList()) {
-        extensions[pkg] = HostExtension(pkg, "Ext $pkg", granted, items)
+    fun install(pkg: String, granted: Set<String>, items: List<ExtensionItem> = emptyList(), tiles: Set<String> = emptySet()) {
+        extensions[pkg] = HostExtension(pkg, "Ext $pkg", granted, items, tiles)
     }
 }
 
@@ -69,7 +74,7 @@ class HostConformanceTest {
     @Test
     fun aCallerThatIsNotAnExtensionIsRefusedEverything() {
         val h = handler()
-        listOf(HostApi.INFO, HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.CARD_SHOW, HostApi.ITEMS_SET, "made.up").forEach {
+        listOf(HostApi.INFO, HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.CARD_SHOW, HostApi.ITEMS_SET, HostApi.TILE_UPDATE, "made.up").forEach {
             h.call("com.android.shell", it, mapOf("title" to "x", "at_millis" to soon, "area" to "bar", "id" to "a", "text" to "x")).assertError(HostApi.Error.NOT_ALLOWED)
         }
         assertEquals(0, tv.writes)
@@ -82,8 +87,8 @@ class HostConformanceTest {
         val info = h.call(A, HostApi.INFO, emptyMap())
         assertTrue(info.ok)
         assertEquals(emptyList<String>(), info.data["granted"])
-        listOf(HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE, HostApi.CARD_SHOW).forEach {
-            h.call(A, it, mapOf("title" to "x", "at_millis" to soon, "id" to 1)).assertError(HostApi.Error.NOT_ALLOWED)
+        listOf(HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE, HostApi.CARD_SHOW, HostApi.TILE_UPDATE).forEach {
+            h.call(A, it, mapOf("title" to "x", "at_millis" to soon, "id" to 1, "badge" to "1")).assertError(HostApi.Error.NOT_ALLOWED)
         }
         for (area in listOf("bar", "clock")) listOf(HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST).forEach {
             h.call(A, it, mapOf("area" to area, "id" to "a", "text" to "x")).assertError(HostApi.Error.NOT_ALLOWED)
@@ -96,9 +101,10 @@ class HostConformanceTest {
     fun eachCapabilityOpensOnlyItsOwnCalls() {
         val needs = mapOf(
             Capability.REMINDERS to listOf(HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE),
-            Capability.CARDS to listOf(HostApi.CARD_SHOW)
+            Capability.CARDS to listOf(HostApi.CARD_SHOW),
+            Capability.TILES to listOf(HostApi.TILE_UPDATE)
         )
-        val args = mapOf("title" to "x", "at_millis" to soon, "id" to 1)
+        val args = mapOf("title" to "x", "at_millis" to soon, "id" to "panel", "badge" to "1")
         for ((capability, methods) in needs) {
             tv.install(A, ALL - capability)
             methods.forEach { handler().call(A, it, args).assertError(HostApi.Error.NOT_ALLOWED) }
@@ -107,9 +113,10 @@ class HostConformanceTest {
         tv.install(A, setOf(Capability.BAR))
         handler().call(A, HostApi.ITEMS_SET, mapOf("area" to "clock", "id" to "a", "text" to "x")).assertError(HostApi.Error.NOT_ALLOWED)
         assertTrue(handler().call(A, HostApi.ITEMS_SET, mapOf("area" to "bar", "id" to "a", "text" to "x")).ok)
-        // Capabilities that have no calls (tiles, settings, background) open nothing here.
-        tv.install(A, setOf(Capability.TILES, Capability.SETTINGS, Capability.BACKGROUND))
+        // Capabilities that have no calls (settings, background) open nothing here.
+        tv.install(A, setOf(Capability.SETTINGS, Capability.BACKGROUND))
         handler().call(A, HostApi.REMINDERS_ADD, args).assertError(HostApi.Error.NOT_ALLOWED)
+        handler().call(A, HostApi.TILE_UPDATE, args).assertError(HostApi.Error.NOT_ALLOWED)
     }
 
     @Test
@@ -120,6 +127,7 @@ class HostConformanceTest {
         listOf(HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.CARD_SHOW).forEach {
             h.call(A, it, mapOf("title" to "x", "at_millis" to soon)).assertError(HostApi.Error.KID_PROFILE)
         }
+        h.call(A, HostApi.TILE_UPDATE, mapOf("id" to "panel", "badge" to "1")).assertError(HostApi.Error.KID_PROFILE)
         listOf(HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST).forEach {
             h.call(A, it, mapOf("area" to "bar", "id" to "a", "text" to "x")).assertError(HostApi.Error.KID_PROFILE)
         }
@@ -320,16 +328,54 @@ class HostConformanceTest {
         assertEquals(0, tv.writes)
     }
 
+    // ---------- tile badges ----------
+
+    @Test
+    fun aTileCanOnlyBeDecoratedByItsOwnExtensionAndOnlyIfDeclared() {
+        tv.install(A, ALL, tiles = setOf("panel")); tv.install(B, ALL, tiles = setOf("other"))
+        val h = handler()
+        assertTrue(h.call(A, HostApi.TILE_UPDATE, mapOf("id" to "panel", "badge" to "3", "subtitle" to "3 unread")).ok)
+        assertEquals(TileDecor("3", "3 unread"), tv.tileDecor[A]!!["panel"])
+        // Not a tile it declared: another extension's, Portal's, or made up.
+        for (id in listOf("other", "settings", "net.example.b/other", "portal.ext:net.example.b/other", "x", "")) {
+            h.call(A, HostApi.TILE_UPDATE, mapOf("id" to id, "badge" to "1")).let { assertFalse("decorated $id", it.ok) }
+        }
+        assertEquals(setOf("panel"), tv.tileDecor[A]!!.keys)
+        assertNull(tv.tileDecor[B])
+        assertEquals(1, tv.tileEvents)
+    }
+
+    @Test
+    fun badgeAndSubtitleAreCheckedClearedAndKeptSeparate() {
+        tv.install(A, ALL, tiles = setOf("panel"))
+        val h = HostHandler(tv, RateLimiter(10_000, 60_000L))
+        fun call(vararg args: Pair<String, Any?>) = h.call(A, HostApi.TILE_UPDATE, mapOf("id" to "panel") + args)
+        assertTrue(call("badge" to "9+").ok)
+        assertTrue(call("subtitle" to "Front door").ok)
+        assertEquals(TileDecor("9+", "Front door"), tv.tileDecor[A]!!["panel"])
+        assertTrue(call("badge" to "").ok)                                   // clears just the badge
+        assertEquals(TileDecor(null, "Front door"), tv.tileDecor[A]!!["panel"])
+        assertTrue(call("subtitle" to "").ok)                                // clearing the last part removes the entry
+        assertTrue(tv.tileDecor[A]!!.isEmpty())
+        val before = tv.writes
+        listOf(
+            call(), call("badge" to "1234567"), call("subtitle" to "x".repeat(25)), call("badge" to 5), call("subtitle" to listOf("x")),
+            call("badge" to null), call("badge" to "a\nb"), call("subtitle" to "  "), h.call(A, HostApi.TILE_UPDATE, mapOf("badge" to "1")),
+            h.call(A, HostApi.TILE_UPDATE, mapOf("id" to 7, "badge" to "1"))
+        ).forEach { assertFalse(it.ok) }
+        assertEquals(before, tv.writes)
+    }
+
     // ---------- whatever is thrown at it ----------
 
     @Test
     fun nothingAnExtensionSendsCanMakeItThrowOrAnswerWithAnUnknownError() {
-        tv.install(A, ALL, declared)
+        tv.install(A, ALL, declared, tiles = setOf("panel"))
         val known = setOf(HostApi.Error.NOT_ALLOWED, HostApi.Error.NO_SUCH_METHOD, HostApi.Error.BAD_ARGUMENT, HostApi.Error.LIMIT,
             HostApi.Error.RATE_LIMITED, HostApi.Error.KID_PROFILE, HostApi.Error.NOT_FOUND, HostApi.Error.UNAVAILABLE)
         val methods = listOf(HostApi.INFO, HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE,
-            HostApi.CARD_SHOW, HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST, "", "x".repeat(10_000), "reminders.add\u0000")
-        val keys = listOf("title", "at_millis", "repeat", "tone", "manual", "snooze_minutes", "id", "text", "seconds", "area", "id", "source", "x")
+            HostApi.CARD_SHOW, HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST, HostApi.TILE_UPDATE, "", "x".repeat(10_000), "reminders.add\u0000")
+        val keys = listOf("title", "at_millis", "repeat", "tone", "manual", "snooze_minutes", "id", "text", "seconds", "area", "id", "source", "badge", "subtitle", "x")
         val values = listOf<Any?>(null, "", "x", "bar", "clock", 0, 1, -1, Int.MAX_VALUE, Long.MAX_VALUE, Long.MIN_VALUE, true, false, 1.5, "x".repeat(100_000),
             listOf("a"), mapOf("a" to 1), intArrayOf(1), Any(), tv.now + 1000, "settings", "lights", "door")
         val random = Random(7)
@@ -342,6 +388,8 @@ class HostConformanceTest {
             // Whatever happened, only A's own things exist.
             assertTrue(tv.reminders.all { it.source == A })
             assertTrue(tv.itemChanges.keys.all { it == A })
+            assertTrue(tv.tileDecor.keys.all { it == A })
+            assertTrue(tv.tileDecor.values.all { m -> m.keys.all { it == "panel" } })
         }
     }
 

@@ -22,6 +22,7 @@ class RunActivity : Activity() {
                 when (suite) {
                     "refused" -> refused()
                     "kid" -> kid()
+                    "tiles" -> tiles()
                     "reminders" -> reminders()
                     "items" -> items()
                     "cards" -> cards()
@@ -75,6 +76,7 @@ class RunActivity : Activity() {
         expectError("show card refused", call("card.show", "title" to "x"), "not_allowed")
         expectError("set bar item refused", call("items.set", "area" to "bar", "id" to "a", "text" to "x"), "not_allowed")
         expectError("remove settings button refused", call("items.remove", "area" to "bar", "id" to "settings"), "not_allowed")
+        expectError("decorate tile refused", call("tile.update", "id" to "panel", "badge" to "1"), "not_allowed")
         expectError("made-up method refused", call("made.up"), "no_such_method")
     }
 
@@ -86,6 +88,7 @@ class RunActivity : Activity() {
         expectError("show card refused for a kid", call("card.show", "title" to "x"), "kid_profile")
         expectError("set bar item refused for a kid", call("items.set", "area" to "bar", "id" to "a", "text" to "x"), "kid_profile")
         expectError("list reminders refused for a kid", call("reminders.list"), "kid_profile")
+        expectError("decorate tile refused for a kid", call("tile.update", "id" to "panel", "badge" to "1"), "kid_profile")
     }
 
     // ---------- allowed reminders, cards, bar, clock ----------
@@ -123,6 +126,19 @@ class RunActivity : Activity() {
         expectError("a third item in the area refused", call("items.set", "area" to "clock", "id" to "two", "text" to "x"), "limit")
         expectError("area that isn't there refused", call("items.set", "area" to "elsewhere", "id" to "a", "text" to "x"), "bad_argument")
         expectError("text as a number refused", call("items.set", "area" to "clock", "id" to "status", "text" to 5), "bad_argument")
+    }
+
+    private fun tiles() {
+        check("badge on my own tile", call("tile.update", "id" to "panel", "badge" to "3", "subtitle" to "3 unread").isOk())
+        // The sample extension's tile is "lights", and Portal's apps have package names: none of them are mine to decorate.
+        for (id in listOf("lights", "cameras", "settings", "com.android.settings", "net.getportaltv.sample/lights", "portal.ext:net.getportaltv.sample/lights", "")) {
+            expectError("cannot decorate \"$id\"", call("tile.update", "id" to id, "badge" to "1"), "not_found")
+        }
+        expectError("badge too long refused", call("tile.update", "id" to "panel", "badge" to "1234567"), "bad_argument")
+        expectError("subtitle too long refused", call("tile.update", "id" to "panel", "subtitle" to "x".repeat(25)), "bad_argument")
+        expectError("badge as a number refused", call("tile.update", "id" to "panel", "badge" to 5), "bad_argument")
+        expectError("nothing to set refused", call("tile.update", "id" to "panel"), "bad_argument")
+        check("clear the badge", call("tile.update", "id" to "panel", "badge" to "").isOk())
     }
 
     private fun cards() {

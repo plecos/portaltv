@@ -16,6 +16,7 @@ object HostApi {
     const val ITEMS_SET = "items.set"
     const val ITEMS_REMOVE = "items.remove"
     const val ITEMS_LIST = "items.list"
+    const val TILE_UPDATE = "tile.update"
 
     /** Every answer has `ok`; when it is false `error` is one of these. */
     object Error {

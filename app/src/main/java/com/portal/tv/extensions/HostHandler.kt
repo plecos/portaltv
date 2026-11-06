@@ -19,7 +19,9 @@ class HostExtension(
     /** What it may do right now (empty if not allowed or its signer changed). */
     val granted: Set<String>,
     /** The home screen items it declared that Portal can use. */
-    val declaredItems: List<ExtensionItem>
+    val declaredItems: List<ExtensionItem>,
+    /** The ids of the tiles it declared. */
+    val declaredTiles: Set<String> = emptySet()
 )
 
 class HostProfile(val id: Int, val isKids: Boolean)
@@ -38,6 +40,9 @@ interface HostEnv {
     fun itemChanges(packageName: String): List<ItemOverride>
     fun saveItemChanges(packageName: String, changes: List<ItemOverride>)
     fun itemsChanged()
+    fun tileDecorations(packageName: String): Map<String, TileDecor>
+    fun saveTileDecorations(packageName: String, decorations: Map<String, TileDecor>)
+    fun tilesChanged()
     fun showCard(from: String, title: String, text: String, seconds: Int): Boolean
 }
 
@@ -59,6 +64,7 @@ class HostHandler(
         val needs = when (method) {
             HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE -> Capability.REMINDERS
             HostApi.CARD_SHOW -> Capability.CARDS
+            HostApi.TILE_UPDATE -> Capability.TILES
             HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST -> area(args)?.capability ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
             else -> return HostReply.fail(HostApi.Error.NO_SUCH_METHOD)
         }
@@ -73,6 +79,7 @@ class HostHandler(
             HostApi.REMINDERS_UPDATE -> updateReminder(ext, args)
             HostApi.REMINDERS_DELETE -> deleteReminder(ext, args)
             HostApi.CARD_SHOW -> showCard(ext, args)
+            HostApi.TILE_UPDATE -> updateTile(ext, args)
             else -> items(ext, method, args)
         }
     }
@@ -175,6 +182,24 @@ class HostHandler(
         if (!cards.allow(ext.packageName, env.elapsedMillis())) return HostReply.fail(HostApi.Error.RATE_LIMITED)
         val shown = env.showCard(ext.name, title!!.trim(), text.trim(), HostChecks.cardSeconds(args.int("seconds") ?: 0))
         return if (shown) HostReply.ok() else HostReply.fail(HostApi.Error.UNAVAILABLE)
+    }
+
+    // ---------- tile badges ----------
+
+    private fun updateTile(ext: HostExtension, args: Map<String, Any?>): HostReply {
+        val id = args.string("id") ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        val change = TileDecorations.update(
+            ext.declaredTiles, env.tileDecorations(ext.packageName), id,
+            args["badge"], args["subtitle"], args.containsKey("badge"), args.containsKey("subtitle")
+        )
+        return when (change) {
+            is TileDecorations.Change.Refused -> HostReply.fail(change.error)
+            is TileDecorations.Change.Ok -> {
+                env.saveTileDecorations(ext.packageName, change.decorations)
+                env.tilesChanged()
+                HostReply.ok()
+            }
+        }
     }
 
     // ---------- home screen items ----------

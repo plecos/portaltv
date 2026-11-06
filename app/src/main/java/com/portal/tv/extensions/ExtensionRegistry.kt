@@ -61,7 +61,7 @@ object ExtensionRegistry {
             if (!installed) forget(context, pkg)
         }
         // Reminders and item changes of an extension that is gone (even one never allowed) go with it.
-        for (pkg in com.portal.tv.reminders.ReminderStore.all(context).mapNotNull { it.source }.toSet() + ExtensionItemStore.packages(context)) {
+        for (pkg in com.portal.tv.reminders.ReminderStore.all(context).mapNotNull { it.source }.toSet() + ExtensionItemStore.packages(context) + ExtensionTileStore.packages(context)) {
             val installed = try { pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0)); true } catch (e: PackageManager.NameNotFoundException) { false }
             if (!installed) forget(context, pkg)
         }
@@ -71,6 +71,7 @@ object ExtensionRegistry {
     fun forget(context: Context, packageName: String) {
         ExtensionStore.remove(context, packageName)
         ExtensionItemStore.remove(context, packageName)
+        ExtensionTileStore.remove(context, packageName)
         com.portal.tv.reminders.ReminderStore.clearForSource(context, packageName)
     }
 
@@ -106,6 +107,7 @@ object ExtensionRegistry {
         // Turning something off takes back what the extension made with it.
         if (Capability.REMINDERS !in wanted) com.portal.tv.reminders.ReminderStore.clearForSource(context, packageName)
         ItemArea.values().filter { it.capability !in wanted }.forEach { ExtensionItemStore.clearArea(context, packageName, it) }
+        if (Capability.TILES !in wanted) ExtensionTileStore.remove(context, packageName)
         return true
     }
 
@@ -113,6 +115,7 @@ object ExtensionRegistry {
     fun disallow(context: Context, packageName: String) {
         ExtensionStore.remove(context, packageName)
         ExtensionItemStore.remove(context, packageName)
+        ExtensionTileStore.remove(context, packageName)
         com.portal.tv.reminders.ReminderStore.clearForSource(context, packageName)
     }
 

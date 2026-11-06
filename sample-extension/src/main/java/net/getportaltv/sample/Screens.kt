@@ -142,6 +142,8 @@ class SettingsActivity : Activity() {
             action("Change the clock-area text", "items.set") { putString("area", "clock"); putString("id", "status"); putString("text", "Garage door open") }
             action("Add a second clock-area line", "items.set") { putString("area", "clock"); putString("id", "extra"); putString("text", "Front door locked") }
             action("Take the clock-area text away", "items.remove") { putString("area", "clock"); putString("id", "status") }
+            action("Put a badge on the Lights tile", "tile.update") { putString("id", "lights"); putString("badge", "3"); putString("subtitle", "3 lights on") }
+            action("Take the badge off", "tile.update") { putString("id", "lights"); putString("badge", ""); putString("subtitle", "") }
             action("Try to remove Portal's settings button", "items.remove") { putString("area", "bar"); putString("id", "settings") }
             requestFocusOnFirst()
         }

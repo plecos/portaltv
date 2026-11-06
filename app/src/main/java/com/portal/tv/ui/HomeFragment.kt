@@ -924,6 +924,7 @@ class HomeFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         com.portal.tv.extensions.HostEvents.onItemsChanged = null
+        com.portal.tv.extensions.HostEvents.onTilesChanged = null
         com.portal.tv.alerts.SevereAlertService.homeShowing = false
         backgroundPlayer?.stop()
         shaderView?.onPause()
@@ -953,6 +954,7 @@ class HomeFragment : Fragment() {
         refreshUpdateButton()
         refreshExtensionItems()
         com.portal.tv.extensions.HostEvents.onItemsChanged = { refreshExtensionItems() }
+        com.portal.tv.extensions.HostEvents.onTilesChanged = { loadApps() }
         // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
         viewLifecycleOwner.lifecycleScope.launch {
             if (com.portal.tv.update.UpdateChecks.checkIfDue(requireContext())) refreshUpdateButton()

@@ -67,8 +67,12 @@ seed() {   # active profile id, signer to record, capabilities (comma separated,
     local list; list="$(echo "$caps" | sed 's/\([a-z]*\)/\&quot;\1\&quot;/g')"
     put_prefs portal_extensions '<string name="allowed">[{&quot;package&quot;:&quot;'$ROGUE'&quot;,&quot;signer&quot;:&quot;'"$signer"'&quot;,&quot;capabilities&quot;:['"$list"']},{&quot;package&quot;:&quot;'$SAMPLE'&quot;,&quot;signer&quot;:&quot;'"$SAMPLE_SIGNER"'&quot;,&quot;capabilities&quot;:[&quot;reminders&quot;]}]</string>'
   fi
-  # Preferences are read once when Portal starts, so it is restarted to read these. It is the home app, so Android starts
-  # it again by itself a moment after it is stopped: the files had to be written first.
+  restart_portal
+}
+
+# Preferences are read once when Portal starts, so it is restarted to read new ones, and to forget the rate limits. It is the
+# home app, so Android starts it again by itself a moment after it is stopped: any files had to be written first.
+restart_portal() {
   adb_ shell am force-stop $PORTAL
   local i
   for i in $(seq 1 20); do [ -n "$(adb_ shell pidof $PORTAL)" ] && break; sleep 1; done
@@ -113,7 +117,7 @@ adb_ install -r "$ROGUE_APK" >/dev/null || { echo "couldn't install the extensio
 
 echo "== nothing allowed: every call is refused"
 seed 1 "$SIGNER" ""
-run_suite refused 7
+run_suite refused 8
 
 echo "== an app that isn't an extension (the shell) can't call at all"
 for method in host.info reminders.add card.show items.set; do
@@ -123,15 +127,15 @@ for method in host.info reminders.add card.show items.set; do
 done
 
 echo "== allowed, but signed by someone else now: every call is refused"
-seed 1 "0000000000000000000000000000000000000000000000000000000000000000" "reminders,cards,bar,clock"
-run_suite refused 7
+seed 1 "0000000000000000000000000000000000000000000000000000000000000000" "reminders,cards,bar,clock,tiles"
+run_suite refused 8
 
 echo "== allowed, but a kid profile is in use"
-seed 2 "$SIGNER" "reminders,cards,bar,clock"
-run_suite kid 5
+seed 2 "$SIGNER" "reminders,cards,bar,clock,tiles"
+run_suite kid 6
 
 echo "== allowed: reminders"
-seed 1 "$SIGNER" "reminders,cards,bar,clock"
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite reminders 14
 state="$(prefs_of portal_reminders)"
 CHECKS=$((CHECKS + 3))
@@ -145,23 +149,35 @@ others="$(echo "$state" | grep -o 'source&quot;:&quot;[^&]*' | sort -u | grep -v
 [ -z "$others" ] && pass "every reminder it made is its own (no spoofed source)" || fail "a reminder has a source it shouldn't: $others"
 
 echo "== allowed: bar and clock items"
-seed 1 "$SIGNER" "reminders,cards,bar,clock"
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite items 14
 
+echo "== allowed: tile badges"
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
+run_suite tiles 13
+
 echo "== allowed: cards"
-seed 1 "$SIGNER" "reminders,cards,bar,clock"
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite cards 3
 
 echo "== allowed: a flood of changes"
-seed 1 "$SIGNER" "reminders,cards,bar,clock"
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite flood 2
 
 echo "== uninstalling the extension removes what it made and what was allowed for it"
-seed 1 "$SIGNER" "reminders,cards,bar,clock"
-run_suite reminders 14 >/dev/null
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
+run_suite reminders 14
+# A fresh start for each suite (without reseeding, so what the earlier ones made stays), or the limit on changes per
+# minute would refuse the later ones.
+for suite in "items 14" "tiles 13"; do
+  restart_portal
+  run_suite $suite
+done
 adb_ uninstall $ROGUE >/dev/null
 sleep 4
-CHECKS=$((CHECKS + 2))
+CHECKS=$((CHECKS + 4))
+prefs_of portal_extension_items | grep -q "$ROGUE" && fail "its item changes are still there after uninstall" || pass "its item changes are gone after uninstall"
+prefs_of portal_extension_tiles | grep -q "$ROGUE" && fail "its tile badges are still there after uninstall" || pass "its tile badges are gone after uninstall"
 prefs_of portal_reminders | grep -q "$ROGUE" && fail "its reminders are still there after uninstall" || pass "its reminders are gone after uninstall"
 prefs_of portal_extensions | grep -q "$ROGUE" && fail "what was allowed for it is still there after uninstall" || pass "what was allowed for it is gone after uninstall"
 

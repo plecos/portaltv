@@ -7,11 +7,13 @@
         <exclude domain="file" path="adb_cert.der" />
         <exclude domain="sharedpref" path="portal_extensions.xml" />
         <exclude domain="sharedpref" path="portal_extension_items.xml" />
+        <exclude domain="sharedpref" path="portal_extension_tiles.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="adb_key.pk8" />
         <exclude domain="file" path="adb_cert.der" />
         <exclude domain="sharedpref" path="portal_extensions.xml" />
         <exclude domain="sharedpref" path="portal_extension_items.xml" />
+        <exclude domain="sharedpref" path="portal_extension_tiles.xml" />
     </device-transfer>
 </data-extraction-rules>

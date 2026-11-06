@@ -87,7 +87,7 @@ private class RealHostEnv(private val context: Context) : HostEnv {
     override fun nowMillis() = System.currentTimeMillis()
     override fun elapsedMillis() = SystemClock.elapsedRealtime()
     override fun extension(packageName: String): HostExtension? = ExtensionRegistry.find(context, packageName)?.let {
-        HostExtension(it.packageName, it.name, it.granted, it.manifest?.items.orEmpty())
+        HostExtension(it.packageName, it.name, it.granted, it.manifest?.items.orEmpty(), it.manifest?.tiles.orEmpty().map { t -> t.id }.toSet())
     }
     override fun activeProfile() = ProfileManager.getActive(context)?.let { HostProfile(it.id, it.isKids) }
     override fun remindersFrom(source: String) = ReminderStore.forSource(context, source)
@@ -98,5 +98,8 @@ private class RealHostEnv(private val context: Context) : HostEnv {
     override fun itemChanges(packageName: String) = ExtensionItemStore.get(context, packageName)
     override fun saveItemChanges(packageName: String, changes: List<ItemOverride>) = ExtensionItemStore.put(context, packageName, changes)
     override fun itemsChanged() = HostEvents.itemsChanged()
+    override fun tileDecorations(packageName: String) = ExtensionTileStore.get(context, packageName)
+    override fun saveTileDecorations(packageName: String, decorations: Map<String, TileDecor>) = ExtensionTileStore.put(context, packageName, decorations)
+    override fun tilesChanged() = HostEvents.tilesChanged()
     override fun showCard(from: String, title: String, text: String, seconds: Int) = ReminderService.showCard(context, from, title, text, seconds)
 }

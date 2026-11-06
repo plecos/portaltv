@@ -8,6 +8,7 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="portal_extensions.xml" />
     <exclude domain="sharedpref" path="portal_extension_items.xml" />
+    <exclude domain="sharedpref" path="portal_extension_tiles.xml" />
     <!--
    <include domain="sharedpref" path="."/>
    <exclude domain="sharedpref" path="device.xml"/>
