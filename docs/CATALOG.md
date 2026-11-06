@@ -101,7 +101,7 @@ Settings, Extensions has a **Browse extensions** button (a kid's Settings never 
 - Each row says whether the extension is **Installed**, has an **Update available**, or is installed but **signed by someone
   else** (then it isn't the listed one).
 - A detail page shows the description, author, licence, what it asks to be allowed to do in plain words, its signer,
-  version and size, and a QR code for the source link. Nothing installs from here yet.
+  version and size, and the source link. Nothing installs from here yet.
 - On an installed extension's page, Portal says **Listed in the catalog**, **In the catalog, but signed by someone else**,
   or **Not in the catalog** (once the catalog has been loaded at least once).
 - The request carries nothing about the TV: no account, no id, no list of installed apps.

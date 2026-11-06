@@ -47,18 +47,6 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
         typeface = context.resources.getFont(R.font.inter)
     }
 
-    private fun qr(link: String, caption: String) = LinearLayout(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, px(12), 0, 0)
-        isFocusable = true
-        addView(ImageView(context).apply {
-            setImageBitmap(QrCode.bitmap(link, px(150)))
-            layoutParams = LinearLayout.LayoutParams(px(100), px(100)).apply { marginEnd = px(16) }
-        })
-        addView(text(caption + "\n" + link, 14f, soft).apply { layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f) })
-    }
-
     // ---------- The list ----------
 
     /** A row's picture: the catalog's icon once it arrives, the extension puzzle piece until then or if there isn't one. */
@@ -260,7 +248,7 @@ class CatalogPages(private val context: Context, private val scope: CoroutineSco
             "\n${entry.packageName}\nSigned by ${ExtensionAccess.shortFingerprint(entry.signer)}  ·  version ${version.versionName}  ·  ${CatalogLabels.sizeText(version.sizeBytes)}",
             13f, soft
         ))
-        box.addView(qr(entry.sourceUrl, "Read the source on your phone:"))
+        box.addView(text("Source: ${entry.sourceUrl}", 13f, soft).apply { setPadding(0, px(8), 0, 0); isFocusable = true })
 
         PortalDialog.Builder(context)
             .setTitle(entry.name)
