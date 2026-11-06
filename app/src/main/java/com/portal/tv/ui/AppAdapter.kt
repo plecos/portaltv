@@ -26,6 +26,9 @@ class AppAdapter(
     class AppViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val icon: ImageView = itemView.findViewById(R.id.app_icon)
         val label: TextView? = itemView.findViewById(R.id.app_label)
+        /** What an extension put on its tile: the layouts that have room for each have these views. */
+        val badge: TextView? = itemView.findViewById(R.id.app_badge)
+        val subtitle: TextView? = itemView.findViewById(R.id.app_subtitle)
     }
 
     companion object {
@@ -56,7 +59,9 @@ class AppAdapter(
         val app = apps[position]
         holder.icon.setImageDrawable(app.icon)
         holder.label?.text = app.label
-        holder.itemView.contentDescription = app.label
+        holder.badge?.let { it.text = app.badge.orEmpty(); it.visibility = if (app.badge != null) View.VISIBLE else View.GONE }
+        holder.subtitle?.let { it.text = app.subtitle.orEmpty(); it.visibility = if (app.subtitle != null) View.VISIBLE else View.GONE }
+        holder.itemView.contentDescription = listOfNotNull(app.label, app.badge, app.subtitle).joinToString(", ")
 
         // Select opens the app; holding select (or the remote's menu key) opens the app menu.
         holder.itemView.setOnClickListener { onAppClick(app, holder.icon) }

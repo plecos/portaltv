@@ -9,7 +9,7 @@ Nothing an extension asks for happens until an adult allows it, one capability a
 > opens an extension's settings screen from Settings, and draws the buttons and text an extension declares in the top bar and
 > under the clock. It also answers the calls an extension makes into Portal: reminders, cards over other apps, and changing its own home screen
 > items while running (see *Calling Portal*), and can show a background an extension draws (see *Drawing the home screen
-> background*). Badges on tiles are not there yet. Contract version **1**.
+> background*), and put a badge and a line on its own tiles. Contract version **1**.
 
 ## Writing one
 
@@ -187,6 +187,7 @@ nobody can act for you.
 | `reminders.update` | `reminders` | `id`, and any of the add arguments to change | |
 | `reminders.delete` | `reminders` | `id` | |
 | `card.show` | `cards` | `title` (up to 60), optional `text` (up to 140) and `seconds` (default 10, at most 30) | |
+| `tile.update` | `tiles` | `id` (one of your declared tile ids), and `badge` (up to 6 characters) and/or `subtitle` (up to 24); an empty text clears that part | |
 | `items.set` | `bar` or `clock` | `area` (`bar` or `clock`), `id`, `text` | |
 | `items.remove` | `bar` or `clock` | `area`, `id` | |
 | `items.list` | `bar` or `clock` | `area` | `items`: a list of Bundles with `id`, `text`, `button` |
@@ -204,6 +205,11 @@ shows a notification instead.
 can add lines of text beyond the declared ones, always within two items per area. A button's label changes, but the screen it
 opens is always one you declared. The profile, search, settings and update buttons, the weather and any alert are not yours:
 there is no way to name them, and a call that tries gets `not_found`. If the home screen is showing, it redraws at once.
+
+**Tiles** can show a small badge on the icon (a count, say) and a line under the name, set with `tile.update` and changed whenever
+you like (limited like other changes). Only your own declared tiles can be decorated; the badge shows in every layout (tiles, icons,
+list) and the line in the tiles and list layouts. Kid profiles don't see either, since it is text from another app. They are
+removed when `tiles` is turned off for you or you are uninstalled.
 
 ## Drawing the home screen background
 
@@ -261,5 +267,4 @@ scripts/conformance.sh
 
 ## Coming in later pieces (not available yet)
 
-- **Badges on tiles:** a short badge or subtitle on a tile in the app grid.
 - A catalog of extensions.

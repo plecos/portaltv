@@ -2,6 +2,7 @@
 <portal-extension contract="1" id="conformance" label="Conformance extension" description="Misbehaves on purpose, to test Portal.">
     <uses capability="reminders" />
     <uses capability="cards" />
+    <tile id="panel" label="Panel" activity=".RunActivity" />
     <bar-button id="lights" label="Lights" activity=".RunActivity" />
     <clock-text id="status" text="Status" />
 </portal-extension>

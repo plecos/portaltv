@@ -13,20 +13,26 @@ object ExtensionTiles {
     class Target(val packageName: String, val intent: Intent)
 
     /** A tile for each screen an allowed extension declares, ready for the grid. Runs a scan, so not on the main thread. */
-    fun appInfos(context: Context): List<AppInfo> =
-        ExtensionRegistry.scan(context)
+    fun appInfos(context: Context): List<AppInfo> {
+        val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
+        return ExtensionRegistry.scan(context)
             .filter { Capability.TILES in it.granted }
             .flatMap { ext ->
+                // What the extension put on its tiles while running. A kid doesn't see it: it is text from another app.
+                val decor = if (kid) emptyMap() else ExtensionTileStore.get(context, ext.packageName)
                 ext.tiles.map { tile ->
                     AppInfo(
                         packageName = ExtensionTileKey.of(ext.packageName, tile.id),
                         label = tile.label,
                         icon = iconOf(context, ext.packageName, tile),
                         // Not an installed app of its own, so there is nothing to uninstall from the tile.
-                        isSystem = true
+                        isSystem = true,
+                        badge = decor[tile.id]?.badge,
+                        subtitle = decor[tile.id]?.subtitle
                     )
                 }
             }
+    }
 
     /**
      * Where the tile named [key] opens, checked again now: its extension must still be there, still signed by who was
