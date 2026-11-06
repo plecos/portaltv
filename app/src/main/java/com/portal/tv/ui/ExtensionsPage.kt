@@ -42,7 +42,7 @@ class ExtensionsPage(
 ) {
 
     private lateinit var list: LinearLayout
-    private val catalogPages = CatalogPages(context, scope)
+    private val catalogPages = CatalogPages(context, scope) { pkg -> review(pkg) }
     /** The catalog kept from the last time it was fetched, if any; read with the scan, so drawing a page never waits on it. */
     private var catalog: Catalog? = null
     private val d get() = context.resources.displayMetrics.density
@@ -59,6 +59,16 @@ class ExtensionsPage(
             catalog = withContext(Dispatchers.IO) { CatalogClient.cached(context)?.catalog }
             render(all, focusPackage)
             onCounted(all.size, all.count { it.granted.isNotEmpty() })
+        }
+    }
+
+    /** Opens the page for a freshly installed extension, so an adult can look at what it asks for. */
+    private fun review(packageName: String) {
+        scope.launch {
+            val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
+            refresh(packageName)
+            if (ext != null) showDetail(ext)
+            else Toast.makeText(context, "It isn't an extension Portal can use", Toast.LENGTH_SHORT).show()
         }
     }
 

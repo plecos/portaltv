@@ -122,6 +122,7 @@
     
         <!-- Updates: Android's answer to an install, and reopening Portal once an update has replaced it. -->
         <receiver android:name=".update.UpdateInstallReceiver" android:exported="false" />
+        <receiver android:name=".extensions.CatalogInstallReceiver" android:exported="false" />
         <receiver android:name=".update.UpdatedReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
