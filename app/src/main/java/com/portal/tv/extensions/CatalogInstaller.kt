@@ -51,6 +51,18 @@ object CatalogInstaller {
     }
 
     /**
+     * What is installed now for each of [packageNames] that is installed at all. Cheap even on a TV with hundreds of apps:
+     * the names of everything installed are read without signatures, and signatures only for the ones asked about.
+     * Blocks, so not on the main thread.
+     */
+    fun installedFacts(context: Context, packageNames: Collection<String>): Map<String, InstalledFacts> {
+        val wanted = packageNames.toHashSet()
+        val pm = context.packageManager
+        val present = pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0)).map { it.packageName }.filter { it in wanted }
+        return present.mapNotNull { pkg -> installedFacts(context, pkg)?.let { pkg to it } }.toMap()
+    }
+
+    /**
      * Downloads [version] into the app's cache and checks it against the catalog. [onProgress] gets the bytes so far and
      * the expected total. Returns the file, ready to install; a file that fails any check is deleted.
      */
@@ -100,6 +112,10 @@ object CatalogInstaller {
         } catch (e: java.net.SocketTimeoutException) {
             file.delete()
             throw IOException("The download took too long")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Cancelled by the person: clean up and let the cancellation through as it is, not as an error.
+            file.delete()
+            throw e
         } catch (e: Exception) {
             file.delete()
             throw if (e is IOException) e else IOException(e.message ?: "The download failed")
@@ -181,7 +197,8 @@ object CatalogInstaller {
 
     internal fun report(context: Context, outcome: Outcome) {
         Log.d(TAG, "extension install: $outcome")
-        if (outcome !is Outcome.Installed) File(context.cacheDir, "catalog_apks").listFiles()?.forEach { it.delete() }
+        // Whatever happened, the downloaded file is no longer needed (Android has its own copy once installed).
+        File(context.cacheDir, "catalog_apks").listFiles()?.forEach { it.delete() }
         onOutcome?.invoke(outcome)
     }
 }

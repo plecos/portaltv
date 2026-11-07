@@ -18,6 +18,12 @@ object HostApi {
     const val ITEMS_LIST = "items.list"
     const val TILE_UPDATE = "tile.update"
 
+    /** The argument names a call may carry. Anything else the caller puts in its Bundle is ignored, unread. */
+    val ARG_KEYS = listOf(
+        "id", "title", "text", "at_millis", "repeat", "tone", "manual", "snooze_minutes",
+        "seconds", "area", "badge", "subtitle"
+    )
+
     /** Every answer has `ok`; when it is false `error` is one of these. */
     object Error {
         const val NOT_ALLOWED = "not_allowed"

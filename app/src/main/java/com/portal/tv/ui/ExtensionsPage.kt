@@ -67,6 +67,8 @@ class ExtensionsPage(
     fun review(packageName: String) {
         scope.launch {
             val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
+            // The catalog is read first, so the page can say whether this one is listed (refresh() does it later).
+            catalog = withContext(Dispatchers.IO) { CatalogClient.cachedCatalog(context) }
             refresh(packageName)
             if (ext != null) showDetail(ext)
             else Toast.makeText(context, "It isn't an extension Portal can use", Toast.LENGTH_SHORT).show()

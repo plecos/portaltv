@@ -129,7 +129,12 @@ object CatalogClient {
             is CatalogParser.Result.Invalid -> throw IOException(r.reason)
             is CatalogParser.Result.NeedsNewerPortal -> throw IOException("The catalog needs a newer Portal")
             is CatalogParser.Result.Ok -> {
-                File(context.filesDir, FILE).writeText(text)
+                // Written beside the old copy and moved into place, so a power cut can't leave half a file (which would read as
+                // "no catalog", and a withdrawal would stop being enforced).
+                val target = File(context.filesDir, FILE)
+                val temp = File(context.filesDir, "$FILE.tmp")
+                temp.writeText(text)
+                java.nio.file.Files.move(temp.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
                 p.edit().putLong("fetched_at", now).putString("etag", etag).putString("last_modified", modified)
                     .putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
                 Copy(r.catalog, now)

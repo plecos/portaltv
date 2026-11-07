@@ -45,8 +45,12 @@ class HostProvider : ContentProvider() {
     // ---------- the provider is only a door: the rules are in HostHandler ----------
 
     private fun dispatch(context: Context, caller: String, method: String, args: Bundle): Bundle {
-        val values = args.keySet().associateWith { key -> @Suppress("DEPRECATION") args.get(key) }
-        return toBundle(handler(context).call(caller, method, values))
+        val handler = handler(context)
+        // Anybody can reach this door, so nothing the caller sent is looked at until it is known to be an installed
+        // extension. After that only the keys the API defines are read, each with a typed getter: the Bundle's other
+        // entries are never unparcelled, so a caller can't make Portal deserialize objects it didn't ask for.
+        if (!handler.knows(caller)) return toBundle(HostReply.fail(HostApi.Error.NOT_ALLOWED))
+        return toBundle(handler.call(caller, method, HostArgs.read(args)))
     }
 
     private fun handler(context: Context): HostHandler =
@@ -79,6 +83,34 @@ class HostProvider : ContentProvider() {
     private companion object {
         /** One handler for the whole process, so the rate limits are shared between calls. */
         @Volatile var shared: HostHandler? = null
+    }
+}
+
+/**
+ * Reads the arguments of a host call out of the Bundle the caller sent. Only [HostApi.ARG_KEYS] are read, each with typed
+ * getters, so a value of any other type is `null` ("given, but wrong"; the handler refuses it) and nothing else in the
+ * Bundle is touched.
+ */
+internal object HostArgs {
+    fun read(args: Bundle): Map<String, Any?> {
+        val values = HashMap<String, Any?>()
+        for (key in HostApi.ARG_KEYS) {
+            if (!args.containsKey(key)) continue
+            values[key] = value(args, key)
+        }
+        return values
+    }
+
+    private fun value(args: Bundle, key: String): Any? {
+        args.getString(key)?.let { return it }
+        val i = args.getInt(key, Int.MIN_VALUE)
+        if (i != Int.MIN_VALUE) return i
+        val l = args.getLong(key, Long.MIN_VALUE)
+        if (l != Long.MIN_VALUE) return l
+        // A real boolean gives the same answer for either default; any other type gives each default back.
+        val b = args.getBoolean(key, false)
+        if (b == args.getBoolean(key, true)) return b
+        return null
     }
 }
 

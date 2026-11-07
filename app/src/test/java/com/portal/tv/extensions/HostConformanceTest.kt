@@ -402,3 +402,36 @@ class HostConformanceTest {
         assertEquals(0, tv.writes); assertEquals(0, tv.itemEvents); assertNull(tv.itemChanges[A])
     }
 }
+
+/** Fixes from the review of the whole branch. */
+class HostReviewFixesTest {
+
+    @Test
+    fun theHandlerKnowsOnlyInstalledExtensions() {
+        val tv = FakeTv().apply { install(A, ALL) }
+        val h = HostHandler(tv)
+        assertTrue(h.knows(A))
+        assertFalse(h.knows("net.example.stranger"))
+    }
+
+    @Test
+    fun theArgumentNamesAreTheOnesTheApiDefines() {
+        assertTrue(HostApi.ARG_KEYS.containsAll(listOf("title", "at_millis", "repeat", "tone", "manual", "snooze_minutes", "id", "seconds", "area", "text", "badge", "subtitle")))
+        assertEquals(HostApi.ARG_KEYS.size, HostApi.ARG_KEYS.toSet().size)
+    }
+
+    @Test
+    fun parallelAddsNeverPassTheReminderLimit() {
+        val tv = FakeTv().apply { install(A, ALL) }
+        val h = HostHandler(tv, writes = RateLimiter(100_000, 60_000L))
+        val at = tv.now + 3_600_000L
+        val ok = java.util.concurrent.atomic.AtomicInteger()
+        val threads = (1..8).map { t ->
+            Thread { repeat(10) { n -> if (h.call(A, HostApi.REMINDERS_ADD, mapOf("title" to "r$t-$n", "at_millis" to at)).ok) ok.incrementAndGet() } }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+        assertEquals(HostLimits.MAX_REMINDERS, ok.get())
+        assertEquals(HostLimits.MAX_REMINDERS, tv.remindersFrom(A).size)
+    }
+}
