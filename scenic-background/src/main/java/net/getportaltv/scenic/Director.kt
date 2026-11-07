@@ -27,6 +27,8 @@ class SceneState {
     var placeMode = Places.JOURNEY
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */
     var bridges = IntArray(0)
+    /** Where the parks are on screen, as pairs of left and right edge, worked out once a frame. */
+    var parks = IntArray(0)
     /** For the preview: everything that comes and goes is there, so it can be looked at. */
     var boost = false
     var lat = 40.0

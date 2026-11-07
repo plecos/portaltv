@@ -82,71 +82,197 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
 private val BLOCK_COLORS = intArrayOf(rgb(158, 92, 74), rgb(190, 176, 150), rgb(128, 134, 150), rgb(112, 124, 138), rgb(176, 150, 112), rgb(142, 108, 100))
 private val AWNINGS = intArrayOf(rgb(196, 60, 52), rgb(52, 120, 186), rgb(60, 150, 96), rgb(226, 170, 50), rgb(150, 70, 150))
 
-/** The blocks of shops and flats along the road, with lit windows at night, rooftop clutter and now and then a billboard. */
+/** Whether column [x] is inside a park, away from the portals at its ends: where the subway shows. */
+internal fun SceneState.inPark(x: Int): Boolean {
+    var i = 0
+    while (i < parks.size) {
+        if (x > parks[i] + 6 && x < parks[i + 1] - 6) return true
+        i += 2
+    }
+    return false
+}
+
+/** What fills a stretch of frontage: buildings side by side with no gaps, and now and then a park or a school. */
+private const val NORMAL = 0
+private const val PARK = 1
+private const val SCHOOL = 2
+private const val LOT = 120
+private const val NEAR_FACTOR = 0.5
+
+private fun lotKind(lot: Int): Int {
+    val u = Noise.unit(lot, 840)
+    return if (u < 0.07f) PARK else if (u < 0.12f) SCHOOL else NORMAL
+}
+
+/** Works out where the parks are on screen (once a frame, in [SceneState.parks]): the subway comes up into daylight in them. */
+internal fun SceneState.findParks(): IntArray {
+    val offset = floor(cam * NEAR_FACTOR).toInt()
+    val first = Math.floorDiv(offset, LOT) - 1
+    var out = IntArray(0)
+    for (lot in first..first + W / LOT + 2) {
+        if (lotKind(lot) != PARK || cityAt((lot * LOT + LOT / 2).toDouble(), NEAR_FACTOR) < 0.85f) continue
+        out += intArrayOf(lot * LOT - offset, lot * LOT - offset + LOT)
+    }
+    return out
+}
+
+/** The frontage along the road, with lit windows at night, rooftop clutter and now and then a billboard, a park or a school. */
 internal fun PixelScene.drawCityBlocks(s: SceneState) {
     val night = s.night()
-    val factor = 0.5
-    val offset = floor(s.cam * factor).toInt()
-    val cell = 66
-    val first = Math.floorDiv(offset, cell) - 2
+    val offset = floor(s.cam * NEAR_FACTOR).toInt()
+    val first = Math.floorDiv(offset, LOT) - 1
     val bottom = FIELD_TOP + 19
-    val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
-    val dark = lerp(glassDay, rgb(10, 12, 24), 0.45f)
-    for (i in first..first + W / cell + 4) {
-        val x0 = i * cell + (Noise.unit(i, 821) * 14).toInt()
-        val w = 30 + (Noise.unit(i, 822) * 24).toInt()
-        val amount = s.cityAt((x0 + w / 2).toDouble(), factor)
+    for (lot in first..first + W / LOT + 2) {
+        val x0 = lot * LOT - offset
+        val amount = s.cityAt((lot * LOT + LOT / 2).toDouble(), NEAR_FACTOR)
         if (amount <= 0.02f) continue
-        val x = x0 - offset
-        if (x + w < -4 || x > W + 4) continue
-        val tall = Noise.unit(i, 823)
-        val h = ((30f + tall * tall * 64f) * smoothstep(0.05f, 0.95f, amount)).toInt()
-        if (h < 4) continue
-        val top = bottom - h
-        val base = BLOCK_COLORS[(Noise.unit(i, 824) * BLOCK_COLORS.size).toInt().coerceIn(0, BLOCK_COLORS.size - 1)]
-        val body = lit(s, base, 0.04f + s.look.haze * 0.3f)
-        val light = lerp(body, rgb(255, 255, 255), 0.12f)
-        val shade = lerp(body, rgb(10, 10, 30), 0.22f)
-        fill(x, top, x + w, bottom, body)
-        fill(x, top, x + 1, bottom, light)
-        fill(x + w - 3, top, x + w, bottom, shade)
-        // The parapet.
-        fill(x - 1, top - 1, x + w + 1, top + 1, shade)
-        // Windows in rows, lit at night here and there.
-        var wy = top + 5
-        val shopTop = bottom - 11
-        while (wy < shopTop - 5) {
-            var wx = x + 4
-            var col = 0
-            while (wx + 3 < x + w - 4) {
-                val on = Noise.unit(i * 31 + col, wy, 825) < 0.5f
-                val glass = if (on && night > 0f) lerp(glassDay, WARM, night) else if (night > 0f) lerp(glassDay, dark, night) else glassDay
-                fill(wx, wy, wx + 3, wy + 4, glass)
-                fill(wx, wy + 4, wx + 3, wy + 5, shade)
-                wx += 6
-                col++
+        val growth = smoothstep(0.05f, 0.95f, amount)
+        when (lotKind(lot)) {
+            PARK -> drawPark(s, lot, x0, bottom, amount)
+            SCHOOL -> drawSchool(s, lot, x0, bottom, growth, night)
+            else -> for (half in 0..1) {
+                val x = x0 + half * (LOT / 2)
+                // A cell is one building, or two narrow ones.
+                if (Noise.unit(lot, half, 830) < 0.35f) {
+                    building(s, lot * 7 + half * 2, x, LOT / 4, bottom, growth, night)
+                    building(s, lot * 7 + half * 2 + 1, x + LOT / 4, LOT / 4, bottom, growth, night)
+                } else building(s, lot * 7 + half * 2, x, LOT / 2, bottom, growth, night)
             }
-            wy += 8
-        }
-        // The shop at the bottom: an awning over a glass front with the lights on at night.
-        val awning = lit(s, AWNINGS[(Noise.unit(i, 826) * AWNINGS.size).toInt().coerceIn(0, AWNINGS.size - 1)], 0.04f)
-        fill(x + 2, shopTop, x + w - 2, shopTop + 3, awning)
-        var ax = x + 3
-        while (ax < x + w - 3) { fill(ax, shopTop, ax + 2, shopTop + 3, lerp(awning, rgb(255, 255, 255), 0.45f)); ax += 4 }
-        fill(x + 2, shopTop + 3, x + w - 2, bottom, lerp(glassDay, lerp(WARM, body, 0.35f), night * 0.8f))
-        var mx = x + 2 + 8
-        while (mx < x + w - 4) { fill(mx, shopTop + 3, mx + 1, bottom, lerp(body, rgb(20, 20, 30), 0.4f)); mx += 9 }
-        fill(x + w / 2 - 1, shopTop + 4, x + w / 2 + 2, bottom, lerp(body, rgb(40, 30, 30), 0.5f))
-        // On the roof: an air-conditioning box, and on some a water tank, an aerial or a billboard.
-        val roofX = x + 3 + (Noise.unit(i, 827) * (w - 12)).toInt()
-        fill(roofX, top - 4, roofX + 6, top - 1, lerp(body, rgb(170, 170, 176), 0.5f))
-        val extra = Noise.unit(i, 828)
-        when {
-            extra < 0.25f -> tank(s, x + w - 12, top - 1, shade)
-            extra < 0.5f -> fill(x + 6, top - 9, x + 7, top - 1, shade)
-            extra < 0.62f -> billboard(s, i, x + 4, top - 1, night)
         }
     }
+}
+
+private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: Int, growth: Float, night: Float) {
+    if (x + w < -4 || x > W + 4) return
+    val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
+    val dark = lerp(glassDay, rgb(10, 12, 24), 0.45f)
+    val tall = Noise.unit(i, 823)
+    val h = ((30f + tall * tall * 64f) * growth).toInt()
+    if (h < 4) return
+    val top = bottom - h
+    val base = BLOCK_COLORS[(Noise.unit(i, 824) * BLOCK_COLORS.size).toInt().coerceIn(0, BLOCK_COLORS.size - 1)]
+    val body = lit(s, base, 0.04f + s.look.haze * 0.3f)
+    val light = lerp(body, rgb(255, 255, 255), 0.12f)
+    val shade = lerp(body, rgb(10, 10, 30), 0.22f)
+    fill(x, top, x + w, bottom, body)
+    fill(x, top, x + 1, bottom, light)
+    fill(x + w - 2, top, x + w, bottom, shade)
+    // The parapet.
+    fill(x - 1, top - 1, x + w + 1, top + 1, shade)
+    // Windows in rows, lit at night here and there.
+    var wy = top + 5
+    val shopTop = bottom - 11
+    while (wy < shopTop - 5) {
+        var wx = x + 3
+        var col = 0
+        while (wx + 3 < x + w - 3) {
+            val on = Noise.unit(i * 31 + col, wy, 825) < 0.5f
+            val glass = if (on && night > 0f) lerp(glassDay, WARM, night) else if (night > 0f) lerp(glassDay, dark, night) else glassDay
+            fill(wx, wy, wx + 3, wy + 4, glass)
+            fill(wx, wy + 4, wx + 3, wy + 5, shade)
+            wx += 6
+            col++
+        }
+        wy += 8
+    }
+    // The shop at the bottom: an awning over a glass front with the lights on at night.
+    val awning = lit(s, AWNINGS[(Noise.unit(i, 826) * AWNINGS.size).toInt().coerceIn(0, AWNINGS.size - 1)], 0.04f)
+    fill(x + 2, shopTop, x + w - 2, shopTop + 3, awning)
+    var ax = x + 3
+    while (ax < x + w - 3) { fill(ax, shopTop, ax + 2, shopTop + 3, lerp(awning, rgb(255, 255, 255), 0.45f)); ax += 4 }
+    fill(x + 2, shopTop + 3, x + w - 2, bottom, lerp(glassDay, lerp(WARM, body, 0.35f), night * 0.8f))
+    var mx = x + 2 + 8
+    while (mx < x + w - 4) { fill(mx, shopTop + 3, mx + 1, bottom, lerp(body, rgb(20, 20, 30), 0.4f)); mx += 9 }
+    fill(x + w / 2 - 1, shopTop + 4, x + w / 2 + 2, bottom, lerp(body, rgb(40, 30, 30), 0.5f))
+    // On the roof: an air-conditioning box, and on some a water tank, an aerial or a billboard.
+    val roofX = x + 2 + (Noise.unit(i, 827) * (w - 10).coerceAtLeast(1)).toInt()
+    fill(roofX, top - 4, roofX + 6, top - 1, lerp(body, rgb(170, 170, 176), 0.5f))
+    val extra = Noise.unit(i, 828)
+    when {
+        extra < 0.25f && w > 40 -> tank(s, x + w - 12, top - 1, shade)
+        extra < 0.5f -> fill(x + 4, top - 9, x + 5, top - 1, shade)
+        extra < 0.62f && w > 40 -> billboard(s, i, x + 4, top - 1, night)
+    }
+}
+
+/** A park: a lawn with trees at each end and a path and bench between, open in the middle so the subway line behind shows. */
+private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, amount: Float) {
+    val grass = lit(s, rgb(86, 150, 70), 0.06f)
+    val path = lit(s, rgb(190, 176, 146), 0.04f)
+    val fenceC = lit(s, rgb(60, 66, 76), 0.04f)
+    // The lawn, over the concrete, from just below the subway line to the pavement.
+    fillAlpha(x0, FIELD_TOP + 14, x0 + LOT, ROAD_TOP - 5, grass, amount)
+    fillAlpha(x0 + LOT / 2 - 14, FIELD_TOP + 16, x0 + LOT / 2 + 14, ROAD_TOP - 5, path, amount)
+    if (amount < 0.7f) return
+    // The subway line behind runs in a concrete cutting, with a tunnel mouth at each end of the park.
+    val concrete = lit(s, rgb(122, 124, 132), 0.04f)
+    val lip = lerp(concrete, rgb(255, 255, 255), 0.18f)
+    val mouth = lerp(concrete, rgb(10, 10, 24), 0.12f)
+    fill(x0 + 6, FIELD_TOP + 8, x0 + LOT - 6, FIELD_TOP + 14, concrete)
+    fill(x0 + 6, FIELD_TOP + 8, x0 + LOT - 6, FIELD_TOP + 9, lip)
+    for (end in 0..1) {
+        val px = if (end == 0) x0 else x0 + LOT - 6
+        fill(px, FIELD_TOP - 2, px + 6, FIELD_TOP + 14, concrete)
+        fill(px, FIELD_TOP - 2, px + 6, FIELD_TOP - 1, lip)
+        fill(px + 1, FIELD_TOP + 1, px + 5, FIELD_TOP + 8, rgb(14, 14, 22))
+        fill(px, FIELD_TOP + 8, px + 6, FIELD_TOP + 9, mouth)
+    }
+    spritePaint.colorFilter = filter(s, 0.04f + s.look.haze * 0.3f)
+    sprite(Sprites.roundTree, x0 + 4, bottom - 1)
+    sprite(Sprites.pine, x0 + 18, bottom - 3)
+    sprite(Sprites.roundTree, x0 + LOT - 16, bottom - 1)
+    sprite(Sprites.pine, x0 + LOT - 28, bottom - 4)
+    sprite(Sprites.bush, x0 + 34, bottom - 1)
+    sprite(Sprites.bush, x0 + LOT - 44, bottom - 1)
+    spritePaint.colorFilter = null
+    // A bench by the path, and a low railing along the front.
+    val wood = lit(s, rgb(130, 94, 60), 0.04f)
+    fill(x0 + LOT / 2 + 18, bottom - 4, x0 + LOT / 2 + 26, bottom - 3, wood)
+    fill(x0 + LOT / 2 + 18, bottom - 6, x0 + LOT / 2 + 26, bottom - 5, wood)
+    fill(x0 + LOT / 2 + 19, bottom - 3, x0 + LOT / 2 + 20, bottom, fenceC)
+    fill(x0 + LOT / 2 + 24, bottom - 3, x0 + LOT / 2 + 25, bottom, fenceC)
+    fill(x0 + 1, bottom - 2, x0 + LOT - 1, bottom - 1, fenceC)
+}
+
+/** A school: a long brick building with a bell tower, a flag and a fenced yard. */
+private fun PixelScene.drawSchool(s: SceneState, lot: Int, x0: Int, bottom: Int, growth: Float, night: Float) {
+    if (growth < 0.3f) return
+    val brick = lit(s, rgb(168, 98, 78), 0.04f + s.look.haze * 0.3f)
+    val brickDark = lerp(brick, rgb(10, 10, 30), 0.25f)
+    val roof = lit(s, rgb(96, 80, 82), 0.04f)
+    val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
+    val lamp = lerp(glassDay, WARM, night * 0.7f)
+    val h = (30 * growth).toInt()
+    val x = x0 + 4
+    val w = 84
+    val top = bottom - h
+    fill(x, top, x + w, bottom, brick)
+    fill(x + w - 2, top, x + w, bottom, brickDark)
+    fill(x - 1, top - 2, x + w + 1, top, roof)
+    // Two rows of tall windows and a doorway with steps in the middle.
+    var wx = x + 5
+    while (wx < x + w - 6) {
+        if (kotlin.math.abs(wx - (x + w / 2)) > 6) {
+            fill(wx, top + 5, wx + 4, top + 12, lamp)
+            fill(wx, top + 16, wx + 4, top + 23, lamp)
+        }
+        wx += 9
+    }
+    fill(x + w / 2 - 4, bottom - 11, x + w / 2 + 5, bottom, lerp(brick, rgb(30, 24, 24), 0.5f))
+    fill(x + w / 2 - 6, bottom - 2, x + w / 2 + 7, bottom, lit(s, rgb(180, 176, 168), 0.04f))
+    // The bell tower over the door.
+    fill(x + w / 2 - 5, top - 10, x + w / 2 + 6, top - 2, brick)
+    fill(x + w / 2 - 6, top - 12, x + w / 2 + 7, top - 10, roof)
+    fill(x + w / 2 - 1, top - 8, x + w / 2 + 2, top - 3, lamp)
+    // The flag, and a fence round the yard.
+    val pole = lit(s, rgb(200, 200, 204), 0.04f)
+    fill(x0 + LOT - 8, bottom - 26, x0 + LOT - 7, bottom, pole)
+    val wave = (sin(s.time * 3.0).toFloat() * 1.2f).toInt()
+    fill(x0 + LOT - 7, bottom - 26, x0 + LOT - 1 + wave, bottom - 21, lit(s, rgb(210, 60, 52), 0.0f))
+    val fenceC = lit(s, rgb(60, 66, 76), 0.04f)
+    fill(x0 + w + 6, bottom - 5, x0 + LOT - 10, bottom - 4, fenceC)
+    var fx = x0 + w + 6
+    while (fx < x0 + LOT - 10) { fill(fx, bottom - 6, fx + 1, bottom, fenceC); fx += 4 }
 }
 
 private fun PixelScene.tank(s: SceneState, x: Int, top: Int, shade: Int) {
@@ -192,6 +318,30 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
             // A soft glow round the lamp.
             fillAlpha(x + 2, ROAD_TOP - h, x + 8, ROAD_TOP - h + 5, rgb(255, 226, 150), night * 0.22f)
         }
+    }
+}
+
+/** Subway entrances on the pavement now and then: a railed stairway down and a sign on a pole. */
+internal fun PixelScene.drawSubwayEntrances(s: SceneState) {
+    val offset = floor(s.cam).toInt()
+    val spacing = 420
+    val first = Math.floorDiv(offset, spacing) - 1
+    val rail = lit(s, rgb(54, 60, 70), 0.0f)
+    val sign = lit(s, rgb(40, 100, 190), 0.0f)
+    for (i in first..first + W / spacing + 2) {
+        val wx = i * spacing + 200 + (Noise.unit(i, 850) * 100).toInt()
+        if (s.cityAt(wx.toDouble(), 1.0) < 0.9f) continue
+        val x = wx - offset
+        // The stairs go down between two railings.
+        fill(x, ROAD_TOP - 6, x + 1, ROAD_TOP - 1, rail)
+        fill(x + 13, ROAD_TOP - 6, x + 14, ROAD_TOP - 1, rail)
+        fill(x, ROAD_TOP - 6, x + 14, ROAD_TOP - 5, rail)
+        fill(x + 2, ROAD_TOP - 4, x + 12, ROAD_TOP - 1, lit(s, rgb(30, 30, 38), 0.0f))
+        // The sign: a blue square with a white mark.
+        fill(x + 15, ROAD_TOP - 17, x + 16, ROAD_TOP - 1, rail)
+        fill(x + 12, ROAD_TOP - 19, x + 19, ROAD_TOP - 12, sign)
+        fill(x + 14, ROAD_TOP - 17, x + 17, ROAD_TOP - 14, rgb(255, 255, 255))
+        if (s.night() > 0.2f) fillAlpha(x + 9, ROAD_TOP - 22, x + 22, ROAD_TOP - 9, sign, s.night() * 0.18f)
     }
 }
 

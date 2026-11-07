@@ -53,6 +53,7 @@ class PixelScene {
         val l = s.look
         val cam = s.cam
         s.bridges = s.findBridges()
+        s.parks = s.findParks()
         drawSky(s)
         drawStars(s)
         drawSun(s)
@@ -75,6 +76,7 @@ class PixelScene {
         drawFarm(s, cam)
         drawCityBlocks(s)
         drawStreetLamps(s)
+        drawSubwayEntrances(s)
         drawRoadsideTrees(s)
         drawForestMist(s)
         drawButterflies(s)
@@ -604,13 +606,16 @@ class PixelScene {
         // going our way (facing right) in the lane nearer the front, whatever order they set off in.
         // A car stays for as long as it takes to cross, so the look-back covers the slowest (MIN_SCREEN_SPEED) with room to spare;
         // a shorter one would drop a slow car in the middle of the road.
-        for (pass in 0..1) for (k in slot - 14..slot) {
+        // A second stream of cars, only in the city, makes it busy: each is faded in as the city comes (so none pops out of nowhere).
+        for (stream in 0..1) for (pass in 0..1) for (j in slot - 14..slot) {
+            val k = j + stream * 9973
             val roll = Noise.unit(k, 101)
-            // Beyond the usual cars, the city has more, faded in as it comes (so none pops out of nowhere).
-            val cityCar = roll > 0.30f
-            if (roll > 0.30f + 0.34f * cityNow || cityNow < 0.05f && cityCar) continue
+            val cityCar = stream == 1 || roll > 0.30f
+            if (stream == 1) {
+                if (cityNow < 0.05f || roll > 0.7f * cityNow) continue
+            } else if (roll > 0.30f + 0.4f * cityNow || cityNow < 0.05f && cityCar) continue
             spritePaint.alpha = if (cityCar) (cityNow * 255f).toInt().coerceIn(0, 255) else 255
-            val spawn = k * period + Noise.unit(k, 102) * period
+            val spawn = j * period + Noise.unit(k, 102) * period
             val ourLane = Noise.unit(k, 103) < 0.5f
             if (ourLane != (pass == 1)) continue
             // Seen from the road: our own lane's cars go the way we do (slower or faster than us), the other lane's come toward us.

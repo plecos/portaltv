@@ -220,11 +220,14 @@ internal fun PixelScene.drawRailway(s: SceneState) {
     val ballast = lit(s, rgb(122, 112, 100), haze)
     val rail = lit(s, rgb(176, 176, 184), haze)
     val sleeper = lit(s, rgb(96, 70, 50), haze)
+    val bed = lit(s, rgb(70, 72, 82), haze)
     val onTrack = Path()
     var any = false
     var runStart = -1
     for (x in 0..W) {
-        val t = if (x < W) trackAt(x + offset) * (1f - s.cityAt(x + offset, 0.3)) else 0f
+        // In the city the line is a subway: it only comes up into the daylight in the parks.
+        val park = x < W && s.inPark(x)
+        val t = if (park) 1f else if (x < W) trackAt(x + offset) * (1f - s.cityAt(x + offset, 0.3)) else 0f
         val full = t >= 0.98f
         if (full && runStart < 0) runStart = x
         if (!full && runStart >= 0) { onTrack.addRect(runStart.toFloat(), 0f, x.toFloat(), H.toFloat(), Path.Direction.CW); runStart = -1; any = true }
@@ -234,7 +237,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
         val top = y - (c * 4f).toInt()
         val thick = if (t > 0.66f) 3 else if (t > 0.33f) 2 else 1
         val far = c * 0.55f
-        fill(x, top + 1, x + 1, top + 1 + thick, if (far > 0f) lerp(ballast, airColor(s), far) else ballast)
+        fill(x, top + 1, x + 1, top + 1 + thick, if (park) bed else if (far > 0f) lerp(ballast, airColor(s), far) else ballast)
         if (t > 0.66f) {
             val worldX = (x + offset).toInt()
             if (Math.floorMod(worldX, 5) < 2) fill(x, top + 2, x + 1, top + 3, sleeper)
