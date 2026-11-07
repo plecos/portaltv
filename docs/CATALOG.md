@@ -160,7 +160,7 @@ A line in the [revoked list](#the-revoked-list) reaches extensions that are alre
   package or by signer when the problem is the author.
 - **Switched off:** a withdrawn extension is **Withdrawn**. Nothing is granted to it (tiles, items, background, reminders,
   cards, host calls), what was allowed is forgotten, and it can't be allowed again while it is withdrawn. Its page shows the
-  reason and **Uninstall**. If the line is later removed, it comes back as "Not allowed": an adult has to allow it again.
+  reason and **Uninstall**. If the line is later removed, it comes back as "Needs your permission": an adult has to allow it again.
 - **Kept fresh without browsing:** when the home screen comes up and Portal's copy of the catalog is over a day old, Portal
   fetches it once, but only while at least one extension is installed. A failed try waits an hour. With no extensions installed
   Portal never contacts the catalog unless you open Browse. Browsing's Refresh also updates it.
@@ -179,6 +179,19 @@ Before the catalog has ever been loaded, its page says it hasn't been checked ye
 
 To see these on the emulator: `REVOKE_SAMPLE=1 scripts/test-catalog.sh` (the catalog withdraws the sample), and
 `UNLIST_SAMPLE=1 scripts/test-catalog.sh` (the sample isn't listed). Then press Refresh in Browse.
+
+## Our own extensions are listed too
+
+Every extension Portal's makers build is in the catalog, even one that comes with Portal. Someone who removes it can then find it
+again under Browse and put it back, with the same checks as any other. Their names and package names (`net.getportaltv.*`, "Scenic
+Travel") are Portal's own, so two things differ from a listing by someone else:
+
+- **Portal shows it as "Made by Portal"** instead of the warning an unlisted extension gets, when it is signed with the same key as
+  Portal itself. Listed or not, nothing needs warning about.
+- **The checks on catalog pull requests** refuse a name or package name that could pass for Portal's own, unless the listing's
+  `signer` is one of the fingerprints in [`catalog/first-party-signers.txt`](catalog/first-party-signers.txt). Add the release
+  key there before listing the first one. Portal itself reads a signed catalog without that check: the signature is what says the
+  maintainer put the listing there.
 
 ## Signing
 

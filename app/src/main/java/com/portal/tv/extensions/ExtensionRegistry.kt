@@ -26,7 +26,9 @@ data class Extension(
     /** What it may do right now. */
     val granted: Set<String>,
     /** Why the catalog withdrew it, when [state] is [ExtensionState.REVOKED]. */
-    val revokedReason: String? = null
+    val revokedReason: String? = null,
+    /** Signed with the same key as Portal itself, so it is one of ours. */
+    val madeByPortal: Boolean = false
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
     /**
@@ -218,8 +220,10 @@ object ExtensionRegistry {
             ?.let { CatalogRules.revocationBySigners(it, pkg, f.versionCode, f.signers + listOfNotNull(signer)) }
         if (revocation != null && allowance != null) disallow(context, pkg)
         val (state, effective) = ExtensionAccess.withRevocation(ExtensionAccess.state(parsed, allowance, matches), granted, revocation)
-        return if (reserved) Extension(pkg, f.appLabel, parsed, emptyList(), null, emptyList(), null, f.problems, signer, state, effective, revocation?.reason)
-        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason)
+        // Signed with Portal's own key: one of ours (a reserved name is only ever usable by these).
+        val ours = f.signers.any { it in ownSigners(context, pm) }
+        return if (reserved) Extension(pkg, f.appLabel, parsed, emptyList(), null, emptyList(), null, f.problems, signer, state, effective, revocation?.reason, madeByPortal = false)
+        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason, madeByPortal = ours)
     }
 
     @Volatile private var ownSignersMemo: Set<String>? = null

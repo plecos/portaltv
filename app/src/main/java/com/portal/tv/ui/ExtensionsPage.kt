@@ -224,10 +224,16 @@ class ExtensionsPage(
             else -> Color.rgb(255, 120, 120)  // withdrawn, signed by someone else, can't be used
         }
         box.addView(text(ExtensionLabels.status(ext.state, ext.granted), 17f, statusColor))
+        if (ext.state == ExtensionState.NOT_ALLOWED && ext.parsed is ManifestParser.Result.Ok) {
+            box.addView(text("Nothing is turned on yet. Choose what it can do below, then Save.", 14f, soft))
+        }
         // Only said once the catalog has been loaded; an extension that isn't in it hasn't been looked at by anyone but you.
         val listing = catalog?.let { CatalogLabels.listing(it, ext.packageName, ext.signer) }
-        val unlisted = listing != null && listing != com.portal.tv.extensions.Listing.LISTED
-        if (listing != null && ext.state != ExtensionState.REVOKED) {
+        val unlisted = listing != null && listing != com.portal.tv.extensions.Listing.LISTED && !ext.madeByPortal
+        if (ext.madeByPortal && ext.state != ExtensionState.REVOKED) {
+            // Signed with Portal's own key, so there is nothing to warn about: it is one of ours, listed or not.
+            box.addView(text("Made by Portal" + if (listing == com.portal.tv.extensions.Listing.LISTED) "  ·  Listed in the catalog" else "", 15f, Color.rgb(140, 230, 160)))
+        } else if (listing != null && ext.state != ExtensionState.REVOKED) {
             val color = if (!unlisted) Color.rgb(140, 230, 160) else Color.rgb(255, 200, 100)
             box.addView(text(CatalogLabels.listingText(listing), 15f, color))
             if (unlisted) {
@@ -237,7 +243,7 @@ class ExtensionsPage(
                     14f, Color.rgb(255, 200, 100)
                 ).apply { setPadding(0, px(4), 0, 0) })
             }
-        } else if (catalog == null && ext.state != ExtensionState.REVOKED) {
+        } else if (catalog == null && ext.state != ExtensionState.REVOKED && !ext.madeByPortal) {
             box.addView(text("Not checked against the catalog yet. Open Browse extensions once to check it.", 14f, soft))
         }
         if (ext.state == ExtensionState.REVOKED) {

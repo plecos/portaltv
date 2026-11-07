@@ -221,8 +221,12 @@ class CatalogRulesTest {
  */
 class CatalogFileTest {
 
+    private fun firstPartySigners(): Set<String> =
+        File("../docs/catalog/first-party-signers.txt").takeIf { it.isFile }?.readLines().orEmpty()
+            .map { it.substringBefore('#').trim().lowercase() }.filter { it.length == 64 }.toSet()
+
     private fun check(file: File) {
-        val result = CatalogParser.parse(file.readText())
+        val result = CatalogParser.parse(file.readText(), checkNames = true, firstPartySigners = firstPartySigners())
         assertTrue("${file.path} isn't a usable catalog: $result", result is CatalogParser.Result.Ok)
         val problems = (result as CatalogParser.Result.Ok).problems
         assertTrue("${file.path} has problems:\n" + problems.joinToString("\n"), problems.isEmpty())
@@ -241,5 +245,43 @@ class CatalogFileTest {
         val path = System.getenv("CATALOG_FILE")
         assumeTrue("CATALOG_FILE isn't set", !path.isNullOrBlank())
         check(File(path!!))
+    }
+}
+
+class CatalogOwnNamesTest {
+
+    private val firstParty = "11".repeat(32)
+
+    private fun catalog(pkg: String, name: String, signer: String) = """
+        {"format":1,"serial":3,"expires":"2099-01-01","extensions":[{"package":"$pkg","name":"$name","description":"d","author":"a",
+        "source":"https://example.com/s","capabilities":[],"signer":"$signer",
+        "versions":[{"version_code":1,"version_name":"1","apk":"https://example.com/a.apk","sha256":"${"cd".repeat(32)}","size":10,"contract":1}]}]}
+    """.trimIndent()
+
+    private fun problems(text: String, check: Boolean) =
+        (CatalogParser.parse(text, checkNames = check, firstPartySigners = setOf(firstParty)) as CatalogParser.Result.Ok).let { it.problems to it.catalog.extensions.size }
+
+    @Test
+    fun portalReadsASignedCatalogWithPortalsOwnNames() {
+        val (problems, count) = problems(catalog("net.getportaltv.scenic", "Scenic Travel", "ab".repeat(32)), check = false)
+        assertTrue(problems.isEmpty())
+        assertEquals(1, count)
+    }
+
+    @Test
+    fun theCatalogChecksRefuseAnImpersonatingListing() {
+        val (p1, n1) = problems(catalog("net.getportaltv.scenic", "Scenic Travel", "ab".repeat(32)), check = true)
+        assertEquals(0, n1)
+        assertTrue(p1.single(), p1.single().contains("reserved"))
+        val (p2, n2) = problems(catalog("net.example.panel", "Portal Settings", "ab".repeat(32)), check = true)
+        assertEquals(0, n2)
+        assertTrue(p2.single(), p2.single().contains("Portal or Android"))
+    }
+
+    @Test
+    fun aListingSignedByAFirstPartyKeyMayUsePortalsNames() {
+        val (problems, count) = problems(catalog("net.getportaltv.scenic", "Scenic Travel", firstParty), check = true)
+        assertTrue(problems.isEmpty())
+        assertEquals(1, count)
     }
 }

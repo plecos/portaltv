@@ -77,6 +77,34 @@ PY
 else
   echo "No sample APK yet, so Install can't be tried. Build it: ./gradlew :sample-extension:assembleDebug"
 fi
+# Scenic Travel is one of ours, so it is in the catalog too: with its real file if it has been built, else not listed.
+SCENIC_APK=scenic-background/build/outputs/apk/debug/scenic-background-debug.apk
+if [ -f "$SCENIC_APK" ]; then
+  SDK="$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)"
+  AAPT2="$(ls "$SDK"/build-tools/*/aapt2 2>/dev/null | tail -1)"
+  APKSIGNER="$(ls "$SDK"/build-tools/*/apksigner 2>/dev/null | tail -1)"
+  cp "$SCENIC_APK" "$SERVE/scenic.apk"
+  SCODE="$("$AAPT2" dump badging "$SCENIC_APK" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)"
+  SNAME="$("$AAPT2" dump badging "$SCENIC_APK" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -1)"
+  SSIGNER="$("$APKSIGNER" verify --print-certs "$SCENIC_APK" 2>/dev/null | sed -n 's/.*certificate SHA-256 digest: *//p' | head -1)"
+fi
+python3 - "$SERVE" "$HOST:$PORT" "${SCODE:-1}" "${SNAME:-0.1}" "${SSIGNER:-}" <<'PY'
+import json, sys, hashlib, os
+d, hostport, code, name, signer = sys.argv[1:6]
+p = os.path.join(d, "catalog.json")
+cat = json.load(open(p))
+apk = os.path.join(d, "scenic.apk")
+if os.path.isfile(apk) and signer:
+    data = open(apk, "rb").read()
+    e = next(e for e in cat["extensions"] if e["package"] == "net.getportaltv.scenic")
+    e["signer"] = signer
+    e["versions"] = [{"version_code": int(code), "version_name": name, "apk": f"http://{hostport}/scenic.apk",
+                      "sha256": hashlib.sha256(data).hexdigest(), "size": len(data), "contract": 1}]
+else:
+    cat["extensions"] = [e for e in cat["extensions"] if e["package"] != "net.getportaltv.scenic"]
+json.dump(cat, open(p, "w"))
+PY
+if [ -f "$SCENIC_APK" ]; then echo "Scenic Travel can be installed from Browse too (version ${SCODE:-1})."; fi
 if [ -n "${REVOKE_SAMPLE:-}" ]; then
   python3 - "$SERVE" <<'PY'
 import json, sys, os

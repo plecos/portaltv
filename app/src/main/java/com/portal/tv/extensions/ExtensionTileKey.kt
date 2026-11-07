@@ -39,9 +39,9 @@ object ExtensionLabels {
     }
 
     fun status(state: ExtensionState, granted: Set<String>): String = when (state) {
-        ExtensionState.NOT_ALLOWED -> "Not allowed"
+        ExtensionState.NOT_ALLOWED -> "Needs your permission"
         ExtensionState.ALLOWED -> "Allowed: " + granted.joinToString(", ") { shortName(it) }.ifEmpty { "nothing" }
-        ExtensionState.SIGNER_CHANGED -> "Signed by someone else now. Not allowed"
+        ExtensionState.SIGNER_CHANGED -> "Signed by someone else now. Needs your permission again"
         ExtensionState.UNSUPPORTED -> "Needs a newer Portal"
         ExtensionState.INVALID -> "Can't be used"
         ExtensionState.REVOKED -> "Withdrawn from the catalog. Switched off"
@@ -50,7 +50,7 @@ object ExtensionLabels {
     /** One line for the Settings category: how many are installed and how many allowed. */
     fun summary(found: Int, allowed: Int): String = when {
         found == 0 -> "None installed"
-        allowed == 0 -> if (found == 1) "1 found, not allowed" else "$found found, none allowed"
+        allowed == 0 -> if (found == 1) "1 found, needs your permission" else "$found found, need your permission"
         else -> "$found found, $allowed allowed"
     }
 }

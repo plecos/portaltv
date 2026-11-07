@@ -104,7 +104,7 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 
 ## How Portal treats an extension
 
-- **Found is not allowed.** A new extension starts as *Not allowed*. An adult looks at what it asks for and turns each
+- **Found is not allowed.** A new extension starts as *Needs your permission*. An adult looks at what it asks for and turns each
   capability on or off. Only what you both asked for and was allowed is granted. A capability you add in an update stays
   off until it is turned on.
 - **The signer is pinned.** When an adult allows an extension, Portal records the SHA-256 fingerprint of the certificate
@@ -129,7 +129,7 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 
 ## What it looks like in Portal
 
-- **Settings, Extensions** lists what is installed, with where each one stands (*Not allowed*, *Allowed: tiles, cards*, and so
+- **Settings, Extensions** lists what is installed, with where each one stands (*Needs your permission*, *Allowed: tiles, cards*, and so
   on). Selecting one shows its description, package, signer and what it asks for. An adult turns each capability on or off
   and saves; if a parent PIN is set it is asked for before anything changes. *Settings* appears when the settings
   page is allowed.
