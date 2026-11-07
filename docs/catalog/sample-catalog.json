@@ -18,7 +18,8 @@
         "clock",
         "background",
         "reminders",
-        "cards"
+        "cards",
+        "weather"
       ],
       "signer": "0000000000000000000000000000000000000000000000000000000000000000",
       "screenshots": [],

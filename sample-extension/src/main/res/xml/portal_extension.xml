@@ -9,6 +9,7 @@
     <!-- What it asks to be allowed to do. Tiles and a settings page are asked for by declaring them. -->
     <uses capability="reminders" />
     <uses capability="cards" />
+    <uses capability="weather" />
 
     <tile id="lights" label="@string/tile_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
     <tile id="cameras" label="@string/tile_cameras" icon="@drawable/ic_sample" activity=".CamerasActivity" />

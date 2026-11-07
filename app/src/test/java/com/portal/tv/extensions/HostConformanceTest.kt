@@ -1,6 +1,7 @@
 package com.portal.tv.extensions
 
 import com.portal.tv.reminders.Reminder
+import com.portal.tv.repo.WeatherRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -25,6 +26,7 @@ private class FakeTv : HostEnv {
     var itemEvents = 0
     val tileDecor = mutableMapOf<String, Map<String, TileDecor>>()
     var tileEvents = 0
+    var weather: WeatherSnapshot? = null
     private var nextId = 1
 
     /** Counts everything that changed, so a refusal can be shown to have changed nothing. */
@@ -47,6 +49,7 @@ private class FakeTv : HostEnv {
     override fun tileDecorations(packageName: String) = tileDecor[packageName].orEmpty()
     override fun saveTileDecorations(packageName: String, decorations: Map<String, TileDecor>) { writes++; tileDecor[packageName] = decorations }
     override fun tilesChanged() { tileEvents++ }
+    override fun weather() = weather
     override fun showCard(from: String, title: String, text: String, seconds: Int): Boolean {
         if (cardWorks) { writes++; cardsShown += listOf(from, title, text, seconds.toString()) }
         return cardWorks
@@ -103,7 +106,8 @@ class HostConformanceTest {
         val needs = mapOf(
             Capability.REMINDERS to listOf(HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE),
             Capability.CARDS to listOf(HostApi.CARD_SHOW),
-            Capability.TILES to listOf(HostApi.TILE_UPDATE)
+            Capability.TILES to listOf(HostApi.TILE_UPDATE),
+            Capability.WEATHER to listOf(HostApi.WEATHER_GET)
         )
         val args = mapOf("title" to "x", "at_millis" to soon, "id" to "panel", "badge" to "1")
         for ((capability, methods) in needs) {
@@ -375,7 +379,7 @@ class HostConformanceTest {
         val known = setOf(HostApi.Error.NOT_ALLOWED, HostApi.Error.NO_SUCH_METHOD, HostApi.Error.BAD_ARGUMENT, HostApi.Error.LIMIT,
             HostApi.Error.RATE_LIMITED, HostApi.Error.KID_PROFILE, HostApi.Error.NOT_FOUND, HostApi.Error.UNAVAILABLE)
         val methods = listOf(HostApi.INFO, HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE,
-            HostApi.CARD_SHOW, HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST, HostApi.TILE_UPDATE, "", "x".repeat(10_000), "reminders.add\u0000")
+            HostApi.CARD_SHOW, HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST, HostApi.TILE_UPDATE, HostApi.WEATHER_GET, "", "x".repeat(10_000), "reminders.add\u0000")
         val keys = listOf("title", "at_millis", "repeat", "tone", "manual", "snooze_minutes", "id", "text", "seconds", "area", "id", "source", "badge", "subtitle", "x")
         val values = listOf<Any?>(null, "", "x", "bar", "clock", 0, 1, -1, Int.MAX_VALUE, Long.MAX_VALUE, Long.MIN_VALUE, true, false, 1.5, "x".repeat(100_000),
             listOf("a"), mapOf("a" to 1), intArrayOf(1), Any(), tv.now + 1000, "settings", "lights", "door")
@@ -392,6 +396,62 @@ class HostConformanceTest {
             assertTrue(tv.tileDecor.keys.all { it == A })
             assertTrue(tv.tileDecor.values.all { m -> m.keys.all { it == "panel" } })
         }
+    }
+
+    // ---------- weather ----------
+
+    private fun report(code: Int = 61, lat: Double = 47.6062, lon: Double = -122.3321) = WeatherRepository.Report(
+        city = "Seattle", tempC = 11.5, feelsLikeC = 10.0, humidity = 80, windKmh = 14.0, windDirection = 225, code = code, isDay = true,
+        hours = emptyList(),
+        days = listOf(WeatherRepository.Day(java.time.LocalDate.of(2023, 11, 14), code, 12.0, 6.0, 60, "2023-11-14T07:05", "2023-11-14T16:30")),
+        latitude = lat, longitude = lon, utcOffsetSeconds = -28800, cloudCover = 90, visibilityKm = 8.0
+    )
+
+    @Test
+    fun weatherNeedsItsOwnCapabilityAndNoKidProfile() {
+        tv.weather = WeatherSnapshot(report(), tv.now - 60_000)
+        tv.install(A, ALL - Capability.WEATHER)
+        handler().call(A, HostApi.WEATHER_GET, emptyMap()).assertError(HostApi.Error.NOT_ALLOWED)
+        tv.install(A, setOf(Capability.WEATHER))
+        assertTrue(handler().call(A, HostApi.WEATHER_GET, emptyMap()).ok)
+        tv.profile = HostProfile(2, true)
+        handler().call(A, HostApi.WEATHER_GET, emptyMap()).assertError(HostApi.Error.KID_PROFILE)
+    }
+
+    @Test
+    fun weatherAnswersWithNumbersAndAnApproximatePlace() {
+        tv.weather = WeatherSnapshot(report(), tv.now - 60_000)
+        tv.install(A, setOf(Capability.WEATHER))
+        val reply = handler().call(A, HostApi.WEATHER_GET, emptyMap())
+        assertTrue(reply.ok)
+        val d = reply.data
+        assertEquals("rain", d["condition"])
+        assertEquals(47.6, d["latitude"] as Double, 0.0)      // a tenth of a degree: about 10 km
+        assertEquals(-122.3, d["longitude"] as Double, 0.0)
+        assertEquals(false, d["stale"])
+        assertEquals(0.35, d["rain"] as Double, 0.0)
+        assertTrue((d["cloud"] as Double) >= 0.7)
+        assertEquals(-28800, d["utc_offset_seconds"])
+        // The moments are the local times at the place's offset.
+        assertEquals(java.time.LocalDateTime.parse("2023-11-14T07:05").toInstant(java.time.ZoneOffset.ofHours(-8)).toEpochMilli(), d["sunrise_millis"])
+        // It carries nothing that could name the place more closely.
+        assertFalse(d.keys.any { it == "city" || it == "name" || it == "address" })
+    }
+
+    @Test
+    fun weatherIsMarkedStaleWhenOldAndUnavailableWhenThereIsNone() {
+        tv.install(A, setOf(Capability.WEATHER))
+        handler().call(A, HostApi.WEATHER_GET, emptyMap()).assertError(HostApi.Error.UNAVAILABLE)
+        tv.weather = WeatherSnapshot(report(), tv.now - 4 * 60 * 60 * 1000L)
+        assertEquals(true, handler().call(A, HostApi.WEATHER_GET, emptyMap()).data["stale"])
+    }
+
+    @Test
+    fun anUnknownPlaceIsLeftOutAndWeatherReadsAreNotCountedAsChanges() {
+        tv.weather = WeatherSnapshot(report(lat = 0.0, lon = 0.0), tv.now)
+        tv.install(A, setOf(Capability.WEATHER))
+        val h = handler()
+        repeat(60) { assertTrue(h.call(A, HostApi.WEATHER_GET, emptyMap()).let { r -> r.ok && !r.data.containsKey("latitude") }) }
     }
 
     @Test

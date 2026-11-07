@@ -21,9 +21,10 @@ object Capability {
     const val BAR = "bar"
     const val CLOCK = "clock"
     const val BACKGROUND = "background"
+    const val WEATHER = "weather"
 
     /** The capabilities this version of Portal knows, in the order they are shown. */
-    val known = listOf(TILES, SETTINGS, BAR, CLOCK, BACKGROUND, REMINDERS, CARDS)
+    val known = listOf(TILES, SETTINGS, BAR, CLOCK, BACKGROUND, REMINDERS, CARDS, WEATHER)
 
     /** What turning it on means, in plain words. */
     fun describe(capability: String): String = when (capability) {
@@ -34,6 +35,7 @@ object Capability {
         BACKGROUND -> "Draw the background of your home screen, if you choose it in Settings, Background. It keeps running, and can use the network, while the home screen shows"
         REMINDERS -> "Add and change its own reminders"
         CARDS -> "Show cards over other apps"
+        WEATHER -> "Read the current weather and where this TV roughly is (to within about 10 km)"
         else -> "Something this version of Portal doesn't know ($capability)"
     }
 }

@@ -134,6 +134,7 @@ class SettingsActivity : Activity() {
                 }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10) })
             }
             action("Ask Portal what it supports", "host.info")
+            action("Read the weather", "weather.get")
             action("Add a reminder in 2 minutes", "reminders.add") {
                 putString("title", "Sample reminder"); putLong("at_millis", System.currentTimeMillis() + 2 * 60_000L)
             }

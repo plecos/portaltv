@@ -44,6 +44,8 @@ interface HostEnv {
     fun saveTileDecorations(packageName: String, decorations: Map<String, TileDecor>)
     fun tilesChanged()
     fun showCard(from: String, title: String, text: String, seconds: Int): Boolean
+    /** The weather Portal last fetched (no network is touched), or null if it has none. */
+    fun weather(): WeatherSnapshot?
 }
 
 /**
@@ -83,13 +85,14 @@ class HostHandler(
             HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE -> Capability.REMINDERS
             HostApi.CARD_SHOW -> Capability.CARDS
             HostApi.TILE_UPDATE -> Capability.TILES
+            HostApi.WEATHER_GET -> Capability.WEATHER
             HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST -> area(args)?.capability ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
             else -> return HostReply.fail(HostApi.Error.NO_SUCH_METHOD)
         }
         if (needs !in ext.granted) return HostReply.fail(HostApi.Error.NOT_ALLOWED)
         val profile = env.activeProfile() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
         if (profile.isKids) return HostReply.fail(HostApi.Error.KID_PROFILE)
-        val changes = method != HostApi.REMINDERS_LIST && method != HostApi.ITEMS_LIST
+        val changes = method != HostApi.REMINDERS_LIST && method != HostApi.ITEMS_LIST && method != HostApi.WEATHER_GET
         if (changes && !writes.allow(caller, env.elapsedMillis())) return HostReply.fail(HostApi.Error.RATE_LIMITED)
         return when (method) {
             HostApi.REMINDERS_ADD -> addReminder(ext, profile.id, args)
@@ -98,6 +101,7 @@ class HostHandler(
             HostApi.REMINDERS_DELETE -> deleteReminder(ext, args)
             HostApi.CARD_SHOW -> showCard(ext, args)
             HostApi.TILE_UPDATE -> updateTile(ext, args)
+            HostApi.WEATHER_GET -> weather()
             else -> items(ext, method, args)
         }
     }
@@ -121,6 +125,13 @@ class HostHandler(
             "max_reminders" to HostLimits.MAX_REMINDERS
         )
     )
+
+    // ---------- weather ----------
+
+    private fun weather(): HostReply {
+        val snapshot = env.weather() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
+        return HostReply.ok(WeatherForExtensions.from(snapshot, env.nowMillis()))
+    }
 
     // ---------- reminders ----------
 

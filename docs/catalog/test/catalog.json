@@ -18,7 +18,8 @@
         "clock",
         "background",
         "reminders",
-        "cards"
+        "cards",
+        "weather"
       ],
       "signer": "abababababababababababababababababababababababababababababababab",
       "versions": [

@@ -98,6 +98,7 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | `background` | declaring `<background>` | Draw the home screen background, when an adult chooses "Extension" under Settings, Background. |
 | `reminders` | `<uses capability="reminders"/>` | Add and change reminders that belong to you. |
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
+| `weather` | `<uses capability="weather"/>` | Read the current weather and where the TV roughly is (to within about 10 km). |
 
 A capability name Portal doesn't know is never granted. You can list one for a newer Portal and it is ignored by older ones.
 
@@ -192,6 +193,18 @@ nobody can act for you.
 | `items.set` | `bar` or `clock` | `area` (`bar` or `clock`), `id`, `text` | |
 | `items.remove` | `bar` or `clock` | `area`, `id` | |
 | `items.list` | `bar` or `clock` | `area` | `items`: a list of Bundles with `id`, `text`, `button` |
+| `weather.get` | `weather` | none | The weather as numbers; see below |
+
+**Weather** (`weather.get`) is what Portal already holds, from the forecast service it uses, as plain numbers, so you need no weather
+code of your own. It never touches the network, so asking is cheap and counts as a read; Portal keeps the weather up to date. The
+answer has: `as_of_millis` (when it was fetched) and `stale` (more than three hours old); `condition` (`clear`, `partly_cloudy`, `cloudy`,
+`fog`, `drizzle`, `rain`, `snow` or `thunderstorm`); `cloud`, `rain`, `snow`, `thunder` and `fog`, each from 0 to 1 (doubles), and
+`code` (the WMO weather code, for anyone who wants it); `wind_kmh`, `wind_dir` (degrees, where the wind comes from), `gust_kmh`
+when known, `temp_c`, `visibility_km` when known and `is_day`; `utc_offset_seconds`; `sunrise_millis` and `sunset_millis` for today
+when known; and `latitude` and `longitude` (doubles) when the TV's place is known. The place is rounded to a tenth of a degree
+(about 10 km): enough to place the sun and moon, never a street. Portal gives no city name or address, and an adult is told what
+the capability allows before turning it on. If there is no weather yet the answer is `unavailable`. Kid profiles get `kid_profile`
+like every other call.
 
 **Reminders** are yours: `list`, `update` and `delete` only see the ones you made, and they belong to the profile that was in
 use when you added them. Portal's own reminders and other extensions' are out of reach. They are marked "from extension <your name>" on

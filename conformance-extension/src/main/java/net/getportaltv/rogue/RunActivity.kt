@@ -26,6 +26,7 @@ class RunActivity : Activity() {
                     "reminders" -> reminders()
                     "items" -> items()
                     "cards" -> cards()
+                    "weather" -> weather()
                     "flood" -> flood()
                     "extras" -> extras()
                     else -> check("known suite $suite", false, "no such suite")
@@ -78,6 +79,7 @@ class RunActivity : Activity() {
         expectError("set bar item refused", call("items.set", "area" to "bar", "id" to "a", "text" to "x"), "not_allowed")
         expectError("remove settings button refused", call("items.remove", "area" to "bar", "id" to "settings"), "not_allowed")
         expectError("decorate tile refused", call("tile.update", "id" to "panel", "badge" to "1"), "not_allowed")
+        expectError("weather refused", call("weather.get"), "not_allowed")
         // An extension nobody allowed anything is refused before its method is even looked at.
         expectError("made-up method refused", call("made.up"), "no_such_method", "not_allowed")
     }
@@ -91,6 +93,28 @@ class RunActivity : Activity() {
         expectError("set bar item refused for a kid", call("items.set", "area" to "bar", "id" to "a", "text" to "x"), "kid_profile")
         expectError("list reminders refused for a kid", call("reminders.list"), "kid_profile")
         expectError("decorate tile refused for a kid", call("tile.update", "id" to "panel", "badge" to "1"), "kid_profile")
+        expectError("weather refused for a kid", call("weather.get"), "kid_profile")
+    }
+
+    // ---------- allowed weather ----------
+
+    private fun weather() {
+        val r = call("weather.get")
+        check("weather answers, or says there is none", r.isOk() || r.error() == "unavailable", "ok=${r.isOk()} error=${r.error()}")
+        if (r.isOk()) {
+            val conditions = setOf("clear", "partly_cloudy", "cloudy", "fog", "drizzle", "rain", "snow", "thunderstorm")
+            check("it names the sky", r.getString("condition") in conditions, "condition=${r.getString("condition")}")
+            val unit = listOf("cloud", "rain", "snow", "thunder", "fog").all { r.getDouble(it, -1.0) in 0.0..1.0 }
+            check("cloud, rain, snow, thunder and fog are 0 to 1", unit)
+            if (r.containsKey("latitude")) {
+                val tenths = r.getDouble("latitude", 0.0) * 10
+                check("the place is rounded to a tenth of a degree", Math.abs(tenths - Math.round(tenths)) < 1e-6, "latitude=${r.getDouble("latitude", 0.0)}")
+            } else check("the place is rounded to a tenth of a degree", true, "no location known")
+            check("nothing names the place", listOf("city", "name", "address", "place").none { r.containsKey(it) })
+        }
+        var limited = 0
+        repeat(40) { if (call("weather.get").error() == "rate_limited") limited++ }
+        check("reading the weather is not counted as a change", limited == 0, "$limited of 40 refused")
     }
 
     // ---------- allowed reminders, cards, bar, clock ----------
