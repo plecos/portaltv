@@ -68,7 +68,7 @@ object Impersonation {
         // Greek
         "α=a β=b γ=y ε=e ζ=z ι=i κ=k ν=v ο=o ρ=p τ=t υ=u χ=x ω=w ϲ=c ϳ=j ϸ=p".split(' ').forEach { put(it[0], it[2]) }
         // Latin with a stroke or no dot, and a few more
-        "ı=i ɩ=i ł=l ø=o đ=d ħ=h ɡ=g ᴏ=o ᴜ=u ᴠ=v ᴡ=w ᴢ=z ʟ=l ɴ=n ʀ=r ɪ=i ꜱ=s ᴅ=d ᴇ=e ᴛ=t ᴍ=m ᴘ=p ᴋ=k ᴀ=a ᴃ=b ᴊ=j ɢ=g ʜ=h ꜰ=f ᴉ=i ǀ=i ᴄ=c ʏ=y ɑ=a ց=g ο=o".split(' ')
+        "ı=i ɩ=i ł=l ø=o đ=d ħ=h ɡ=g ᴏ=o ᴜ=u ᴠ=v ᴡ=w ᴢ=z ʟ=l ɴ=n ʀ=r ɪ=i ꜱ=s ᴅ=d ᴇ=e ᴛ=t ᴍ=m ᴘ=p ᴋ=k ᴀ=a ᴃ=b ᴊ=j ɢ=g ʜ=h ꜰ=f ᴉ=i ǀ=i ƿ=p ꝑ=p ɿ=r ꞁ=l ꝺ=d ꞓ=c ᵽ=p ɍ=r ꞅ=r ʙ=b ᴙ=r ɾ=r ꞇ=t ꞔ=c ᴄ=c ʏ=y ɑ=a ց=g ο=o".split(' ')
             .forEach { put(it[0], it[2]) }
         // Digits that pass for letters
         "0=o 1=i 5=s 3=e 4=a 7=t 8=b".split(' ').forEach { put(it[0], it[2]) }
@@ -101,17 +101,17 @@ object Impersonation {
         return words.firstNotNullOfOrNull { WORDS_SAME[it] } ?: INSIDE_SAME.entries.firstOrNull { it.key in collapsed }?.value
     }
 
-    /** True if a word mixes Latin letters with letters of another alphabet ("Pօrtal"): that is how lookalikes are made. */
+    /** True if a word mixes Latin letters with another alphabet ("Pօrtal", "ᑭortal"): that is how lookalikes are made. */
     private fun mixesAlphabets(text: String): Boolean = text.split(Regex("[^\\p{L}\\p{M}]+")).any { word ->
         val scripts = word.codePoints().toArray().map { Character.UnicodeScript.of(it) }
             .filter { it != Character.UnicodeScript.COMMON && it != Character.UnicodeScript.INHERITED }.toSet()
-        Character.UnicodeScript.LATIN in scripts && scripts.any { it in CONFUSABLE }
+        Character.UnicodeScript.LATIN in scripts && scripts.any { it !in WRITTEN_WITH_LATIN }
     }
 
-    /** Alphabets with many letters that look like Latin ones. Japanese or Chinese next to Latin (as in "TVアプリ") is ordinary and is not refused. */
-    private val CONFUSABLE = setOf(
-        Character.UnicodeScript.CYRILLIC, Character.UnicodeScript.GREEK, Character.UnicodeScript.ARMENIAN,
-        Character.UnicodeScript.CHEROKEE, Character.UnicodeScript.COPTIC, Character.UnicodeScript.GEORGIAN, Character.UnicodeScript.LISU
+    /** Scripts that are ordinarily written next to Latin letters (as in "TVアプリ") and have no letters made to look Latin. Every other script next to Latin is refused. */
+    private val WRITTEN_WITH_LATIN = setOf(
+        Character.UnicodeScript.LATIN, Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA,
+        Character.UnicodeScript.KATAKANA, Character.UnicodeScript.HANGUL, Character.UnicodeScript.BOPOMOFO
     )
 
     /** Why [text] can't be used as a name, or null if it can. */
@@ -121,9 +121,19 @@ object Impersonation {
         return if (found != null) "can pass for part of Portal or Android (\"$found\")." else null
     }
 
-    /** Whether [packageName] has a part (between dots) that is Portal's own name, however it is spelled to look like it. */
-    fun isReservedPackage(packageName: String): Boolean =
-        packageName.split('.').any { it.isNotEmpty() && (same(looksLike(it)) in RESERVED_SAME || same(looksLike(it, alternate = true)) in RESERVED_SAME) }
+    /**
+     * Whether [packageName] has a part that is Portal's own name however it is joined or numbered: split at dots, at
+     * underscores and at dashes, and also read with those and any digits taken out ("portal_tv", "getportaltv2").
+     */
+    fun isReservedPackage(packageName: String): Boolean = packageName.split('.').any { segment ->
+        val pieces = segment.split('_', '-') + segment
+        pieces.any { piece ->
+            // As written (so "p0rtal" is read as letters), and with any digits taken out (so "getportaltv2" is too).
+            listOf(piece.filter { it.isLetterOrDigit() }, piece.filter { it.isLetter() }).any { candidate ->
+                candidate.isNotEmpty() && (same(looksLike(candidate)) in RESERVED_SAME || same(looksLike(candidate, alternate = true)) in RESERVED_SAME)
+            }
+        }
+    }
 
     private val RESERVED_SAME = RESERVED_PARTS.map { same(it) }.toSet()
 }

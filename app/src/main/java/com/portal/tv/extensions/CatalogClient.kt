@@ -176,10 +176,10 @@ object CatalogClient {
             is CatalogParser.Result.Invalid -> throw IOException(r.reason)
             is CatalogParser.Result.NeedsNewerPortal -> throw IOException("The catalog needs a newer Portal")
             is CatalogParser.Result.Ok -> {
-                // The time floor comes from the signed catalog's own `updated` day, never from a header: a header isn't signed,
-                // so anyone who can answer the request could send a far-future date, and the floor only moves forward.
-                noteSignedTime(p, r.catalog)
                 CatalogPolicy.check(r.catalog, trustedNow(context))?.let { throw IOException(it) }
+                // The time floor is raised only now, after the rules above (expiry no more than a year ahead) have passed, so what a
+                // signed catalog says about its own date can never lift the floor more than a year past the TV's clock. It comes from
+                // the catalog's own `updated` day, never from a header: a header isn't signed, and the floor only moves forward.
                 // A signed catalog is still refused if it is older than one already used: that is how a withdrawal
                 // would be undone by putting an old copy back.
                 if (r.catalog.serial < lastSerial(context)) throw IOException("The catalog is older than one Portal already used, so it was not used.")
@@ -189,6 +189,7 @@ object CatalogClient {
                 val temp = File(context.filesDir, "$FILE.tmp")
                 temp.writeBytes((signature!!.trim() + "\n").toByteArray(Charsets.UTF_8) + body)
                 java.nio.file.Files.move(temp.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+                noteSignedTime(p, r.catalog)
                 p.edit().putLong("fetched_at", now).putLong("serial", r.catalog.serial).putString("etag", etag).putString("last_modified", modified)
                     .putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
                 Copy(r.catalog, now)

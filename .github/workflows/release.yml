@@ -47,14 +47,17 @@ jobs:
       # A new or reset TV accepts any signed, unexpired catalog at or above MIN_SERIAL, so it must not be lower than the live one.
       - name: Minimum serial must not be below the live catalog
         run: |
-          code=$(curl -s -o live.json -w '%{http_code}' https://getportaltv.net/extensions/catalog.json || true)
-          if [ "$code" = "200" ]; then
+          code=$(curl -s -o live.json -w '%{http_code}' --max-time 30 https://getportaltv.net/extensions/catalog.json || true)
+          if [ "$code" = "404" ]; then
+            echo "No live catalog yet (HTTP 404): nothing to compare."
+          elif [ "$code" != "200" ]; then
+            echo "::error::Couldn't read the live catalog (HTTP $code). Not releasing without knowing its serial."
+            exit 1
+          else
             live=$(python3 -c "import json;print(json.load(open('live.json'))['serial'])")
             min=$(grep -oE 'MIN_SERIAL = [0-9]+' app/src/main/java/com/portal/tv/extensions/CatalogPolicy.kt | grep -oE '[0-9]+')
             echo "live catalog serial $live, MIN_SERIAL $min"
             if [ "$min" -lt "$live" ]; then echo "::error::Raise CatalogPolicy.MIN_SERIAL to $live or more before releasing."; exit 1; fi
-          else
-            echo "No live catalog yet (HTTP $code): nothing to compare."
           fi
 
       - name: Unit tests and lint
