@@ -1,6 +1,5 @@
 package net.getportaltv.scenic
 
-import android.graphics.Path
 import net.getportaltv.scenic.Colors.lerp
 import net.getportaltv.scenic.Colors.rgb
 import net.getportaltv.scenic.Colors.smoothstep
@@ -11,7 +10,7 @@ import net.getportaltv.scenic.PixelScene.Companion.W
 import kotlin.math.floor
 import kotlin.math.sin
 
-/** Things that only the forest has: the big trees along the road, light coming down between them, and mist on the ground. */
+/** Things that only the forest has: the big trees along the road and mist on the ground. */
 
 private val bigFirs by lazy { listOf(Sprites.fir(8), Sprites.fir(10), Sprites.fir(12)) }
 private val bigBroads by lazy { listOf(Sprites.broadleaf(10, 4), Sprites.broadleaf(12, 5), Sprites.broadleaf(14, 6)) }
@@ -34,46 +33,6 @@ internal fun PixelScene.drawRoadsideTrees(s: SceneState) {
         sprite(tree, x - tree.width / 2 + sway, ROAD_TOP - 1 - (Noise.unit(i, 625) * 3).toInt())
     }
     spritePaint.colorFilter = null
-}
-
-/** Beams of sun slanting down from the tops of the trees on a bright day. */
-internal fun PixelScene.drawSunShafts(s: SceneState) {
-    val forest = s.forestAt(s.cam + W / 2.0, 1.0)
-    if (forest < 0.05f) return
-    val l = s.look
-    val sunny = smoothstep(8f, 25f, s.sunAlt.toFloat()) * (1f - s.cond.cloud * 0.9f) * (1f - s.cond.rain) * (1f - s.cond.fog * 0.6f)
-    val amount = forest * sunny
-    if (amount < 0.03f) return
-    // The beams lean away from the sun, so they come down toward the side it is not on.
-    val lean = if (s.sunAz < 180.0) 0.45f else -0.45f
-    val color = lerp(rgb(255, 244, 196), l.skyBottom, 0.15f)
-    paint.color = color
-    for (b in 0 until 7) {
-        val base = (b * 53 + Noise.unit(b, 631) * 30).toFloat()
-        val sway = (sin(s.time * 0.12 + b * 1.7) * 5f).toFloat()
-        val top = base + sway - 20f
-        val start = 104f
-        val width = 9f + Noise.unit(b, 632) * 12f
-        val pulse = 0.55f + 0.45f * sin(s.time * 0.2 + b * 2.3).toFloat()
-        val bottomY = (ROAD_TOP - 2).toFloat()
-        val run = bottomY - start
-        // In strips, each fainter than the one above, so a beam fades out toward the ground instead of ending in an edge.
-        val strips = 6
-        for (k in 0 until strips) {
-            val y0 = start + run * k / strips
-            val y1 = start + run * (k + 1) / strips
-            val path = Path()
-            path.moveTo(top + lean * (y0 - start), y0)
-            path.lineTo(top + width + lean * (y0 - start), y0)
-            path.lineTo(top + width + lean * (y1 - start), y1)
-            path.lineTo(top + lean * (y1 - start), y1)
-            path.close()
-            val fade = 1f - (k + 0.5f) / strips
-            paint.alpha = (amount * pulse * 0.26f * fade * 255).toInt().coerceIn(0, 255)
-            canvas.drawPath(path, paint)
-        }
-    }
-    paint.alpha = 255
 }
 
 /** Mist lying along the ground in the woods, thicker at dawn and dusk and when it is damp. */

@@ -177,6 +177,27 @@ object Sprites {
     )
 
     /** Where the lit windows of the house and barn are (x, y, width, height), counted from each picture's top left. */
+    private val CABIN = mapOf('R' to rgb(86, 56, 44), 'r' to rgb(118, 78, 56), 'L' to rgb(154, 108, 66), 'l' to rgb(112, 76, 48), 'k' to rgb(64, 42, 30), 'y' to rgb(74, 86, 110), 'c' to rgb(124, 120, 116))
+
+    /** A log cabin with a stone chimney. */
+    val cabin = Sprite(
+        listOf(
+            "...............cc...",
+            "......RRRRRRRR.cc...",
+            ".....RrRRrRRrRRRR...",
+            "...RRrRRrRRrRRrRRR..",
+            ".RRrRRrRRrRRrRRrRRR.",
+            "RRRRRRRRRRRRRRRRRRRR",
+            ".LLLLLLLLLLLLLLLLLL.",
+            ".llllllllllllllllll.",
+            ".LLLyyLLLLLLLkkLLLL.",
+            ".llyyllllllllkkllll.",
+            ".LLLLLLLLLLLLkkLLLL.",
+            ".llllllllllllkkllll."
+        ), CABIN
+    )
+    val cabinWindows = listOf(intArrayOf(4, 8, 2, 2))
+
     val houseWindows = listOf(intArrayOf(2, 7, 2, 2), intArrayOf(10, 7, 2, 2))
     val barnWindows = emptyList<IntArray>()
 

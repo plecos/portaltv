@@ -25,8 +25,9 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
 
 The journey passes through places that run into each other slowly (about a minute for each change), so the land changes
 gradually: trees thicken, farms thin out, the ground darkens. Today there are the **countryside** and the **forest** (dense firs
-and broad trees, big trees along the road, beams of light and mist, more deer). The **Journey** setting moves between them; the
-others stay in one. Each piece of scenery asks `Places` how much forest there is at its own place on the road, so nothing pops
+and broad trees, big trees along the road, mist, more deer, and a log cabin now and then). The **Journey** setting takes turns
+between them, about two and a half minutes each; the others stay in one. In any place the mountains sometimes sink away to
+nothing and rise again. Each piece of scenery asks `Places` how much forest there is at its own place on the road, so nothing pops
 in or out as the change passes. In the preview, `--es place Forest` (or `Countryside`, `Journey`) picks one.
 
 ## Settings

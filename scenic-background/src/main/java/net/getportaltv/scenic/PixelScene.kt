@@ -71,7 +71,6 @@ class PixelScene {
         drawFarm(s, cam)
         drawRoadsideTrees(s)
         drawForestMist(s)
-        drawSunShafts(s)
         drawButterflies(s)
         drawFence(s, cam)
         drawRoad(s, cam)
@@ -317,11 +316,13 @@ class PixelScene {
         // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
         val offset = floor(cam * factor).toFloat()
         val heights = FloatArray(W + 8)
+        val mountainHeight = s.mountainsNow()
         for (i in 0 until W + 8) {
             val x = i - 4
             val m = Noise.mountain((x + offset) * freq, seed)
-            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f)
-            tops[i] = (base - heights[i] * maxH).toInt()
+            // In places there are no mountains at all, and they rise and sink gradually either side.
+            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainHeight
+            tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
             val i = x + 4
@@ -427,6 +428,9 @@ class PixelScene {
             // How much of this stretch is forest: it brings more trees, and takes the farms away.
             val forest = s.forestAt(i * chunk + chunk / 2.0, factor)
             // Trees: 3 to 6 a chunk, at their own depths (fewer in open country), and in forest up to eleven more, each there once the forest is thick enough for it.
+            // A log cabin in a clearing, very rarely, deep in the forest.
+            val cabin = forest > 0.6f && Noise.unit(i, 700) < 0.08f
+            val cabinX = left + 40 + (Noise.unit(i, 701) * 70).toInt()
             val farmTrees = if (open) 1 + (Noise.unit(i, 1) * 2).toInt() else 3 + (Noise.unit(i, 1) * 4).toInt()
             val trees = if (forest > 0f) farmTrees + 20 else farmTrees
             for (t in 0 until trees) {
@@ -436,6 +440,7 @@ class PixelScene {
                 if ((depth > 0.5f) != (pass == 1)) continue
                 val x = left + (Noise.unit(i, if (t < 7) 20 + t else 320 + t) * chunk).toInt()
                 val y = FIELD_TOP + 6 + (depth * 12f).toInt()
+                if (cabin && kotlin.math.abs(x - cabinX - 10) < 30) continue
                 val kind = Noise.unit(i, if (t < 7) 30 + t else 340 + t)
                 val swing = (sin(s.time * 1.7 + x * 0.1) * sway * 1.1).roundToInt()
                 when {
@@ -446,6 +451,13 @@ class PixelScene {
                     kind < 0.8f -> sprite(Sprites.roundTree, x + swing, y)
                     else -> sprite(Sprites.bush, x, y)
                 }
+            }
+            if (pass == 1 && cabin) {
+                sprite(Sprites.cabin, cabinX, FIELD_TOP + 14)
+                spritePaint.colorFilter = null
+                litWindows(s, cabinX, FIELD_TOP + 14 - Sprites.cabin.height, Sprites.cabinWindows)
+                smoke(s, cabinX + 15, FIELD_TOP + 14 - Sprites.cabin.height)
+                spritePaint.colorFilter = filter(s, 0.06f + s.look.haze * 0.3f)
             }
             if (pass == 1 && !open && forest < 0.3f) {
                 // A building now and then, with its windows lit at night and smoke from the chimney.
