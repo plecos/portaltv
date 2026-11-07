@@ -604,6 +604,9 @@ class PixelScene {
 
     // ---------- the foreground ----------
 
+    /** Whether the power line runs from pole [i] to the next: in stretches of four poles, three in five of them. */
+    private fun powerSpan(i: Int) = Noise.unit(Math.floorDiv(i, 4), 97) < 0.6f
+
     private fun drawForeground(s: SceneState, cam: Double) {
         val offset = cam * 1.7
         val wood = lit(s, rgb(86, 62, 44), 0.0f)
@@ -615,9 +618,13 @@ class PixelScene {
             val x = (i * spacing - offset).toInt()
             // A pole off the left edge still has wires running on to the next one, so keep it until the whole span is gone.
             if (x + spacing < -10 || x > W + 10) continue
+            // The line runs in stretches of a few spans with none between: a pole stands wherever a span starts or ends.
+            val wired = powerSpan(i)
+            if (!wired && !powerSpan(i - 1)) continue
             fill(x, 112, x + 3, H, wood)
             fill(x - 6, 116, x + 9, 118, wood)
             fill(x - 4, 124, x + 7, 125, wood)
+            if (!wired) continue
             val nx = x + spacing
             for (w in intArrayOf(116, 124)) {
                 var px = x + 4
