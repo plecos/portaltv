@@ -41,9 +41,13 @@ object Places {
     fun forest(journey: Double, mode: String): Float = amount(FOREST, journey, mode)
     fun city(journey: Double, mode: String): Float = amount(CITY, journey, mode)
 
-    /** How tall the mountains are, from 0 (none: the hills run to the horizon) to 1, in stretches that come and go in any place. */
+    /**
+     * How tall the mountains are at [journey] (a position in the range's own world: its x divided by how fast it moves), from 0 (none:
+     * the hills run to the horizon) to 1. A range begins with a few small peaks, then more and taller ones, and ends the same way
+     * the other way round: the ramp is spread along the land, so it scrolls in from the right and out to the left like everything else.
+     */
     fun mountains(journey: Double): Float =
-        along(journey, 4000.0, 1800.0) { k -> if (k <= 0 || Noise.unit(k, 618) < 0.65f) 1f else 0f }
+        along(journey, 8000.0, 3500.0) { k -> if (k <= 0 || Noise.unit(k, 618) < 0.65f) 1f else 0f }
 
     private fun mix(a: Float, b: Float, t: Float) = a + (b - a) * t
 
@@ -60,8 +64,8 @@ object Places {
     }
 }
 
-/** How tall the mountains are now. The far ranges move so slowly that they cannot be placed by where they are, so it follows the journey as a whole: the mountains sink and rise together. */
-internal fun SceneState.mountainsNow(): Float = Places.mountains(cam)
+/** How tall the mountains are at [x] in the world of a range that moves at [factor] of the journey. */
+internal fun mountainsAt(x: Double, factor: Double): Float = Places.mountains(x / factor)
 
 /** How much forest there is at a point of a layer that moves at [factor] of the journey, [x] pixels into that layer's world. */
 internal fun SceneState.forestAt(x: Double, factor: Double): Float = Places.forest(x / factor, placeMode)

@@ -311,10 +311,10 @@ class PixelScene {
     private val tops = IntArray(W + 8)
 
     private fun drawMountains(s: SceneState, cam: Double) {
-        mountainRange(s, cam, factor = 0.03, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLine = 0.72f)
+        mountainRange(s, cam, factor = 0.045, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLine = 0.72f)
         // Now and then a low cloud drifts in front of the far mountains (and behind the near ones).
         drawClouds(s, 2)
-        mountainRange(s, cam, factor = 0.06, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLine = 0.66f)
+        mountainRange(s, cam, factor = 0.08, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLine = 0.66f)
     }
 
     /** A range of peaks: lit on the slopes that face left, shaded on the ones that face right, with snow on the highest. */
@@ -327,12 +327,11 @@ class PixelScene {
         // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
         val offset = floor(cam * factor).toFloat()
         val heights = FloatArray(W + 8)
-        val mountainHeight = s.mountainsNow() * (1f - s.cityNow())
         for (i in 0 until W + 8) {
             val x = i - 4
             val m = Noise.mountain((x + offset) * freq, seed)
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainHeight
+            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - s.cityAt((x + offset).toDouble(), factor))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
