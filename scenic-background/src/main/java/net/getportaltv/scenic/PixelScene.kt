@@ -613,7 +613,8 @@ class PixelScene {
         // Poles with wires between them.
         for (i in first..first + W / spacing + 2) {
             val x = (i * spacing - offset).toInt()
-            if (x < -30 || x > W + spacing) continue
+            // A pole off the left edge still has wires running on to the next one, so keep it until the whole span is gone.
+            if (x + spacing < -10 || x > W + 10) continue
             fill(x, 112, x + 3, H, wood)
             fill(x - 6, 116, x + 9, 118, wood)
             fill(x - 4, 124, x + 7, 125, wood)
