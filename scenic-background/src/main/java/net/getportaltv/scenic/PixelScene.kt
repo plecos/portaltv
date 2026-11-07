@@ -311,7 +311,8 @@ class PixelScene {
         val shade = lit(s, rgb(72, 84, 124), a)
         val snow = lit(s, rgb(240, 244, 252), a * 0.7f)
         val snowShade = lit(s, rgb(196, 204, 226), a * 0.7f)
-        val offset = (cam * factor).toFloat()
+        // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
+        val offset = floor(cam * factor).toFloat()
         val heights = FloatArray(W + 8)
         for (i in 0 until W + 8) {
             val x = i - 4
@@ -337,7 +338,8 @@ class PixelScene {
         val a = air + s.look.haze * 0.3f
         val body = lit(s, color, a)
         val crest = lit(s, Colors.mul(color, 1.12f, 1.14f, 1.1f), a)
-        val offset = (cam * factor).toFloat()
+        // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
+        val offset = floor(cam * factor).toFloat()
         for (x in 0 until W) {
             val h = Noise.ridge((x + offset) * freq, seed, 3)
             val top = (base - h * amp).toInt()
@@ -355,7 +357,7 @@ class PixelScene {
     /** Small trees along the crest of the hills behind. */
     private fun drawTreeLine(s: SceneState, cam: Double, factor: Float, air: Float) {
         spritePaint.colorFilter = filter(s, air + 0.22f + s.look.haze * 0.4f)
-        val offset = cam * factor
+        val offset = floor(cam * factor)
         val freq = if (factor < 0.2f) 0.022f else 0.028f
         val seed = if (factor < 0.2f) 11 else 29
         val base = if (factor < 0.2f) 124 else 134
@@ -363,8 +365,9 @@ class PixelScene {
         val start = floor(offset / 11.0).toInt() - 1
         for (i in start..start + W / 11 + 2) {
             if (Noise.unit(i, seed, 71) > 0.55f) continue
-            val x = (i * 11 + Noise.unit(i, seed, 72) * 8 - offset).toInt()
-            val h = Noise.ridge((x + offset.toFloat()) * freq, seed, 3)
+            val worldX = i * 11 + (Noise.unit(i, seed, 72) * 8).toInt()
+            val x = (worldX - offset).toInt()
+            val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
             val y = (base - h * amp).toInt() + 3
             sprite(if (Noise.unit(i, seed, 73) < 0.5f) Sprites.pineSmall else Sprites.roundSmall, x, y)
         }
