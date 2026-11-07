@@ -39,6 +39,8 @@ object ItemOverrides {
         val item = declared.firstOrNull { it.area == area && it.id == id }
         val max = if (item?.isButton == true) ManifestParser.MAX_BUTTON_TEXT else ManifestParser.MAX_LINE_TEXT
         HostChecks.text(text, max)?.let { return Change.Refused(it) }
+        // A button looks like one of Portal's own: its words can't be "Settings" and the like.
+        if (item?.isButton == true && Impersonation.reason(text!!) != null) return Change.Refused(HostApi.Error.BAD_ARGUMENT)
         val without = overrides.filterNot { it.area == area && it.id == id }
         // A new line of text counts against the extension's two items in that area.
         if (item == null && apply(declared, without).count { it.area == area } >= ManifestParser.MAX_ITEMS_PER_AREA) return Change.Refused(HostApi.Error.LIMIT)

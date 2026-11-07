@@ -27,6 +27,7 @@ class RunActivity : Activity() {
                     "items" -> items()
                     "cards" -> cards()
                     "flood" -> flood()
+                    "extras" -> extras()
                     else -> check("known suite $suite", false, "no such suite")
                 }
             }.onFailure { check("suite $suite ran", false, "crashed: $it") }
@@ -77,7 +78,8 @@ class RunActivity : Activity() {
         expectError("set bar item refused", call("items.set", "area" to "bar", "id" to "a", "text" to "x"), "not_allowed")
         expectError("remove settings button refused", call("items.remove", "area" to "bar", "id" to "settings"), "not_allowed")
         expectError("decorate tile refused", call("tile.update", "id" to "panel", "badge" to "1"), "not_allowed")
-        expectError("made-up method refused", call("made.up"), "no_such_method")
+        // An extension nobody allowed anything is refused before its method is even looked at.
+        expectError("made-up method refused", call("made.up"), "no_such_method", "not_allowed")
     }
 
     // ---------- allowed, but a kid profile is in use ----------
@@ -156,5 +158,38 @@ class RunActivity : Activity() {
 
     private companion object {
         const val TAG = "PortalConformance"
+    }
+
+    // ---------- arguments of any type ----------
+
+    /** A class only this app has: Portal can't load it, and must never try to. */
+    class OnlyHere(val x: Int = 1) : java.io.Serializable
+
+    private val knownErrors = setOf("not_allowed", "no_such_method", "bad_argument", "limit", "rate_limited", "kid_profile", "not_found")
+
+    /** One call with whatever is in [extras]; a thrown exception counts as a failed answer. */
+    private fun callWith(method: String, extras: Bundle): Bundle = try {
+        contentResolver.call(uri, method, null, extras) ?: Bundle().apply { putBoolean("ok", false); putString("error", "no_answer") }
+    } catch (e: Exception) {
+        Bundle().apply { putBoolean("ok", false); putString("error", "exception_" + e.javaClass.simpleName) }
+    }
+
+    /** Portal must answer with one of its own codes (or ok): never "unavailable", an exception or silence. */
+    private fun answeredCleanly(name: String, reply: Bundle) =
+        check(name, reply.isOk() || reply.error() in knownErrors, "got ok=${reply.isOk()} error=${reply.error()}")
+
+    private fun extras() {
+        val nested = Bundle().apply { putSerializable("deep", OnlyHere()) }
+        answeredCleanly("an object only the caller has, under a known key",
+            callWith("reminders.add", Bundle().apply { putSerializable("title", OnlyHere()); putLong("at_millis", soon) }))
+        answeredCleanly("an object only the caller has, under an unknown key",
+            callWith("reminders.add", Bundle().apply { putSerializable("zz_unknown", OnlyHere()) }))
+        answeredCleanly("a Bundle holding such an object",
+            callWith("items.set", Bundle().apply { putBundle("area", nested); putString("id", "a"); putString("text", "x") }))
+        answeredCleanly("an object under a key every call reads (id)",
+            callWith("tile.update", Bundle().apply { putSerializable("id", OnlyHere()); putString("badge", "1") }))
+        val info = callWith("host.info", Bundle().apply { putSerializable("title", OnlyHere()) })
+        check("host.info reads no arguments, so it still works", info.isOk(), "got ok=${info.isOk()} error=${info.error()}")
+        answeredCleanly("a flood of keys", callWith("card.show", Bundle().apply { repeat(500) { putString("k$it", "v") }; putString("title", "t") }))
     }
 }

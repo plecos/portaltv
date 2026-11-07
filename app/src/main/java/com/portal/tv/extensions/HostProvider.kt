@@ -46,11 +46,16 @@ class HostProvider : ContentProvider() {
 
     private fun dispatch(context: Context, caller: String, method: String, args: Bundle): Bundle {
         val handler = handler(context)
-        // Anybody can reach this door, so nothing the caller sent is looked at until it is known to be an installed
-        // extension. After that only the keys the API defines are read, each with a typed getter: the Bundle's other
-        // entries are never unparcelled, so a caller can't make Portal deserialize objects it didn't ask for.
-        if (!handler.knows(caller)) return toBundle(HostReply.fail(HostApi.Error.NOT_ALLOWED))
-        return toBundle(handler.call(caller, method, HostArgs.read(args)))
+        // Cheapest first: anybody can reach this door and each step after this one costs more than the one before.
+        if (!handler.admit(caller)) return toBundle(HostReply.fail(HostApi.Error.RATE_LIMITED))
+        // Then: is it an installed extension, found once for the whole call?
+        val ext = handler.lookup(caller) ?: return toBundle(HostReply.fail(HostApi.Error.NOT_ALLOWED))
+        // Nothing the caller sent is looked at unless an adult has allowed it something. (host.info needs no argument.)
+        if (method != HostApi.INFO && ext.granted.isEmpty()) return toBundle(HostReply.fail(HostApi.Error.NOT_ALLOWED))
+        // After that only the keys the API defines are read, each with a typed getter: the Bundle's other entries are
+        // never unparcelled, so a caller can't make Portal deserialize objects it didn't ask for.
+        val values = if (method == HostApi.INFO) emptyMap() else HostArgs.read(args)
+        return toBundle(handler.call(ext, method, values))
     }
 
     private fun handler(context: Context): HostHandler =

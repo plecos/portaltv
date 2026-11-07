@@ -136,7 +136,7 @@ class CatalogPages(
 
     /** Checks there is something to install, then the PIN, then goes on. */
     private fun startInstall(catalog: Catalog, entry: CatalogEntry) {
-        val (version, refusal) = CatalogInstallChecks.start(catalog, entry, CatalogInstaller.installedFacts(context, entry.packageName))
+        val (version, refusal) = CatalogInstallChecks.start(catalog, entry, CatalogInstaller.installedFacts(context, entry.packageName), CatalogClient.trustedNow(context))
         if (version == null) { notice("Can't install ${entry.name}", refusal.orEmpty()); return }
         if (!CatalogInstaller.canInstall(context)) {
             PortalDialog.Builder(context)
@@ -152,7 +152,12 @@ class CatalogPages(
             return
         }
         if (ParentPin.isSet(context)) PinDialogs.verify(context, "Parent PIN to install an extension") { download(catalog, entry, version) }
-        else download(catalog, entry, version)
+        // With no PIN, anyone using an adult profile could install. Like a kid's settings, a PIN is set first.
+        else PinDialogs.create(
+            context,
+            message = "A parent PIN is needed to install extensions. ${ParentPin.MIN_LENGTH} digits.",
+            onSet = { download(catalog, entry, version) }
+        )
     }
 
     private fun download(catalog: Catalog, entry: CatalogEntry, version: CatalogVersion) {

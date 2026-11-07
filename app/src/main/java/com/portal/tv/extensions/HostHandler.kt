@@ -58,14 +58,26 @@ class HostHandler(
     private val cards: RateLimiter = RateLimiter(1, HostLimits.CARD_INTERVAL_MS)
 ) {
 
-    /** Whether [caller] is an installed extension at all. Asked before a call's arguments are read. */
-    fun knows(caller: String): Boolean = env.extension(caller) != null
+    /** Calls of any kind (reads too) an extension may make, counted before anything is looked up. */
+    private val callLimit = RateLimiter(HostLimits.CALLS_PER_MINUTE, 60_000L)
+
+    /** Whether [caller] may make a call now at all. Checked first, because everything after it costs something. */
+    fun admit(caller: String): Boolean = callLimit.allow(caller, env.elapsedMillis())
+
+    /** The installed extension [caller] is, or null. Looked up once per call; see [call] taking it. */
+    fun lookup(caller: String): HostExtension? = env.extension(caller)
 
     /** One at a time, so two calls can't both see room for a reminder and both add one. */
     private val remindersLock = Any()
 
     fun call(caller: String, method: String, args: Map<String, Any?>): HostReply {
-        val ext = env.extension(caller) ?: return HostReply.fail(HostApi.Error.NOT_ALLOWED)
+        val ext = lookup(caller) ?: return HostReply.fail(HostApi.Error.NOT_ALLOWED)
+        return call(ext, method, args)
+    }
+
+    /** As [call], for an extension that has already been looked up. */
+    fun call(ext: HostExtension, method: String, args: Map<String, Any?>): HostReply {
+        val caller = ext.packageName
         if (method == HostApi.INFO) return info(ext)
         val needs = when (method) {
             HostApi.REMINDERS_ADD, HostApi.REMINDERS_LIST, HostApi.REMINDERS_UPDATE, HostApi.REMINDERS_DELETE -> Capability.REMINDERS
@@ -188,7 +200,7 @@ class HostHandler(
         if (args.containsKey("text") && args["text"] !is String) return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
         if (text.isNotEmpty()) HostChecks.text(text, HostLimits.MAX_CARD_TEXT)?.let { return HostReply.fail(it) }
         if (!cards.allow(ext.packageName, env.elapsedMillis())) return HostReply.fail(HostApi.Error.RATE_LIMITED)
-        val shown = env.showCard(ext.name, title!!.trim(), text.trim(), HostChecks.cardSeconds(args.int("seconds") ?: 0))
+        val shown = env.showCard(ext.name + " · " + ext.packageName, title!!.trim(), text.trim(), HostChecks.cardSeconds(args.int("seconds") ?: 0))
         return if (shown) HostReply.ok() else HostReply.fail(HostApi.Error.UNAVAILABLE)
     }
 

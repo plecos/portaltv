@@ -58,6 +58,7 @@ object ExtensionItemViews {
             })
         }
         row.addView(label(context, shown.item.text, 16f, R.color.text_primary))
+        row.addView(mark(context))
         return row
     }
 
@@ -65,16 +66,32 @@ object ExtensionItemViews {
      * A line of text. Pressing it does nothing, but the remote can stop on it so a long press can say whose it is (an
      * extension's text looks like part of Portal, so there must be a way to find out).
      */
-    private fun line(context: Context, shown: ShownItem): View =
-        label(context, shown.item.text, 16f, R.color.text_primary).apply {
+    private fun line(context: Context, shown: ShownItem): View {
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             setPadding(px(context, 8), 0, px(context, 8), 0)
             contentDescription = "${shown.item.text}, from ${shown.extensionName}"
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(context, 48))
-            gravity = Gravity.CENTER_VERTICAL
             setBackgroundResource(R.drawable.bg_app_tile)
             isFocusable = true
             isClickable = true
         }
+        row.addView(label(context, shown.item.text, 16f, R.color.text_primary))
+        row.addView(mark(context))
+        return row
+    }
+
+    /**
+     * A small puzzle piece on every item an extension adds, so it never looks exactly like one of Portal's own buttons
+     * (Portal's own never carry it). The long press still says whose it is.
+     */
+    private fun mark(context: Context) = ImageView(context).apply {
+        setImageResource(R.drawable.ic_cat_extensions)
+        alpha = 0.7f
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        layoutParams = LinearLayout.LayoutParams(px(context, 14), px(context, 14)).apply { marginStart = px(context, 8) }
+    }
 
     private fun label(context: Context, text: String, sp: Float, color: Int) = TextView(context).apply {
         this.text = text

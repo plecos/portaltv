@@ -31,7 +31,7 @@ object Capability {
         SETTINGS -> "Add a settings page"
         BAR -> "Add buttons or text to the top bar, beside your profile, search and settings"
         CLOCK -> "Add buttons or text under the time and weather"
-        BACKGROUND -> "Draw the background of your home screen, if you choose it in Settings, Background"
+        BACKGROUND -> "Draw the background of your home screen, if you choose it in Settings, Background. It keeps running, and can use the network, while the home screen shows"
         REMINDERS -> "Add and change its own reminders"
         CARDS -> "Show cards over other apps"
         else -> "Something this version of Portal doesn't know ($capability)"
@@ -127,8 +127,11 @@ object ManifestParser {
         if (!ID.matches(id)) return Result.Invalid("Its id \"$id\" isn't lowercase letters, digits and dashes.")
         val label = root.attr("label") ?: return Result.Invalid("It has no name.")
         if (label.length > MAX_LABEL) return Result.Invalid("Its name is longer than $MAX_LABEL characters.")
+        if (!TextSafety.isPlain(label)) return Result.Invalid("Its name has characters that can't be shown.")
+        Impersonation.reason(label)?.let { return Result.Invalid("Its name \"$label\" $it") }
         val description = root.attr("description").orEmpty()
         if (description.length > MAX_DESCRIPTION) return Result.Invalid("Its description is longer than $MAX_DESCRIPTION characters.")
+        if (!TextSafety.isPlain(description)) return Result.Invalid("Its description has characters that can't be shown.")
 
         val capabilities = linkedSetOf<String>()
         val unknown = linkedSetOf<String>()
@@ -150,6 +153,8 @@ object ManifestParser {
                     if (tiles.size >= MAX_TILES) return Result.Invalid("It has more than $MAX_TILES tiles.")
                     val tileLabel = child.attr("label") ?: return Result.Invalid("The tile \"$tileId\" has no name.")
                     if (tileLabel.length > MAX_TILE_LABEL) return Result.Invalid("The tile \"$tileId\" has a name longer than $MAX_TILE_LABEL characters.")
+                    if (!TextSafety.isPlain(tileLabel)) return Result.Invalid("The tile \"$tileId\" has characters in its name that can't be shown.")
+                    Impersonation.reason(tileLabel)?.let { return Result.Invalid("The tile \"$tileId\" name \"$tileLabel\" $it") }
                     val activity = child.attr("activity")?.let { className(it, packageName) }
                         ?: return Result.Invalid("The tile \"$tileId\" names no activity.")
                     tiles += ExtensionTile(tileId, tileLabel, activity, child.attrs["icon"]?.resId ?: 0)
@@ -176,7 +181,9 @@ object ManifestParser {
                         ?: return Result.Invalid("$shown \"$itemId\" has no ${if (button) "label" else "text"}.")
                     val max = if (button) MAX_BUTTON_TEXT else MAX_LINE_TEXT
                     if (words.length > max) return Result.Invalid("$shown \"$itemId\" is longer than $max characters.")
-                    if (words.any { it.isISOControl() }) return Result.Invalid("$shown \"$itemId\" has characters that can't be shown.")
+                    if (!TextSafety.isPlain(words)) return Result.Invalid("$shown \"$itemId\" has characters that can't be shown.")
+                    // A button sits among Portal's own, so its words can't pass for one of them.
+                    if (button) Impersonation.reason(words)?.let { return Result.Invalid("$shown \"$itemId\" says \"$words\", which $it") }
                     val activity = if (button) {
                         child.attr("activity")?.let { className(it, packageName) }
                             ?: return Result.Invalid("$shown \"$itemId\" names no activity.")

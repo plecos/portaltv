@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
@@ -225,6 +226,8 @@ class CatalogFileTest {
         assertTrue("${file.path} isn't a usable catalog: $result", result is CatalogParser.Result.Ok)
         val problems = (result as CatalogParser.Result.Ok).problems
         assertTrue("${file.path} has problems:\n" + problems.joinToString("\n"), problems.isEmpty())
+        // A published catalog also needs what Portal checks for freshness: a serial, and an expiry that isn't too far away.
+        CatalogPolicy.check(result.catalog, System.currentTimeMillis())?.let { fail("${file.path}: $it (run: java scripts/CatalogSign.java stamp ${file.name})") }
     }
 
     @Test

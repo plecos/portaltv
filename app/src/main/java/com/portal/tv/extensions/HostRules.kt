@@ -47,6 +47,8 @@ object HostLimits {
     const val MAX_CARD_TEXT = 140
     const val DEFAULT_CARD_SECONDS = 10
     const val MAX_CARD_SECONDS = 30
+    /** Calls of any kind per minute, per extension; changes have their own, lower limit below. */
+    const val CALLS_PER_MINUTE = 120
     /** Calls that change something (add, update, delete, set, remove), per extension. */
     const val WRITES_PER_MINUTE = 20
     const val CARD_INTERVAL_MS = 60_000L
@@ -61,7 +63,7 @@ object HostChecks {
     fun text(value: String?, max: Int): String? = when {
         value == null || value.isBlank() -> HostApi.Error.BAD_ARGUMENT
         value.trim().length > max -> HostApi.Error.BAD_ARGUMENT
-        value.any { it.isISOControl() } -> HostApi.Error.BAD_ARGUMENT
+        !TextSafety.isPlain(value) -> HostApi.Error.BAD_ARGUMENT
         else -> null
     }
 

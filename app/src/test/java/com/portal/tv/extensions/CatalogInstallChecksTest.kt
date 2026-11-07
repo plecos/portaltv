@@ -27,7 +27,7 @@ class CatalogInstallChecksTest {
 
     private fun facts(
         pkg: String = "a.b", code: Long = 3, signer: String? = this.signer, caps: Set<String>? = setOf("tiles"), unknown: Set<String> = emptySet()
-    ) = ArchiveFacts(pkg, code, signer, caps, unknown)
+    ) = ArchiveFacts(pkg, code, signer, listOfNotNull(signer).toSet(), caps, unknown)
 
     private fun check(c: Catalog, a: ArchiveFacts, installed: InstalledFacts? = null): String? {
         val e = c.extensions.single()

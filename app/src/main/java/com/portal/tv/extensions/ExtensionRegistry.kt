@@ -29,7 +29,11 @@ data class Extension(
     val revokedReason: String? = null
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
-    val name: String get() = manifest?.label ?: appLabel
+    /**
+     * What it is called: its own name, or, if its extension file isn't usable, its app's label, unless that too would pass
+     * for part of Portal or Android, in which case its package name (which can't be chosen to look like anything else).
+     */
+    val name: String get() = manifest?.label ?: if (TextSafety.isPlain(appLabel) && Impersonation.reason(appLabel) == null) appLabel else packageName
 }
 
 /**
@@ -76,6 +80,7 @@ object ExtensionRegistry {
 
     /** Everything Portal kept for [packageName]: what was allowed, its reminders and its item changes. */
     fun forget(context: Context, packageName: String) {
+        factsCache.remove(packageName)
         ExtensionStore.remove(context, packageName)
         ExtensionItemStore.remove(context, packageName)
         ExtensionTileStore.remove(context, packageName)
@@ -101,8 +106,13 @@ object ExtensionRegistry {
      * An adult allows [capabilities] for [packageName] (only ones it asks for count). This pins the signer it has now. It
      * does nothing for an extension that can't be used, and returns whether anything was saved.
      */
-    fun allow(context: Context, packageName: String, capabilities: Set<String>): Boolean {
+    fun allow(
+        context: Context, packageName: String, capabilities: Set<String>,
+        /** Who signed it, and what it asks for, as the adult saw them; if either has changed since, nothing is saved. */
+        shownSigner: String? = null, shownDeclared: Set<String>? = null, checkShown: Boolean = false
+    ): Boolean {
         val ext = find(context, packageName) ?: return false
+        if (checkShown && !ExtensionAccess.sameAsShown(shownSigner, ext.signer, shownDeclared, ext.manifest?.capabilities)) return false
         // A withdrawn extension can't be allowed, whatever is asked.
         if (ext.state == ExtensionState.REVOKED) return false
         val manifest = ext.manifest ?: return false
@@ -130,40 +140,83 @@ object ExtensionRegistry {
 
     // ---------- Reading one extension ----------
 
-    private fun describe(context: Context, pm: PackageManager, app: ApplicationInfo): Extension {
+    /**
+     * What is learned from the installed package itself: its extension file, which of its screens can be opened, who signed
+     * it. Reading it takes resources, XML and many PackageManager calls, so it is kept until the package is updated.
+     * What can change without an update (what an adult allowed, an item an extension changed, the catalog) is applied on
+     * top each time, in [describe].
+     */
+    private class Facts(
+        val appLabel: String,
+        val parsed: ManifestParser.Result,
+        val tiles: List<ExtensionTile>,
+        val settings: String?,
+        val usableItems: List<ExtensionItem>,
+        val background: String?,
+        val problems: List<String>,
+        /** Who signed it now, the way the approval pins it. */
+        val signer: String?,
+        /** Every certificate in its signing history, for withdrawals. */
+        val signers: Set<String>,
+        val versionCode: Long?
+    )
+
+    private val factsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Facts>>()
+
+    private fun facts(pm: PackageManager, app: ApplicationInfo): Facts {
+        val pkg = app.packageName
+        // An update, a reinstall or being switched off or on changes this stamp, and the entry is read again.
+        val stamp = runCatching { pm.getPackageInfo(pkg, 0).lastUpdateTime }.getOrDefault(0L) * 2 + if (app.enabled) 1 else 0
+        factsCache[pkg]?.let { if (it.first == stamp) return it.second }
+        val fresh = readFacts(pm, app)
+        factsCache[pkg] = stamp to fresh
+        return fresh
+    }
+
+    private fun readFacts(pm: PackageManager, app: ApplicationInfo): Facts {
         val pkg = app.packageName
         val appLabel = runCatching { pm.getApplicationLabel(app).toString() }.getOrDefault(pkg)
         val parsed = readManifest(pm, app)
         val problems = mutableListOf<String>()
         var tiles = emptyList<ExtensionTile>()
         var settings: String? = null
-        var items = emptyList<ExtensionItem>()
+        var usable = emptyList<ExtensionItem>()
         var background: String? = null
         if (parsed is ManifestParser.Result.Ok) {
             tiles = parsed.manifest.tiles.filter { tile ->
                 canOpen(pm, pkg, tile.activity).also { if (!it) problems += "The tile \"${tile.label}\" opens a screen that isn't there or isn't open to Portal." }
             }
-            val usable = parsed.manifest.items.filter { item ->
+            usable = parsed.manifest.items.filter { item ->
                 val screen = item.activity
                 (screen == null || canOpen(pm, pkg, screen)).also { if (!it) problems += "The button \"${item.text}\" opens a screen that isn't there or isn't open to Portal." }
             }
-            // What it has changed while running (new words, taken away, lines it added) is applied on top.
-            items = ItemOverrides.apply(usable, ExtensionItemStore.get(context, pkg))
             background = parsed.manifest.backgroundService?.takeIf { canBind(pm, pkg, it).also { ok -> if (!ok) problems += "Its background service isn't there or isn't open to Portal." } }
             settings = parsed.manifest.settingsActivity?.takeIf { canOpen(pm, pkg, it).also { ok -> if (!ok) problems += "Its settings screen isn't there or isn't open to Portal." } }
         }
-        val signer = signerOf(pm, pkg)
+        val (signer, signers) = signersOf(pm, pkg)
+        val version = runCatching { pm.getPackageInfo(pkg, 0).longVersionCode }.getOrNull()
+        return Facts(appLabel, parsed, tiles, settings, usable, background, problems, signer, signers, version)
+    }
+
+    private fun describe(context: Context, pm: PackageManager, app: ApplicationInfo): Extension {
+        val pkg = app.packageName
+        val f = facts(pm, app)
+        val parsed = f.parsed
+        // What it has changed while running (new words, taken away, lines it added) is applied on top.
+        val items = if (parsed is ManifestParser.Result.Ok) ItemOverrides.apply(f.usableItems, ExtensionItemStore.get(context, pkg)) else emptyList()
+        val signer = f.signer
         val allowance = ExtensionStore.get(context, pkg)
         val matches = allowance != null && signer != null && signerMatches(pm, pkg, allowance.signer, signer)
         val declared = (parsed as? ManifestParser.Result.Ok)?.manifest?.capabilities.orEmpty()
         val granted = if (parsed is ManifestParser.Result.Ok) ExtensionAccess.granted(declared, allowance, matches) else emptySet()
         // The catalog's withdrawn list, from the copy kept on the TV (no network here). Withdrawn means off, and what was
-        // allowed is forgotten, so it has to be allowed again by a person if it ever comes back.
-        val installedVersion = runCatching { pm.getPackageInfo(pkg, 0).longVersionCode }.getOrNull()
-        val revocation = CatalogClient.cachedCatalog(context)?.let { CatalogRules.revocation(it, pkg, installedVersion, signer) }
+        // allowed is forgotten, so it has to be allowed again by a person if it ever comes back. A line naming a signer
+        // applies to the app if ANY certificate in its signing history is that signer, so rotating to a new key doesn't dodge it.
+        val revocation = CatalogClient.cachedCatalog(context)
+            ?.let { CatalogRules.revocationBySigners(it, pkg, f.versionCode, f.signers + listOfNotNull(signer)) }
         if (revocation != null && allowance != null) disallow(context, pkg)
         val (state, effective) = ExtensionAccess.withRevocation(ExtensionAccess.state(parsed, allowance, matches), granted, revocation)
-        return Extension(pkg, appLabel, parsed, tiles, settings, items, background, problems, signer, state, effective, revocation?.reason)
+        return Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason)
     }
 
     private fun readManifest(pm: PackageManager, app: ApplicationInfo): ManifestParser.Result {
@@ -202,13 +255,20 @@ object ExtensionRegistry {
 
     // ---------- Signers ----------
 
-    /** One fingerprint for everyone who signed the app now, or null if it can't be read. */
-    private fun signerOf(pm: PackageManager, packageName: String): String? = try {
+    /**
+     * Who signed the app: one fingerprint for everyone who signed it now (what an approval is pinned to), and a hash for
+     * every certificate in its signing history (what a withdrawal is matched against). Null and empty if unreadable.
+     */
+    private fun signersOf(pm: PackageManager, packageName: String): Pair<String?, Set<String>> = try {
         val info = pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong()))
-        info.signingInfo?.apkContentsSigners?.takeIf { it.isNotEmpty() }
+        val signing = info.signingInfo
+        val current = signing?.apkContentsSigners?.takeIf { it.isNotEmpty() }
             ?.let { signers -> ExtensionAccess.combineSigners(signers.map { ExtensionAccess.sha256Hex(it.toByteArray()) }) }
+        val every = (if (signing?.hasMultipleSigners() == true) signing.apkContentsSigners else signing?.signingCertificateHistory)
+            .orEmpty().map { ExtensionAccess.sha256Hex(it.toByteArray()) }.toSet()
+        current to every
     } catch (e: Exception) {
-        null
+        null to emptySet()
     }
 
     /**
