@@ -29,7 +29,11 @@ data class Extension(
     val revokedReason: String? = null
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
-    val name: String get() = manifest?.label ?: appLabel
+    /**
+     * What it is called: its own name, or, if its extension file isn't usable, its app's label, unless that too would pass
+     * for part of Portal or Android, in which case its package name (which can't be chosen to look like anything else).
+     */
+    val name: String get() = manifest?.label ?: if (TextSafety.isPlain(appLabel) && Impersonation.reason(appLabel) == null) appLabel else packageName
 }
 
 /**
@@ -102,8 +106,13 @@ object ExtensionRegistry {
      * An adult allows [capabilities] for [packageName] (only ones it asks for count). This pins the signer it has now. It
      * does nothing for an extension that can't be used, and returns whether anything was saved.
      */
-    fun allow(context: Context, packageName: String, capabilities: Set<String>): Boolean {
+    fun allow(
+        context: Context, packageName: String, capabilities: Set<String>,
+        /** Who signed it, and what it asks for, as the adult saw them; if either has changed since, nothing is saved. */
+        shownSigner: String? = null, shownDeclared: Set<String>? = null, checkShown: Boolean = false
+    ): Boolean {
         val ext = find(context, packageName) ?: return false
+        if (checkShown && !ExtensionAccess.sameAsShown(shownSigner, ext.signer, shownDeclared, ext.manifest?.capabilities)) return false
         // A withdrawn extension can't be allowed, whatever is asked.
         if (ext.state == ExtensionState.REVOKED) return false
         val manifest = ext.manifest ?: return false

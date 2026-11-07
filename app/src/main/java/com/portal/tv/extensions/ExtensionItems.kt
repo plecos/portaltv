@@ -43,11 +43,6 @@ object ExtensionItems {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    /** The button's own icon, or null if it has none or it can't be read. */
-    fun iconOf(context: Context, shown: ShownItem): Drawable? {
-        if (shown.item.iconRes == 0) return null
-        return runCatching {
-            context.packageManager.getResourcesForApplication(shown.packageName).getDrawable(shown.item.iconRes, null)
-        }.getOrNull()
-    }
+    /** The button's own icon, or null if it has none, it is too big, or it can't be read. */
+    fun iconOf(context: Context, shown: ShownItem): Drawable? = SafeIcons.of(context, shown.packageName, shown.item.iconRes)
 }

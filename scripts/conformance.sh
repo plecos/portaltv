@@ -134,6 +134,12 @@ echo "== allowed, but a kid profile is in use"
 seed 2 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite kid 6
 
+echo "== arguments of any type, from an extension nobody allowed and from one allowed everything"
+seed 1 "$SIGNER" ""
+run_suite extras 6
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
+run_suite extras 6
+
 echo "== allowed: reminders"
 seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite reminders 14

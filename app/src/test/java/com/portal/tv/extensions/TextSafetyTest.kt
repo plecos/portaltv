@@ -89,3 +89,26 @@ class TextSafetyTest {
         assertTrue(r.catalog.extensions.isEmpty())
     }
 }
+
+class AllowCheckTest {
+    @Test
+    fun anApprovalIsOnlyForWhatWasShown() {
+        val caps = setOf("tiles", "cards")
+        assertTrue(ExtensionAccess.sameAsShown("A", "A", caps, setOf("tiles", "cards")))
+        // The app was replaced by one with another signer, or one asking for more, while the page was open.
+        assertFalse(ExtensionAccess.sameAsShown("A", "B", caps, caps))
+        assertFalse(ExtensionAccess.sameAsShown("A", "A", caps, caps + "background"))
+        assertFalse(ExtensionAccess.sameAsShown("A", null, caps, caps))
+        assertFalse(ExtensionAccess.sameAsShown("A", "A", caps, null))
+    }
+
+    @Test
+    fun picturesFromOtherAppsAreKeptSmall() {
+        assertTrue(SafeIcons.allowed(96, 96))
+        assertTrue(SafeIcons.allowed(SafeIcons.MAX_SIDE, SafeIcons.MAX_SIDE))
+        assertFalse(SafeIcons.allowed(SafeIcons.MAX_SIDE + 1, 10))
+        assertFalse(SafeIcons.allowed(10000, 10000))
+        assertFalse(SafeIcons.allowed(0, 10))
+        assertFalse(SafeIcons.allowed(-1, -1))
+    }
+}

@@ -49,20 +49,12 @@ object ExtensionTiles {
         return Target(packageName, intent)
     }
 
-    private fun iconOf(context: Context, packageName: String, tile: ExtensionTile): Drawable {
-        val pm = context.packageManager
-        if (tile.iconRes != 0) {
-            runCatching { pm.getResourcesForApplication(packageName).getDrawable(tile.iconRes, null) }.getOrNull()?.let { return it }
-        }
-        return pm.getApplicationIcon(packageName)
-    }
+    private fun iconOf(context: Context, packageName: String, tile: ExtensionTile): Drawable =
+        SafeIcons.of(context, packageName, tile.iconRes) ?: SafeIcons.appIconOrGeneric(context, packageName)
 }
 
 /** The picture for an extension itself: the one it names in its manifest, else its app's icon. */
 object ExtensionIcons {
-    fun of(context: Context, packageName: String, iconRes: Int): Drawable? {
-        val pm = context.packageManager
-        if (iconRes != 0) runCatching { pm.getResourcesForApplication(packageName).getDrawable(iconRes, null) }.getOrNull()?.let { return it }
-        return runCatching { pm.getApplicationIcon(packageName) }.getOrNull()
-    }
+    fun of(context: Context, packageName: String, iconRes: Int): Drawable =
+        SafeIcons.of(context, packageName, iconRes) ?: SafeIcons.appIconOrGeneric(context, packageName)
 }

@@ -312,8 +312,9 @@ class ExtensionsPage(
     }
 
     private fun save(ext: Extension, capabilities: Set<String>) {
-        if (!ExtensionRegistry.allow(context, ext.packageName, capabilities)) {
-            Toast.makeText(context, "That extension can't be changed right now", Toast.LENGTH_SHORT).show()
+        // What is saved is checked against what was on this page: if the app was replaced meanwhile, nothing is saved.
+        if (!ExtensionRegistry.allow(context, ext.packageName, capabilities, ext.signer, ext.manifest?.capabilities, checkShown = true)) {
+            Toast.makeText(context, "That extension changed, or can't be changed right now. Open it again to see it as it is now", Toast.LENGTH_LONG).show()
         }
         refresh(ext.packageName)
     }
@@ -334,6 +335,12 @@ class ExtensionsPage(
 
     /** Runs [action] now, or after the parent PIN is entered if one is set. */
     private fun withPin(action: () -> Unit) {
-        if (ParentPin.isSet(context)) PinDialogs.verify(context, "Parent PIN to change extensions") { action() } else action()
+        if (ParentPin.isSet(context)) PinDialogs.verify(context, "Parent PIN to change extensions") { action() }
+        // With no PIN, anyone using an adult profile could allow things. Like a kid's settings, a PIN is set first.
+        else PinDialogs.create(
+            context,
+            message = "A parent PIN is needed to change what extensions can do. ${ParentPin.MIN_LENGTH} digits.",
+            onSet = action
+        )
     }
 }

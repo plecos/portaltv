@@ -31,7 +31,7 @@ object Capability {
         SETTINGS -> "Add a settings page"
         BAR -> "Add buttons or text to the top bar, beside your profile, search and settings"
         CLOCK -> "Add buttons or text under the time and weather"
-        BACKGROUND -> "Draw the background of your home screen, if you choose it in Settings, Background"
+        BACKGROUND -> "Draw the background of your home screen, if you choose it in Settings, Background. It keeps running, and can use the network, while the home screen shows"
         REMINDERS -> "Add and change its own reminders"
         CARDS -> "Show cards over other apps"
         else -> "Something this version of Portal doesn't know ($capability)"

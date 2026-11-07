@@ -33,6 +33,14 @@ object ExtensionAccess {
         return Capability.known.filter { it in declared && it in allowance.capabilities }.toCollection(linkedSetOf())
     }
 
+    /**
+     * Whether the extension is still what the adult was shown: signed by the same signer, asking for the same things. The
+     * Allow page shows a snapshot; saving checks this first, so replacing the app while the page is open can't get an
+     * approval for something that was never seen.
+     */
+    fun sameAsShown(shownSigner: String?, nowSigner: String?, shownDeclared: Set<String>?, nowDeclared: Set<String>?): Boolean =
+        shownSigner == nowSigner && shownDeclared == nowDeclared
+
     /** A withdrawn extension is switched off whatever was allowed: nothing is granted, and its state says why. */
     fun withRevocation(state: ExtensionState, granted: Set<String>, revocation: CatalogRevocation?): Pair<ExtensionState, Set<String>> =
         if (revocation != null) ExtensionState.REVOKED to emptySet() else state to granted

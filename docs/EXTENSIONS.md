@@ -266,6 +266,18 @@ scripts/conformance.sh
 - A change to what an extension may do takes effect on its next call. Turning a capability off also removes what the
   extension made with it, and uninstalling an extension removes everything Portal kept for it at once.
 
+## Names, text and limits
+
+- An extension's name, its tiles' names and its buttons' words can't pass for Portal or Android ("Portal", "Settings",
+  "Parent PIN", "Update", and so on); an extension that does is unusable, and its own app label is used only if it is clean,
+  otherwise its package name. Text can't contain control, invisible or direction-changing characters. See
+  [CATALOG.md](CATALOG.md#names-that-pass-for-portal).
+- Every host call counts against 120 calls a minute per extension (reads too), before anything else happens; changes also have
+  their own lower limit. A caller that isn't allowed anything is refused before its arguments are read.
+- Pictures an extension supplies (icons) must be no larger than 512 pixels a side; a bigger one, or one that can't be read, is
+  replaced by a generic icon.
+- Changing what an extension may do, or installing one, asks for the parent PIN, and asks you to set one first if there is none.
+
 ## A withdrawn extension
 
 The catalog ([CATALOG.md](CATALOG.md#when-the-catalog-withdraws-an-extension)) can withdraw an extension or everything a signer

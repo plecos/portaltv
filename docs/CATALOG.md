@@ -24,8 +24,8 @@ This page is the format and how Portal shows it. The checks that run before anyt
 | Field | Meaning |
 |---|---|
 | `format` | Whole number. Portal reads the formats it knows and ignores a file with a higher one. |
-| `serial` | Whole number from 1, up by at least one with every published catalog. Required for a signed catalog (all of them). See [Signing](#signing). |
-| `expires` | A date like `2027-01-31`. After the end of that day Portal pauses installing from this catalog until a newer one is published; listing and withdrawals still work. Optional. |
+| `serial` | Whole number from 1, up by at least one with every published catalog. **Required.** See [Signing](#signing). |
+| `expires` | A date like `2027-05-05`. **Required**, and at most a year away. After the end of that day Portal pauses installing from this catalog until a newer one is published; listing and withdrawals still work. The signing tool's default is 180 days. |
 | `updated` | Free text date, shown to the person. Optional. |
 | `extensions` | Up to 500 entries. |
 | `revoked` | Up to 1000 lines. Optional. |
@@ -154,7 +154,10 @@ from the TV). It also lists two entries that must be refused: a wrong checksum a
 A line in the [revoked list](#the-revoked-list) reaches extensions that are already installed.
 
 - **Checked against what is installed:** each installed extension is matched by its package, its installed version code and
-  its signer. A line that names only a signer withdraws everything that person signed.
+  its signer. A line that names only a signer withdraws everything that person signed, and it matches **every certificate the
+  app has ever been signed with** (its rotation history, and each signer of an app with several), so rotating to a new key or
+  adding a second signer doesn't dodge a withdrawal. A line that names a version is dodged by a new version code: withdraw by
+  package or by signer when the problem is the author.
 - **Switched off:** a withdrawn extension is **Withdrawn**. Nothing is granted to it (tiles, items, background, reminders,
   cards, host calls), what was allowed is forgotten, and it can't be allowed again while it is withdrawn. Its page shows the
   reason and **Uninstall**. If the line is later removed, it comes back as "Not allowed": an adult has to allow it again.
@@ -198,14 +201,29 @@ stays in use. Checking works the same on every Android version Portal runs on (t
 
 ### Old copies and stale copies
 
-A signed catalog is still only a snapshot, so two more rules close the gaps a signature alone leaves:
+A signed catalog is still only a snapshot, so rules close the gaps a signature alone leaves:
 
-- **`serial` never goes down.** Portal remembers the highest serial it has accepted and refuses a catalog with a lower one,
-  so an old signed copy (from before a withdrawal) can't be put back in front of it.
-- **`expires` limits how long a frozen catalog helps an attacker.** Someone who can block the real host and serve a
-  perfectly valid but old catalog is limited by the date in it. Past it, installing is paused (with a message), and
-  withdrawals already known stay in force. Choose it so there is time to publish again (say 60 to 90 days ahead) and move it
-  with every publication.
+- **`serial` never goes down.** Portal remembers the highest serial it has accepted and refuses a lower one, so an old signed
+  copy (from before a withdrawal) can't be put back in front of it. Each Portal release also has a minimum serial built in
+  (`CatalogPolicy.MIN_SERIAL`, raised when you release), so a TV with no history can't be shown a catalog older than its own
+  release, and a cleared Portal or a new TV doesn't start from zero.
+- **`expires` is required, and at most a year ahead.** It limits how long a frozen catalog helps an attacker: someone who can
+  stand in for the host could otherwise serve a perfectly valid but old catalog for ever. A catalog with no `expires`, or one
+  claiming more than a year, is refused. Past its date, installing is paused with a message, and withdrawals already known stay
+  in force. The default is **180 days**: long enough that a missed month doesn't matter, short enough that an unmaintained
+  catalog stops installing within half a year.
+- **Expiry is judged by a time Portal can trust.** TVs often have a wrong clock, so Portal uses the later of the TV's clock and
+  the latest date (the HTTP `Date` header) a catalog host has told it. A TV whose clock was reset to 1970 can't make an old
+  catalog look current, and a host can't turn time back. A clock that runs fast can cause an early pause, which correcting the
+  clock ends.
+
+### If the maintainer can't publish
+
+Nothing breaks. Extensions already installed keep working and withdrawals already known stay in force; only new publications
+stop. When `expires` passes, installing and updating from the catalog pause (Browse still lists, and an extension can still be
+sideloaded). If the private key is lost, nothing more can be published at all, with or without expiry; recovery is a new Portal
+release carrying a new public key. To avoid depending on one person, `CatalogTrust.RELEASE_KEYS` accepts several keys: a second
+trusted maintainer can hold a second key, either of which can sign.
 
 ### Setting up the key (once)
 
@@ -221,12 +239,13 @@ check against); debug builds also trust a test key whose private half is in `doc
 
 ### Publishing
 
-1. Build `catalog.json` from the entries (the catalog repository's job), with a `serial` one higher than the last and a new
-   `expires`.
-2. Check it: `scripts/validate-catalog.sh catalog.json`.
-3. Sign it, on the machine that holds the key:
+1. Build `catalog.json` from the entries (the catalog repository's job).
+2. Stamp it: `java scripts/CatalogSign.java stamp catalog.json` sets `serial` (one more than before), `updated` (today) and
+   `expires` (today plus 180 days; `--days N` for another length, up to 365; `--serial N` to set it).
+3. Check it: `scripts/validate-catalog.sh catalog.json` (refuses a catalog with no serial, no expiry, or one too far ahead).
+4. Sign it, on the machine that holds the key:
    `java scripts/CatalogSign.java sign portal-catalog.private portal-2026-1 catalog.json` (writes `catalog.json.sig`).
-4. Publish both files together. (`java scripts/CatalogSign.java verify portal-catalog.public catalog.json` checks a pair.)
+5. Publish both files together. (`java scripts/CatalogSign.java verify portal-catalog.public catalog.json` checks a pair.)
 
 ### Changing the key
 
@@ -240,3 +259,17 @@ only be protected by a Portal update that stops trusting that key, so keep it so
 `SERIAL=n` (serve a lower serial than the last accepted to see it refused), `BAD_SIGNATURE=1`, `UNSIGNED=1` and
 `EXPIRES=2020-01-01`. With `KEEP=1` it only restarts the server, leaving Portal and its kept catalog alone, so the next
 Refresh shows what happens to a TV that already has a copy.
+
+### Names that pass for Portal
+
+An extension's name, its tiles' names and its buttons' words appear in Portal's own style, so they can't be (or contain, as a
+word) "Portal", "Settings", "Android", "Google", "System", "Parent", "PIN", "Profile", "Update", "Search" or "Launcher",
+compared after folding fullwidth and look-alike letters; such an extension is shown as unusable, with the reason. Cards show
+the extension's name **and package**, and every item an extension adds to the home screen carries a small puzzle-piece mark.
+Text from extensions and the catalog can't contain control, invisible or direction-changing characters, or long runs of
+combining marks. Portal's PIN screen says it asks only in its own Settings and profile screens.
+
+### Screenshots
+
+Catalog entries can list screenshot links on authors' servers. Portal does not load them: doing so would tell the author a TV is
+browsing. If they are ever shown, they must be fetched through the catalog's host, never from the author's.

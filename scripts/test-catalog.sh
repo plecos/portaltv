@@ -16,11 +16,16 @@
 #   SERIAL=5 scripts/test-catalog.sh        # the catalog's serial (default 1): serve a lower one than before to see it refused
 #   EXPIRES=2020-01-01 scripts/test-catalog.sh   # an expired catalog: listing works, installing is paused
 #   BAD_SIGNATURE=1 / UNSIGNED=1 scripts/test-catalog.sh   # a catalog altered after signing, or with no signature: refused
+#   REVOKE_SIGNER=<sha256> scripts/test-catalog.sh   # the catalog withdraws everything signed by that key
 #   scripts/test-catalog.sh --off           # forget the test address
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PORT="${PORT:-8765}"
 HOST="${HOST:-10.0.2.2}"
+# Only this computer by default (the emulator reaches it at 10.0.2.2). A real TV on the network needs HOST set to this
+# computer's address, and then the server listens on the whole network for as long as it runs.
+BIND=127.0.0.1
+[ "$HOST" != "10.0.2.2" ] && BIND=0.0.0.0
 PREFS=shared_prefs/catalog_debug.xml
 
 if [ "${1:-}" = "--off" ]; then
@@ -82,6 +87,16 @@ json.dump(cat, open(p, "w"))
 PY
   echo "The catalog now withdraws net.getportaltv.sample."
 fi
+if [ -n "${REVOKE_SIGNER:-}" ]; then
+  python3 - "$SERVE" "$REVOKE_SIGNER" <<'PY'
+import json, sys, os
+p = os.path.join(sys.argv[1], "catalog.json")
+cat = json.load(open(p))
+cat.setdefault("revoked", []).append({"signer": sys.argv[2], "reason": "This signing key was stolen."})
+json.dump(cat, open(p, "w"))
+PY
+  echo "The catalog now withdraws everything signed by ${REVOKE_SIGNER:0:16}..."
+fi
 if [ -n "${UNLIST_SAMPLE:-}" ]; then
   python3 - "$SERVE" <<'PY'
 import json, sys, os
@@ -132,4 +147,4 @@ fi
 if [ -n "${UNSIGNED:-}" ]; then
   rm -f "$SERVE/catalog.json.sig"; echo "The catalog has no signature."
 fi
-cd "$SERVE" && exec python3 -m http.server "$PORT" --bind 0.0.0.0
+cd "$SERVE" && exec python3 -m http.server "$PORT" --bind "$BIND"

@@ -31,6 +31,15 @@ jobs:
           major_minor=$(grep '^VERSION_MAJOR_MINOR=' gradle.properties | cut -d= -f2)
           echo "VERSION=$major_minor.$(( $(git rev-list --count HEAD) - 1 ))" >> "$GITHUB_ENV"
 
+      # Portal reads a catalog only if it is signed by a key built into the app. A release with no key built in would refuse
+      # every catalog (and so never hear of a withdrawal), so it is not published. See docs/CATALOG.md, Signing.
+      - name: A catalog key must be built in
+        run: |
+          if grep -Eq 'RELEASE_KEYS: *List<Key> *= *emptyList\(\)' app/src/main/java/com/portal/tv/extensions/CatalogTrust.kt; then
+            echo "::error::CatalogTrust.RELEASE_KEYS is empty. Add the catalog's public key (java scripts/CatalogSign.java keygen) before releasing."
+            exit 1
+          fi
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -58,6 +67,15 @@ jobs:
           ./gradlew assembleRelease
           rm -f "$RUNNER_TEMP/portal-release.jks"
           cp app/build/outputs/apk/release/app-release.apk "portal-$VERSION.apk"
+
+      # Debug builds trust a test catalog key whose private half is public, so a debuggable APK must never be published.
+      - name: The APK must not be debuggable
+        run: |
+          aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          if "$aapt2" dump badging "portal-$VERSION.apk" | grep -q "application-debuggable"; then
+            echo "::error::The release APK is debuggable."
+            exit 1
+          fi
 
       - name: Publish the release
         env:
