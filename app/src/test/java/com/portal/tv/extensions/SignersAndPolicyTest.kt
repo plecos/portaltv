@@ -136,6 +136,18 @@ class SignersAndPolicyTest {
     }
 
     @Test
+    fun aCatalogThatPassesTheRulesCanNotLiftTheTimeFloorMoreThanAYearAhead() {
+        val now = at("2026-11-06")
+        // Dated 2062 in every field, as a catalog signed some other way could be: the expiry rule refuses it, and the floor
+        // is raised only for a catalog the rules let through.
+        val far = parsed("serial" to 5, "updated" to "2062-01-01", "expires" to "2062-06-01")
+        assertTrue(CatalogPolicy.check(far, now)!!.contains("more than a year"))
+        val fine = parsed("serial" to 5, "updated" to "2026-11-06", "expires" to "2027-05-05")
+        assertNull(CatalogPolicy.check(fine, now))
+        assertTrue(fine.updatedAtMs < now + 366L * 24 * 60 * 60 * 1000)
+    }
+
+    @Test
     fun theMinimumSerialIsAtLeastOne() {
         assertTrue(CatalogPolicy.MIN_SERIAL >= 1)
         assertTrue(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2027-05-05"), at("2026-11-06")) == null)

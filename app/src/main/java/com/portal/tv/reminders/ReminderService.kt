@@ -353,7 +353,7 @@ class ReminderService : Service() {
         fun showCard(context: Context, from: String, title: String, text: String, seconds: Int): Boolean = runCatching {
             context.startForegroundService(
                 Intent(context, ReminderService::class.java).setAction(ACTION_CARD)
-                    .putExtra(EXTRA_FROM, "via $from").putExtra(EXTRA_TITLE, title).putExtra(EXTRA_TEXT, text).putExtra(EXTRA_SECONDS, seconds)
+                    .putExtra(EXTRA_FROM, "from extension $from").putExtra(EXTRA_TITLE, title).putExtra(EXTRA_TEXT, text).putExtra(EXTRA_SECONDS, seconds)
             )
         }.onFailure { Log.w(TAG, "Couldn't show a card: ${it.message}") }.isSuccess
 
