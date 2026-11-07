@@ -33,7 +33,7 @@ object Places {
 
     /** How tall the mountains are, from 0 (none: the hills run to the horizon) to 1, in stretches that come and go in any place. */
     fun mountains(journey: Double): Float =
-        along(journey, 5200.0, 1800.0) { k -> if (k <= 0 || Noise.unit(k, 602) < 0.65f) 1f else 0f }
+        along(journey, 4000.0, 1800.0) { k -> if (k <= 0 || Noise.unit(k, 618) < 0.65f) 1f else 0f }
 
     private fun mix(a: Float, b: Float, t: Float) = a + (b - a) * t
 
