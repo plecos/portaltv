@@ -289,14 +289,14 @@ A name is your extension's name, a tile's name, a button's words, and a catalog 
 | --- | --- | --- |
 | A whole word that is one of: portal, settings, setting, android, google, system, parent, parents, pin, profile, profiles, update, search, launcher, parental, password, passcode | "Update", "Parent PIN", "My Settings page" | "Updates for my pets", "Searchlight", "Pinball" |
 | Those longer names anywhere once spaces and punctuation are ignored: portal, settings, android, google, launcher, parentpin, parental, passcode | "S e t t i n g s", "Portal-TV", "Google TV" | "Garage door" |
-| Look-alike letters are read as the Latin letter: accents are dropped, full-width letters are folded, and letters from other alphabets (Cyrillic, Greek and others) and symbols that look Latin are mapped to it. i, l and 1 count as the same letter, and so do q and g, and the digits 0 and 5 | "Sεttings", "Pörtal", "Sett1ngs", "Settlngs", "Settinqs", "p0rtal" | |
+| Look-alike letters are read as the Latin letter: accents are dropped, full-width letters are folded, and every character Unicode's own confusables list says is drawn like a Latin letter or digit (about 1,800, from Cyrillic, Greek, Lisu, Cherokee, Latin extensions and more) is mapped to it. On top of that, i, l and 1 count as the same letter, and so do q and g, and the digits 0 and 5 | "Sεttings", "Pörtal", "Sett1ngs", "Settlngs", "Settinqs", "p0rtal" | |
 | Letters from a rarely used alphabet (for example Lisu or Cherokee, whose capitals are drawn like Latin ones). Everyday alphabets (Latin, Cyrillic, Greek, Arabic, Hebrew, Armenian, Georgian, the Indic and South-East Asian ones, Ethiopic, Han, Hiragana, Katakana, Hangul) are fine | "ꓢꓰꓔꓔꓲꓠꓖꓢ" (Lisu), "ᏢᎾᎡᎢᎪᏞ" (Cherokee) | "Игра", "ゲーム" |
 | A word that mixes Latin letters with any other alphabet, except Han, Hiragana, Katakana, Hangul and Bopomofo | "Pօrtal", "ᑭortal", "Раrent" | "TVアプリ", "Игра" (all one alphabet) |
 | Hidden or confusing characters: control characters, zero-width and direction-changing characters, private-use or unassigned characters, more than 3 combining marks in a row | | |
 | A package name with a part that is portal, portaltv, getportal or getportaltv (split at dots, underscores and dashes, digits removed), or that has getportal or portaltv anywhere in it, or has portal together with settings, parental, parentpin, passcode, launcher, android or google | `tv.portal.settings`, `com.portal_tv.x`, `net.getportaltv2.app`, `com.myportal.settings`, `net.getportaltv.anything` | `net.example.garage`, `com.acme.portalclock` |
 
 A reserved package name is used only if the app is signed with Portal's own key. Everyone else should choose a package name of
-their own. A name that is refused makes the whole extension unusable, so fix it and install again.
+their own. The look-alike list is refreshed with `python3 scripts/gen-confusables.py confusables.txt` (the script says where to get the file). It only knows what Unicode lists, so names in rarely used alphabets are refused as well. A name that is refused makes the whole extension unusable, so fix it and install again.
 
 ## Names, text and limits
 

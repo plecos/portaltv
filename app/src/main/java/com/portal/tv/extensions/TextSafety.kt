@@ -84,16 +84,28 @@ object Impersonation {
      */
     internal fun looksLike(text: String, alternate: Boolean = false): String {
         val noAccents = Normalizer.normalize(Normalizer.normalize(text, Normalizer.Form.NFKC), Normalizer.Form.NFD)
-            .filter { Character.getType(it).toByte() != Character.NON_SPACING_MARK }
         val greek = if (alternate) ALTERNATE else PLAIN_GREEK
-        return noAccents.lowercase(Locale.ROOT).map { greek[it] ?: LOOKALIKES[it] ?: it }.joinToString("")
+        val out = StringBuilder(noAccents.length)
+        var i = 0
+        while (i < noAccents.length) {
+            val cp = noAccents.codePointAt(i)
+            i += Character.charCount(cp)
+            if (Character.getType(cp).toByte() == Character.NON_SPACING_MARK) continue
+            // Unicode's list first (every character it says is drawn like Latin), then the few extra readings kept here.
+            val unicode = Confusables.lookalikeOf(cp)
+            if (unicode != null) { out.append(unicode); continue }
+            val c = if (cp < 0x10000) cp.toChar() else null
+            val lower = if (c != null) c.lowercaseChar() else null
+            if (lower != null) out.append(greek[lower] ?: LOOKALIKES[lower] ?: lower) else out.appendCodePoint(cp)
+        }
+        return out.toString().lowercase(Locale.ROOT)
     }
 
     /** Letters that pass for each other in many typefaces (i, l and 1; q and g) are made one before comparing. */
     private fun same(text: String): String = text.replace('l', 'i').replace('q', 'g')
 
-    private val WORDS_SAME = WORDS.associateBy { same(it) }
-    private val INSIDE_SAME = INSIDE.associateBy { same(it) }
+    private val WORDS_SAME = WORDS.associateBy { same(looksLike(it)) }
+    private val INSIDE_SAME = INSIDE.associateBy { same(looksLike(it)) }
 
     private fun hit(folded: String): String? {
         val words = folded.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.map { same(it) }
@@ -158,9 +170,9 @@ object Impersonation {
      */
     private fun joinsPortalWithAnother(packageName: String): Boolean {
         val joined = same(looksLike(packageName.filter { it.isLetterOrDigit() }))
-        if (same("getportal") in joined || same("portaltv") in joined) return true
-        return same("portal") in joined && listOf("settings", "parental", "parentpin", "passcode", "launcher", "android", "google").any { same(it) in joined }
+        if (same(looksLike("getportal")) in joined || same(looksLike("portaltv")) in joined) return true
+        return same(looksLike("portal")) in joined && listOf("settings", "parental", "parentpin", "passcode", "launcher", "android", "google").any { same(looksLike(it)) in joined }
     }
 
-    private val RESERVED_SAME = RESERVED_PARTS.map { same(it) }.toSet()
+    private val RESERVED_SAME = RESERVED_PARTS.map { same(looksLike(it)) }.toSet()
 }
