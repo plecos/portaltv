@@ -213,8 +213,9 @@ A signed catalog is still only a snapshot, so rules close the gaps a signature a
   in force. The default is **180 days**: long enough that a missed month doesn't matter, short enough that an unmaintained
   catalog stops installing within half a year.
 - **Expiry is judged by a time Portal can trust.** TVs often have a wrong clock, so Portal uses the later of the TV's clock and
-  the latest date (the HTTP `Date` header) a catalog host has told it. A TV whose clock was reset to 1970 can't make an old
-  catalog look current, and a host can't turn time back. A clock that runs fast can cause an early pause, which correcting the
+  the latest `updated` day of a signed catalog it has used. Only signed content moves that time (an HTTP `Date` header is not
+  signed, so it is ignored). A TV whose clock was reset to 1970 can't make an old catalog look current, and nobody without the
+  signing key can push time forward or back. A clock that runs fast can cause an early pause, which correcting the
   clock ends.
 
 ### If the maintainer can't publish

@@ -63,7 +63,9 @@ data class Catalog(
      */
     val serial: Long = 0,
     /** When installing from this catalog is paused until a newer one is published (end of that day, UTC); 0 for never. */
-    val expiresAtMs: Long = 0
+    val expiresAtMs: Long = 0,
+    /** The day it was published (start of that day, UTC), from the signed file itself; 0 if `updated` isn't a date. */
+    val updatedAtMs: Long = 0
 ) {
     fun find(packageName: String): CatalogEntry? = extensions.firstOrNull { it.packageName == packageName }
 }
@@ -148,7 +150,8 @@ object CatalogParser {
                 if (r.second != null) problems += "Revoked line ${i + 1}: ${r.second}" else revoked += r.first!!
             }
         }
-        return Result.Ok(Catalog(updated, entries, revoked, serial, expiresAt), problems)
+        val updatedAt = runCatching { java.time.LocalDate.parse(updated).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrDefault(0L)
+        return Result.Ok(Catalog(updated, entries, revoked, serial, expiresAt, updatedAt), problems)
     }
 
     private sealed class Entry {

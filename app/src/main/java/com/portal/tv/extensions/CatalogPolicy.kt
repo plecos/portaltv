@@ -18,9 +18,9 @@ object CatalogPolicy {
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
     /**
-     * What time it is for the purpose of expiry: the later of the TV's clock and the latest date a catalog host has told
-     * Portal. A TV whose clock was reset to long ago (or never set) can't make an old catalog look current, and a host
-     * can't push time backwards. A clock that runs fast can cause an early pause, which a corrected clock ends.
+     * What time it is for the purpose of expiry: the later of the TV's clock and the latest publication day (`updated`) of a
+     * signed catalog Portal has used. A TV whose clock was reset to long ago (or never set) can't make an old catalog look
+     * current, and nothing unsigned can move it. A clock that runs fast can cause an early pause, which a corrected clock ends.
      */
     fun effectiveNow(deviceNowMs: Long, latestServerDateMs: Long): Long = maxOf(deviceNowMs, latestServerDateMs)
 
