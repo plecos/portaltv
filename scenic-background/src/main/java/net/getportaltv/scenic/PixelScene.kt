@@ -61,9 +61,9 @@ class PixelScene {
         drawClouds(s, 1)
         drawMountains(s, cam)
         drawHills(s, cam, 0.10f, 124, 18f, 0.022f, 11, rgb(98, 148, 96), 0.55f, 0.62f)
-        drawTreeLine(s, cam, 0.17f, 0.10f)
+        drawTreeLine(s, cam, 0.10f, 0.10f)
         drawHills(s, cam, 0.26f, 134, 14f, 0.028f, 29, rgb(84, 148, 78), 0.34f, 0.40f)
-        drawTreeLine(s, cam, 0.30f, 0.06f)
+        drawTreeLine(s, cam, 0.26f, 0.06f)
         drawField(s)
         drawRailway(s)
         drawPonds(s)
@@ -354,7 +354,7 @@ class PixelScene {
         }
     }
 
-    /** Small trees along the crest of the hills behind. */
+    /** Small trees along the crest of the hills behind: [factor] must be the same as the hills they stand on, or they drift off them. */
     private fun drawTreeLine(s: SceneState, cam: Double, factor: Float, air: Float) {
         spritePaint.colorFilter = filter(s, air + 0.22f + s.look.haze * 0.4f)
         val offset = floor(cam * factor)
