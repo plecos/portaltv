@@ -25,7 +25,7 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
 
 The journey passes through places that run into each other slowly (about a minute for each change), so the land changes
 gradually: trees thicken, farms thin out, the ground darkens. Today there are the **countryside** and the **forest** (dense firs
-and broad trees, big trees along the road, mist, more deer, and a log cabin now and then). The **Journey** setting takes turns
+and broad trees, big trees along the road, mist, more deer, a log cabin now and then, and very occasionally a covered bridge: the road runs through it, with the river coming out of the distance behind it and a plank footbridge over the water in front). The **Journey** setting takes turns
 between them, about two and a half minutes each; the others stay in one. In any place the mountains sometimes sink away to
 nothing and rise again. Each piece of scenery asks `Places` how much forest there is at its own place on the road, so nothing pops
 in or out as the change passes. In the preview, `--es place Forest` (or `Countryside`, `Journey`) picks one.
@@ -62,6 +62,7 @@ all the time, and `--ef cam 3000` starts the journey that many pixels along, and
 | --- | --- |
 | `Life.kt`, `LifeSprites.kt` | The people, animals, vehicles and sky life: when they appear and how they are drawn |
 | `Places.kt`, `Forest.kt` | Where the journey is (how much forest at each point) and what only the forest has |
+| `Bridge.kt` | The covered bridge and its river |
 | `Astronomy.kt` | Sun and moon positions and phase, tested against known dates |
 | `Look.kt` | The light: sky, tint, clouds and fog from the sun's height and the weather |
 | `Conditions.kt` | The weather as numbers, and how it eases from one to another |

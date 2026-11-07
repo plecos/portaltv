@@ -52,6 +52,7 @@ class PixelScene {
     fun render(s: SceneState) {
         val l = s.look
         val cam = s.cam
+        s.bridges = s.findBridges()
         drawSky(s)
         drawStars(s)
         drawSun(s)
@@ -65,6 +66,7 @@ class PixelScene {
         drawHills(s, cam, 0.26f, 134, 14f, 0.028f, 29, rgb(84, 148, 78), 0.34f, 0.40f)
         drawTreeLine(s, cam, 0.26f, 0.06f)
         drawField(s)
+        drawRiverBehind(s)
         drawRailway(s)
         drawPonds(s)
         drawFieldAnimals(s)
@@ -74,7 +76,9 @@ class PixelScene {
         drawButterflies(s)
         drawFence(s, cam)
         drawRoad(s, cam)
+        drawRiverFront(s)
         drawTraffic(s)
+        drawBridge(s)
         drawWalkers(s)
         drawBirds(s)
         drawBats(s)
@@ -441,6 +445,7 @@ class PixelScene {
                 val x = left + (Noise.unit(i, if (t < 7) 20 + t else 320 + t) * chunk).toInt()
                 val y = FIELD_TOP + 6 + (depth * 12f).toInt()
                 if (cabin && kotlin.math.abs(x - cabinX - 10) < 30) continue
+                if (wood && s.riverCovers(x, y, 8)) continue
                 val kind = Noise.unit(i, if (t < 7) 30 + t else 340 + t)
                 val swing = (sin(s.time * 1.7 + x * 0.1) * sway * 1.1).roundToInt()
                 when {
@@ -685,6 +690,7 @@ class PixelScene {
         val firstTuft = floor(tuftOffset / 13).toInt() - 1
         for (i in firstTuft..firstTuft + W / 13 + 2) {
             val x = (i * 13 + Noise.unit(i, 90) * 9 - tuftOffset).toInt()
+            if (s.riverCovers(x, H - 3, 2)) continue
             val h = 2 + (Noise.unit(i, 91) * 4).toInt()
             val sway = (sin(s.time * 2.0 + i) * min(1f, s.cond.wind / 25f)).roundToInt()
             fill(x + sway, H - h - 1, x + 1 + sway, H - 1, grassDark)

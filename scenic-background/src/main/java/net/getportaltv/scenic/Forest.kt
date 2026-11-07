@@ -27,6 +27,7 @@ internal fun PixelScene.drawRoadsideTrees(s: SceneState) {
         val f = s.forestAt(worldX.toDouble(), factor)
         if (f <= 0f || Noise.unit(i, 622) > f * 0.85f) continue
         val x = (worldX - offset).toInt()
+        if (s.riverCovers(x, ROAD_TOP - 2, 12)) continue
         val tree = if (Noise.unit(i, 623) < 0.6f) bigFirs[(Noise.unit(i, 624) * bigFirs.size).toInt().coerceIn(0, bigFirs.size - 1)]
         else bigBroads[(Noise.unit(i, 624) * bigBroads.size).toInt().coerceIn(0, bigBroads.size - 1)]
         val sway = (sin(s.time * 1.3 + i) * minOf(1f, s.cond.wind / 30f)).toFloat().let { Math.round(it) }
