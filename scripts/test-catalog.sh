@@ -136,6 +136,9 @@ import json, sys, os
 p = os.path.join(sys.argv[1], "catalog.json")
 cat = json.load(open(p))
 cat["expires"] = sys.argv[2]
+# A catalog that has expired was published before it expired, so its publication day is moved back too.
+import datetime
+cat["updated"] = (datetime.date.fromisoformat(sys.argv[2]) - datetime.timedelta(days=1)).isoformat()
 json.dump(cat, open(p, "w"))
 PY
 fi
