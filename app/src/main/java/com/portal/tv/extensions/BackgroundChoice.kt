@@ -42,10 +42,11 @@ object BackgroundChoice {
 
     /**
      * Decides whether to use an extension's background. [extension] is the one chosen (null if none); [granted] is what it
-     * may do right now and [hasService] whether it offers a background that Portal can bind to. A kid profile never uses one.
+     * may do right now and [hasService] whether it offers a background that Portal can bind to. A kid profile uses one only if
+     * a parent has allowed it for that kid ([kidAllowed]).
      */
-    fun resolve(extension: String?, granted: Set<String>, hasService: Boolean, kid: Boolean): Use = when {
-        kid -> Use.Own("Not for kid profiles.")
+    fun resolve(extension: String?, granted: Set<String>, hasService: Boolean, kid: Boolean, kidAllowed: Boolean = false): Use = when {
+        kid && !kidAllowed -> Use.Own("A parent hasn't allowed an extension background for this kid.")
         extension == null -> Use.Own("No extension is chosen.")
         Capability.BACKGROUND !in granted -> Use.Own("It isn't allowed to draw the background.")
         !hasService -> Use.Own("It has no background Portal can open.")

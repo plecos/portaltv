@@ -78,6 +78,7 @@ class ExtensionsPage(
     private fun render(all: List<Extension>, focusPackage: String?) {
         list.removeAllViews()
         renderRows(all, focusPackage)
+        renderKidsBackground(all)
         list.addView(TextView(context).apply {
             text = "Browse extensions"
             textSize = 18f
@@ -93,6 +94,73 @@ class ExtensionsPage(
                 .apply { topMargin = px(16) }
             setOnClickListener { onBrowse() }
         })
+    }
+
+    /**
+     * One row per kid profile with Off and On for whether they may choose an extension's animated background. It is shown when
+     * there are kid profiles and an extension an adult allowed to draw the background. Changing it needs the parent PIN, and a
+     * kid's Settings never shows this page.
+     */
+    private fun renderKidsBackground(all: List<Extension>) {
+        if (all.none { Capability.BACKGROUND in it.granted && it.backgroundService != null }) return
+        val kids = com.portal.tv.repo.ProfileManager.getAll(context).filter { it.isKids }
+        if (kids.isEmpty()) return
+        list.addView(TextView(context).apply {
+            text = "Kids and animated backgrounds"
+            textSize = 16f
+            setTextColor(context.resources.getColor(R.color.text_secondary, null))
+            setPadding(0, px(18), 0, px(2))
+        })
+        list.addView(TextView(context).apply {
+            text = "A kid can choose an extension's animated background only if you turn it on for them here."
+            textSize = 14f
+            setTextColor(context.resources.getColor(R.color.text_secondary, null))
+            setPadding(0, 0, 0, px(8))
+        })
+        val tiles = mutableListOf<Triple<com.portal.tv.data.Profile, Boolean, TextView>>()
+        fun restyle() = tiles.forEach { (kid, on, tile) ->
+            val chosen = com.portal.tv.settings.BackgroundSettings.kidCanPickExtension(context, kid.id) == on
+            tile.setBackgroundResource(if (chosen) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tile.setTextColor(context.resources.getColor(if (chosen) R.color.text_primary else R.color.text_secondary, null))
+        }
+        kids.forEach { kid ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = px(8) }
+            }
+            row.addView(TextView(context).apply {
+                text = kid.name
+                textSize = 18f
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(context.resources.getColor(R.color.text_primary, null))
+                layoutParams = LinearLayout.LayoutParams(px(210), ViewGroup.LayoutParams.WRAP_CONTENT)
+            })
+            listOf("Off" to false, "On" to true).forEach { (label, on) ->
+                val tile = TextView(context).apply {
+                    text = label
+                    textSize = 17f
+                    typeface = context.resources.getFont(R.font.inter)
+                    gravity = Gravity.CENTER
+                    setPadding(px(20), 0, px(20), 0)
+                    minHeight = px(44)
+                    isFocusable = true
+                    contentDescription = "${kid.name}: animated background $label. Select to change."
+                    layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = px(8) }
+                    setOnClickListener {
+                        if (com.portal.tv.settings.BackgroundSettings.kidCanPickExtension(context, kid.id) == on) return@setOnClickListener
+                        withPin {
+                            com.portal.tv.settings.BackgroundSettings.setKidCanPickExtension(context, kid.id, on)
+                            restyle()
+                        }
+                    }
+                }
+                tiles += Triple(kid, on, tile)
+                row.addView(tile)
+            }
+            list.addView(row)
+        }
+        restyle()
     }
 
     private fun renderRows(all: List<Extension>, focusPackage: String?) {

@@ -1179,17 +1179,20 @@ class SettingsFragment : Fragment() {
             onBackgroundChanged?.invoke()
         }
 
-        // "Extension" is offered when an extension that an adult allowed to draw the background is installed (never for kids).
+        // "Extension" is offered when an extension that an adult allowed to draw the background is installed. A kid is offered it
+        // only if a parent turned it on for them (Settings, Extensions).
         val context = requireContext()
         val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
+        val kidId = com.portal.tv.repo.ProfileManager.getActiveId(context)
+        val kidMay = kid && kidId != null && BackgroundSettings.kidCanPickExtension(context, kidId)
         viewLifecycleOwner.lifecycleScope.launch {
-            val drawers = if (kid) emptyList() else withContext(Dispatchers.IO) {
+            val drawers = if (kid && !kidMay) emptyList() else withContext(Dispatchers.IO) {
                 com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
                     com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
                 }
             }
             val inUse = BackgroundSettings.getMode(context) == com.portal.tv.extensions.BackgroundChoice.MODE
-            extension.visibility = if (drawers.isNotEmpty() || (inUse && !kid)) View.VISIBLE else View.GONE
+            extension.visibility = if (drawers.isNotEmpty() || (inUse && (!kid || kidMay))) View.VISIBLE else View.GONE
             extension.setOnClickListener {
                 val choose = { pkg: String ->
                     BackgroundSettings.setExtension(context, pkg)

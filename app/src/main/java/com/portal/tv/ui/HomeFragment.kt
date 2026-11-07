@@ -369,7 +369,9 @@ class HomeFragment : Fragment() {
                 dimOverlay.visibility = View.VISIBLE
                 val context = requireContext()
                 val chosen = BackgroundSettings.getExtension(context)
-                val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
+                val profile = com.portal.tv.repo.ProfileManager.getActive(context)
+                // A kid gets it only if a parent turned it on for them (the background view checks again before it draws).
+                val kid = profile?.isKids == true && !(profile != null && BackgroundSettings.kidCanPickExtension(context, profile.id))
                 if (chosen == null || kid || this.view == null) {
                     // The home screen's view is gone (Settings is open over it): the extension is started when it is back.
                     showShader()

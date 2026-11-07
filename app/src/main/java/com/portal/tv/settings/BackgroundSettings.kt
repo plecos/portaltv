@@ -169,6 +169,23 @@ object BackgroundSettings {
         ProfilePrefs.write(context, PREFS, profileId) { putBoolean("kid_can_pick_video", allowed) }
     }
 
+    /**
+     * Whether a parent has let a kid profile choose an extension's animated background. Like the video choice, it is kept in
+     * the kid's own file but read and written for whichever profile is asked about, so a parent can set it.
+     */
+    fun kidCanPickExtension(context: Context, profileId: Int): Boolean =
+        context.getSharedPreferences("$PREFS.profile_$profileId", Context.MODE_PRIVATE)
+            .getBoolean("kid_can_pick_extension", false)
+
+    /** Turning it off also takes the kid off an extension background they were using, back to Portal's own. */
+    fun setKidCanPickExtension(context: Context, profileId: Int, allowed: Boolean) {
+        val inUse = context.getSharedPreferences("$PREFS.profile_$profileId", Context.MODE_PRIVATE).getString("mode", null) == "extension"
+        ProfilePrefs.write(context, PREFS, profileId) {
+            putBoolean("kid_can_pick_extension", allowed)
+            if (!allowed && inUse) putString("mode", "shader")
+        }
+    }
+
     /** Forgets this profile's background choices, e.g. when it is deleted. */
     fun clearForProfile(context: Context, profileId: Int) = ProfilePrefs.clear(context, PREFS, profileId)
 }

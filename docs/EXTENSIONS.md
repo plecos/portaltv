@@ -247,7 +247,8 @@ What Portal does with it:
 - If you don't answer within 5 seconds, your process stops, you are no longer allowed, or you are signed by someone else now,
   Portal goes back to its own gradient and keeps the choice, trying you again the next time the home screen opens.
 - You are asked to stop whenever the home screen isn't showing (another app, the screen saver), and started again when it is back.
-- Kid profiles never use it.
+- A kid profile uses it only if a parent has turned it on for that kid, under Settings, Extensions (a section that appears once there are
+  kid profiles and an extension allowed to draw the background). Turning it off puts the kid back on Portal's own background.
 
 ## How Portal tests this
 
