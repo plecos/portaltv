@@ -150,7 +150,9 @@ object CatalogParser {
                 if (r.second != null) problems += "Revoked line ${i + 1}: ${r.second}" else revoked += r.first!!
             }
         }
+        // A publication day after the expiry would lift the time floor past the point the catalog stops installing.
         val updatedAt = runCatching { java.time.LocalDate.parse(updated).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrDefault(0L)
+        if (updatedAt > 0 && expiresAt > 0 && updatedAt >= expiresAt) return Result.Invalid("Its updated date is after its expires date.")
         return Result.Ok(Catalog(updated, entries, revoked, serial, expiresAt, updatedAt), problems)
     }
 

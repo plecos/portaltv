@@ -130,6 +130,12 @@ class SignersAndPolicyTest {
     }
 
     @Test
+    fun aCatalogPublishedAfterItExpiresIsRefused() {
+        val text = JSONObject().put("format", 1).put("serial", 5).put("updated", "2062-01-01").put("expires", "2027-05-05").put("extensions", JSONArray()).toString()
+        assertTrue(CatalogParser.parse(text) is CatalogParser.Result.Invalid)
+    }
+
+    @Test
     fun theMinimumSerialIsAtLeastOne() {
         assertTrue(CatalogPolicy.MIN_SERIAL >= 1)
         assertTrue(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2027-05-05"), at("2026-11-06")) == null)

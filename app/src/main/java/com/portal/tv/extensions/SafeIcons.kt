@@ -25,10 +25,10 @@ object SafeIcons {
     fun load(res: Resources, id: Int): Drawable? {
         if (id == 0) return null
         return try {
-            if (!sizeOk(res, id, 0)) return null
+            if (!sizeOk(res, id, 0, Budget())) return null
             val drawable = res.getDrawable(id, null) ?: return null
             // A vector can say any size; the size it reports is checked too.
-            if (drawable.intrinsicWidth > MAX_SIDE * 8 || drawable.intrinsicHeight > MAX_SIDE * 8) null else drawable
+            if (drawable.intrinsicWidth > MAX_SIDE || drawable.intrinsicHeight > MAX_SIDE) null else drawable
         } catch (t: Throwable) {
             null
         }
@@ -37,10 +37,11 @@ object SafeIcons {
     /**
      * Whether every picture that drawing [id] would decode is small enough, found by reading sizes only, never decoding a
      * big one. A picture file is checked by its size. A drawable made of XML (a `<bitmap>`, an adaptive icon, a layer list)
-     * is followed into the pictures it names, because such a wrapper can point at a huge one; an XML kind not known here is
+     * is followed into the pictures it names, because such a wrapper can point at a huge one or at hundreds (all of them together are
+     * held to a small budget); an XML kind not known here is
      * refused. Colors are fine.
      */
-    private fun sizeOk(res: Resources, id: Int, depth: Int): Boolean {
+    private fun sizeOk(res: Resources, id: Int, depth: Int, budget: Budget): Boolean {
         if (id == 0 || depth > MAX_DEPTH) return false
         val value = TypedValue()
         res.getValue(id, value, true)
@@ -50,7 +51,12 @@ object SafeIcons {
             // Only the size is read first; a big picture is never decoded.
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             res.openRawResource(id, value).use { BitmapFactory.decodeStream(it, null, bounds) }
-            return allowed(bounds.outWidth, bounds.outHeight)
+            if (!allowed(bounds.outWidth, bounds.outHeight)) return false
+            // Counted at the size it will be decoded: a picture made for a low-density screen is scaled up on this one.
+            val scale = if (value.density == 0 || value.density == TypedValue.DENSITY_NONE) 1.0 else res.displayMetrics.densityDpi.toDouble() / value.density
+            budget.pixels += bounds.outWidth.toDouble() * bounds.outHeight * scale * scale
+            budget.pictures++
+            return budget.pixels <= MAX_PIXELS && budget.pictures <= MAX_PICTURES
         }
         if (!file.endsWith(".xml")) return false
         val parser = res.getXml(id)
@@ -64,7 +70,7 @@ object SafeIcons {
                 }
                 for (attribute in REFERENCES) {
                     val target = parser.getAttributeResourceValue(ANDROID, attribute, 0)
-                    if (target != 0 && !sizeOk(res, target, depth + 1)) return false
+                    if (target != 0 && !sizeOk(res, target, depth + 1, budget)) return false
                 }
             }
             return !first
@@ -88,6 +94,10 @@ object SafeIcons {
 
     fun generic(context: Context): Drawable = context.getDrawable(R.drawable.ic_cat_extensions)!!
 
+    /** All the pictures one icon may name together (a layer list of hundreds is refused), counted by size once decoded. */
+    private const val MAX_PIXELS = 1_048_576.0
+    private const val MAX_PICTURES = 4
+    private class Budget(var pixels: Double = 0.0, var pictures: Int = 0)
     private const val MAX_DEPTH = 4
     private const val ANDROID = "http://schemas.android.com/apk/res/android"
     private val XML_KINDS = setOf("vector", "adaptive-icon", "layer-list", "inset", "bitmap", "rotate", "scale", "clip")

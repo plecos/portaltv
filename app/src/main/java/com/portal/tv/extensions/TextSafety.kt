@@ -54,8 +54,8 @@ object Impersonation {
     /** Longer names, refused wherever they appear once spaces and punctuation are ignored ("S e t t i n g s", "Portal-TV"). */
     private val INSIDE = listOf("portal", "settings", "android", "google", "launcher", "parentpin", "parental", "passcode")
 
-    /** Package names only Portal's own apps may use: a name like "net.getportaltv.settings" looks official on a card. */
-    private val RESERVED_PACKAGES = listOf("net.getportaltv", "com.portal.tv")
+    /** Package-name parts only Portal's own apps may use: a name like "tv.portal.settings" looks official on a card. */
+    private val RESERVED_PARTS = setOf("portal", "portaltv", "getportal", "getportaltv")
 
     /**
      * Letters from other alphabets (and Latin ones with strokes) that look like Latin ones, folded so "Pоrtal" (Cyrillic о)
@@ -68,10 +68,10 @@ object Impersonation {
         // Greek
         "α=a β=b γ=y ε=e ζ=z ι=i κ=k ν=v ο=o ρ=p τ=t υ=u χ=x ω=w ϲ=c ϳ=j ϸ=p".split(' ').forEach { put(it[0], it[2]) }
         // Latin with a stroke or no dot, and a few more
-        "ı=i ɩ=i ł=l ø=o đ=d ħ=h ɡ=g ᴏ=o ᴜ=u ᴠ=v ᴡ=w ᴢ=z ʟ=l ɴ=n ʀ=r ɪ=i ꜱ=s ᴅ=d ᴇ=e ᴛ=t ᴍ=m ᴘ=p ᴋ=k ᴄ=c ʏ=y ɑ=a ց=g ο=o".split(' ')
+        "ı=i ɩ=i ł=l ø=o đ=d ħ=h ɡ=g ᴏ=o ᴜ=u ᴠ=v ᴡ=w ᴢ=z ʟ=l ɴ=n ʀ=r ɪ=i ꜱ=s ᴅ=d ᴇ=e ᴛ=t ᴍ=m ᴘ=p ᴋ=k ᴀ=a ᴃ=b ᴊ=j ɢ=g ʜ=h ꜰ=f ᴉ=i ǀ=i ᴄ=c ʏ=y ɑ=a ց=g ο=o".split(' ')
             .forEach { put(it[0], it[2]) }
         // Digits that pass for letters
-        "0=o 1=l 5=s 3=e 4=a 7=t 8=b".split(' ').forEach { put(it[0], it[2]) }
+        "0=o 1=i 5=s 3=e 4=a 7=t 8=b".split(' ').forEach { put(it[0], it[2]) }
     }
 
     /** Greek letters that look different in capitals and in small letters: read the other way too. */
@@ -89,18 +89,41 @@ object Impersonation {
         return noAccents.lowercase(Locale.ROOT).map { greek[it] ?: LOOKALIKES[it] ?: it }.joinToString("")
     }
 
+    /** Letters that pass for each other in many typefaces (i, l and 1; q and g) are made one before comparing. */
+    private fun same(text: String): String = text.replace('l', 'i').replace('q', 'g')
+
+    private val WORDS_SAME = WORDS.associateBy { same(it) }
+    private val INSIDE_SAME = INSIDE.associateBy { same(it) }
+
     private fun hit(folded: String): String? {
-        val words = folded.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
-        val collapsed = folded.filter { it.isLetterOrDigit() }
-        return words.firstOrNull { it in WORDS } ?: INSIDE.firstOrNull { it in collapsed }
+        val words = folded.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.map { same(it) }
+        val collapsed = same(folded.filter { it.isLetterOrDigit() })
+        return words.firstNotNullOfOrNull { WORDS_SAME[it] } ?: INSIDE_SAME.entries.firstOrNull { it.key in collapsed }?.value
     }
+
+    /** True if a word mixes Latin letters with letters of another alphabet ("Pօrtal"): that is how lookalikes are made. */
+    private fun mixesAlphabets(text: String): Boolean = text.split(Regex("[^\\p{L}\\p{M}]+")).any { word ->
+        val scripts = word.codePoints().toArray().map { Character.UnicodeScript.of(it) }
+            .filter { it != Character.UnicodeScript.COMMON && it != Character.UnicodeScript.INHERITED }.toSet()
+        Character.UnicodeScript.LATIN in scripts && scripts.any { it in CONFUSABLE }
+    }
+
+    /** Alphabets with many letters that look like Latin ones. Japanese or Chinese next to Latin (as in "TVアプリ") is ordinary and is not refused. */
+    private val CONFUSABLE = setOf(
+        Character.UnicodeScript.CYRILLIC, Character.UnicodeScript.GREEK, Character.UnicodeScript.ARMENIAN,
+        Character.UnicodeScript.CHEROKEE, Character.UnicodeScript.COPTIC, Character.UnicodeScript.GEORGIAN, Character.UnicodeScript.LISU
+    )
 
     /** Why [text] can't be used as a name, or null if it can. */
     fun reason(text: String): String? {
+        if (mixesAlphabets(text)) return "mixes Latin letters with another alphabet's look-alikes in one word."
         val found = hit(looksLike(text)) ?: hit(looksLike(text, alternate = true))
         return if (found != null) "can pass for part of Portal or Android (\"$found\")." else null
     }
 
-    /** Whether [packageName] is one only Portal's own apps may use. */
-    fun isReservedPackage(packageName: String): Boolean = RESERVED_PACKAGES.any { packageName == it || packageName.startsWith("$it.") }
+    /** Whether [packageName] has a part (between dots) that is Portal's own name, however it is spelled to look like it. */
+    fun isReservedPackage(packageName: String): Boolean =
+        packageName.split('.').any { it.isNotEmpty() && (same(looksLike(it)) in RESERVED_SAME || same(looksLike(it, alternate = true)) in RESERVED_SAME) }
+
+    private val RESERVED_SAME = RESERVED_PARTS.map { same(it) }.toSet()
 }
