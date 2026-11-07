@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -217,7 +218,7 @@ class ExtensionsPage(
             setPadding(px(24), px(4), px(24), px(8))
         }
         manifest?.description?.takeIf { it.isNotEmpty() }?.let { box.addView(text(it, 16f, soft)) }
-        box.addView(text(ext.packageName + "  ·  signed by " + (ext.signer?.let { ExtensionAccess.shortFingerprint(it) } ?: "unknown"), 13f, soft).apply { setPadding(0, px(6), 0, px(10)) })
+        box.addView(View(context), LinearLayout.LayoutParams(1, px(8)))
         val statusColor = when (ext.state) {
             ExtensionState.ALLOWED -> Color.rgb(140, 230, 160)
             ExtensionState.NOT_ALLOWED -> Color.rgb(255, 200, 100)
@@ -227,24 +228,25 @@ class ExtensionsPage(
         if (ext.state == ExtensionState.NOT_ALLOWED && ext.parsed is ManifestParser.Result.Ok) {
             box.addView(text("Nothing is turned on yet. Choose what it can do below, then Save.", 14f, soft))
         }
-        // Only said once the catalog has been loaded; an extension that isn't in it hasn't been looked at by anyone but you.
+        // One line says whether to trust it. Verified: one of ours, or the one the catalog lists (same signer). Otherwise a warning.
+        // Only judged once the catalog has been loaded.
         val listing = catalog?.let { CatalogLabels.listing(it, ext.packageName, ext.signer) }
-        val unlisted = listing != null && listing != com.portal.tv.extensions.Listing.LISTED && !ext.madeByPortal
-        if (ext.madeByPortal && ext.state != ExtensionState.REVOKED) {
-            // Signed with Portal's own key, so there is nothing to warn about: it is one of ours, listed or not.
-            box.addView(text("Made by Portal" + if (listing == com.portal.tv.extensions.Listing.LISTED) "  ·  Listed in the catalog" else "", 15f, Color.rgb(140, 230, 160)))
-        } else if (listing != null && ext.state != ExtensionState.REVOKED) {
-            val color = if (!unlisted) Color.rgb(140, 230, 160) else Color.rgb(255, 200, 100)
-            box.addView(text(CatalogLabels.listingText(listing), 15f, color))
-            if (unlisted) {
+        val verified = ext.madeByPortal || listing == com.portal.tv.extensions.Listing.LISTED
+        val unlisted = !ext.madeByPortal && listing != null && listing != com.portal.tv.extensions.Listing.LISTED
+        if (ext.state != ExtensionState.REVOKED) {
+            if (verified) {
+                box.addView(text("✔  Verified" + if (ext.madeByPortal) "  ·  Made by Portal" else "", 15f, Color.rgb(140, 230, 160)))
+            } else if (unlisted) {
+                box.addView(text("⚠  Not verified", 15f, Color.rgb(255, 200, 100)))
                 box.addView(text(
-                    "Nobody has looked at this extension. Anything it can do, it can do on your TV and in front of your family. " +
+                    (if (listing == com.portal.tv.extensions.Listing.LISTED_BUT_SIGNED_BY_OTHER) "It is in the catalog, but signed by someone else, so it isn't the one listed. " else "It isn't in the catalog. ") +
+                        "Nobody has looked at it. Anything it can do, it can do on your TV and in front of your family. " +
                         "Only allow it if you got it from someone you trust.",
                     14f, Color.rgb(255, 200, 100)
                 ).apply { setPadding(0, px(4), 0, 0) })
+            } else {
+                box.addView(text("Not checked yet. Open Browse extensions once to check it.", 14f, soft))
             }
-        } else if (catalog == null && ext.state != ExtensionState.REVOKED && !ext.madeByPortal) {
-            box.addView(text("Not checked against the catalog yet. Open Browse extensions once to check it.", 14f, soft))
         }
         if (ext.state == ExtensionState.REVOKED) {
             box.addView(text(
@@ -264,9 +266,6 @@ class ExtensionsPage(
                     box.addView(text("\nThis app was allowed before, but it is now signed by someone else. Only allow it again if you expect that.", 15f, Color.rgb(255, 200, 100)))
                 }
                 val shown = parsed.manifest.items
-                if (parsed.manifest.backgroundService != null) {
-                    box.addView(text("\nIt can draw your home screen background, if you choose it under Settings, Background.", 15f, Color.WHITE))
-                }
                 if (shown.isNotEmpty()) {
                     box.addView(text("\nIt would put on your home screen:", 16f, soft).apply { setPadding(0, 0, 0, px(4)) })
                     shown.forEach { item ->
@@ -338,6 +337,12 @@ class ExtensionsPage(
                 textSize = 18f
                 typeface = context.resources.getFont(R.font.inter)
                 setTextColor(Color.rgb(255, 140, 140))
+                context.getDrawable(R.drawable.ic_dialog_trash)?.mutate()?.let {
+                    it.setTint(Color.rgb(255, 140, 140))
+                    it.setBounds(0, 0, px(26), px(26))
+                    setCompoundDrawables(it, null, null, null)
+                    compoundDrawablePadding = px(14)
+                }
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(px(20), px(10), px(20), px(10))
                 setBackgroundResource(R.drawable.bg_settings_tile)
