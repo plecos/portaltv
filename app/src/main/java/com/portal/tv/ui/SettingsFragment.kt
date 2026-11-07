@@ -1139,22 +1139,25 @@ class SettingsFragment : Fragment() {
         val off = view.findViewById<TextView>(R.id.opt_bg_off)
         val shader = view.findViewById<TextView>(R.id.opt_bg_shader)
         val video = view.findViewById<TextView>(R.id.opt_bg_video)
-        val extension = view.findViewById<TextView>(R.id.opt_bg_extension)
+        val typeRow = view.findViewById<android.widget.LinearLayout>(R.id.bg_type_row)
+        // The extensions that may draw the background right now; one the person chose that no longer can is shown as Shader, which is what the home screen falls back to.
+        var drawable = emptySet<String>()
+        val dp = resources.displayMetrics.density
+        // One choice for each extension that may draw the background, named for it. Filled in below, once they are found.
+        val extensionTiles = mutableListOf<Pair<String, TextView>>()
+
+        fun style(tv: TextView, selected: Boolean) {
+            tv.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tv.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
+        }
 
         fun highlight() {
-            val mode = BackgroundSettings.getMode(requireContext())
-            listOf(off to "off", shader to "shader", video to "video", extension to com.portal.tv.extensions.BackgroundChoice.MODE).forEach { (tv, m) ->
-                val selected = mode == m
-                tv.setBackgroundResource(
-                    if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile
-                )
-                tv.setTextColor(
-                    resources.getColor(
-                        if (selected) R.color.text_primary else R.color.text_secondary,
-                        null
-                    )
-                )
-            }
+            val chosen = BackgroundSettings.getExtension(requireContext())
+            var mode = BackgroundSettings.getMode(requireContext())
+            if (mode == com.portal.tv.extensions.BackgroundChoice.MODE && (chosen == null || chosen !in drawable)) mode = "shader"
+            listOf(off to "off", shader to "shader", video to "video").forEach { (tv, m) -> style(tv, mode == m) }
+            // An extension's choice is lit when it is the one in use.
+            extensionTiles.forEach { (pkg, tv) -> style(tv, mode == com.portal.tv.extensions.BackgroundChoice.MODE && pkg == chosen) }
             view.findViewById<View>(R.id.background_video_pointer).visibility =
                 if (mode == "video") View.VISIBLE else View.GONE
             refreshShaderColors?.invoke()
@@ -1179,7 +1182,7 @@ class SettingsFragment : Fragment() {
             onBackgroundChanged?.invoke()
         }
 
-        // "Extension" is offered when an extension that an adult allowed to draw the background is installed. A kid is offered it
+        // Each extension an adult allowed to draw the background is offered by name. A kid is offered them
         // only if a parent turned it on for them (Settings, Extensions).
         val context = requireContext()
         val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
@@ -1191,26 +1194,37 @@ class SettingsFragment : Fragment() {
                     com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
                 }
             }
-            val inUse = BackgroundSettings.getMode(context) == com.portal.tv.extensions.BackgroundChoice.MODE
-            extension.visibility = if (drawers.isNotEmpty() || (inUse && (!kid || kidMay))) View.VISIBLE else View.GONE
-            extension.setOnClickListener {
-                val choose = { pkg: String ->
-                    BackgroundSettings.setExtension(context, pkg)
-                    BackgroundSettings.setMode(context, com.portal.tv.extensions.BackgroundChoice.MODE)
-                    Log.d("Portal", "settings: background=extension $pkg")
-                    highlight()
-                    onBackgroundChanged?.invoke()
-                }
-                when (drawers.size) {
-                    0 -> Toast.makeText(context, "No extension is allowed to draw the background. Allow one under Extensions.", Toast.LENGTH_LONG).show()
-                    1 -> choose(drawers[0].packageName)
-                    else -> PortalDialog.Builder(context)
-                        .setTitle("Background drawn by")
-                        .setItems(drawers.map { it.name }.toTypedArray()) { _, which -> choose(drawers[which].packageName) }
-                        .setNegativeButton("Cancel", null)
-                        .show()
-                }
+            drawable = drawers.map { it.packageName }.toSet()
+
+            fun choose(pkg: String) {
+                BackgroundSettings.setExtension(context, pkg)
+                BackgroundSettings.setMode(context, com.portal.tv.extensions.BackgroundChoice.MODE)
+                Log.d("Portal", "settings: background=extension $pkg")
+                highlight()
+                onBackgroundChanged?.invoke()
             }
+            fun tile(label: String, onClick: () -> Unit) = TextView(context).apply {
+                text = label
+                textSize = 18f
+                typeface = resources.getFont(R.font.inter)
+                gravity = android.view.Gravity.CENTER
+                setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+                maxWidth = (200 * dp).toInt()
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                isFocusable = true
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (48 * dp).toInt()
+                ).apply { marginStart = (12 * dp).toInt() }
+                contentDescription = "Background drawn by $label"
+                setOnClickListener { onClick() }
+            }
+            extensionTiles.forEach { typeRow.removeView(it.second) }
+            extensionTiles.clear()
+            // All of them, by name, in the same row; the row scrolls with the remote if there are more than fit.
+            drawers.forEach { ext -> extensionTiles += ext.packageName to tile(ext.name) { choose(ext.packageName) } }
+            extensionTiles.forEach { typeRow.addView(it.second) }
+            highlight()
         }
 
         highlight()
