@@ -13,6 +13,13 @@ object Confusables {
     /** The lower-case Latin letters or digits [codePoint] is drawn like, or null if it isn't in the list. */
     fun lookalikeOf(codePoint: Int): String? = table[codePoint]
 
+    private val perScript: Map<Character.UnicodeScript, Int> by lazy {
+        table.keys.filter { Character.isLetterOrDigit(it) }.groupingBy { Character.UnicodeScript.of(it) }.eachCount()
+    }
+
+    /** How many letters of [script] the list says are drawn like Latin ones; none means the alphabet has no look-alikes. */
+    fun lookalikesIn(script: Character.UnicodeScript): Int = perScript[script] ?: 0
+
     /** How many characters the list holds (a check that the file was found). */
     internal fun size(): Int = table.size
 
