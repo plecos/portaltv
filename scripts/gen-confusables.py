@@ -4,7 +4,7 @@
   curl -O https://www.unicode.org/Public/security/latest/confusables.txt
   python3 scripts/gen-confusables.py confusables.txt
 
-Keeps the lines where one character (not ASCII itself) is drawn like Latin letters or digits, as "HEX target" (the target in
+Keeps the lines where one character (not an ASCII letter or digit itself) is drawn like Latin letters or digits, as "HEX target" (the target in
 lower case). Everything else in the list (look-alikes of punctuation, of other scripts) is not needed to catch a name that
 passes for a Latin word. Data: Unicode Consortium, https://www.unicode.org/Public/security/latest/confusables.txt, used under
 the Unicode License (https://www.unicode.org/terms_of_use.html).
@@ -22,7 +22,11 @@ for line in src.splitlines():
         continue
     source = [int(h, 16) for h in parts[0].split()]
     target = "".join(chr(int(h, 16)) for h in parts[1].split())
-    if len(source) != 1 or source[0] < 0x80:
+    if len(source) != 1:
+        continue
+    # A letter or digit of ASCII is not a look-alike of anything here (Portal reads i, l and 1 as one letter itself), but a
+    # symbol that is drawn like a letter ("|" like l) is kept.
+    if source[0] < 0x80 and chr(source[0]).isalnum():
         continue
     if not re.fullmatch(r"[A-Za-z0-9]{1,3}", target):
         continue

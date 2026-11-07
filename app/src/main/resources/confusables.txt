@@ -2,6 +2,7 @@
 # Source: https://www.unicode.org/Public/security/latest/confusables.txt (2026-08-06, 01:05:35 GMT).
 # (c) Unicode, Inc. Used under the Unicode License: https://www.unicode.org/terms_of_use.html
 # Format: HEX_CODE_POINT target_in_lower_case
+7C l
 A1 i
 C6 ae
 D7 x

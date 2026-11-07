@@ -33,7 +33,7 @@ class TextSafetyTest {
     @Test
     fun namesThatPassForPortalOrAndroidAreRefused() {
         for (bad in listOf("Portal", "portal", "PORTAL", "Settings", "Portal Settings", "Parent PIN", "Android System", "Google TV",
-            "Update", "Profile", "Search", "Launcher", "S e t t i n g s", "Portal-TV", "ＰＯＲＴＡＬ", "Pоrtal", "Ѕettings", "p0rtal", "My Settings page", "S\u03b5ttings", "Parental controls", "P\u00f6rtal", "Sett\u0131ngs", "\u0420arent PIN", "\u0397elp Settings", "Sett1ngs", "Settlngs", "P\u0585rtal", "\u13daettings", "P\u1d0f\u0280t\u1d00l", "Settinqs", "\ua4e2\ua4f0\ua4d4\ua4d4\ua4f2\ua4e0\ua4d6\ua4e2", "\ua4d1\ua4f3\ua4e3\ua4d4\ua4ee\ua4e1", "\u13e2\u13be\u13a1\u13a2\u13aa\u13de", "\u146dortal", "\u1555ettings", "\u01bfortal", "\ua751ortal", "Po\u027ftal")) {
+            "Update", "Profile", "Search", "Launcher", "S e t t i n g s", "Portal-TV", "ＰＯＲＴＡＬ", "Pоrtal", "Ѕettings", "p0rtal", "My Settings page", "S\u03b5ttings", "Parental controls", "P\u00f6rtal", "Sett\u0131ngs", "\u0420arent PIN", "\u0397elp Settings", "Sett1ngs", "Settlngs", "P\u0585rtal", "\u13daettings", "P\u1d0f\u0280t\u1d00l", "Settinqs", "Porta|", "Sett|ngs", "Sett!ngs", "Porta\uff5c", "Sett\ufe31ngs", "Pin|Search", "\ua4e2\ua4f0\ua4d4\ua4d4\ua4f2\ua4e0\ua4d6\ua4e2", "\ua4d1\ua4f3\ua4e3\ua4d4\ua4ee\ua4e1", "\u13e2\u13be\u13a1\u13a2\u13aa\u13de", "\u146dortal", "\u1555ettings", "\u01bfortal", "\ua751ortal", "Po\u027ftal")) {
             assertNotNull(bad, Impersonation.reason(bad))
         }
     }
@@ -52,7 +52,7 @@ class TextSafetyTest {
     @Test
     fun ordinaryNamesAreFine() {
         for (ok in listOf("Garage door", "Photo frame", "Doorbell Security Cam", "Weather radar", "Lights", "Home: day", "Updates for my pets",
-            "Kids chores", "Sample extension", "Searchlight", "Pinball", "TV\u30a2\u30d7\u30ea", "\u0418\u0433\u0440\u0430", "Caf\u00e9 menu")) {
+            "Kids chores", "Sample extension", "Searchlight", "Pinball", "TV\u30a2\u30d7\u30ea", "Garage|Door", "Wow!", "\u0b13\u0b21\u0b3c\u0b3f\u0b06", "\u078b\u07a8\u0788\u07ac\u0780\u07a8", "\u1820\u1823\u1829\u182d\u1823\u182f", "\u0418\u0433\u0440\u0430", "Caf\u00e9 menu")) {
             assertNull(ok, Impersonation.reason(ok))
         }
     }

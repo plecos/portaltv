@@ -78,12 +78,26 @@ object Impersonation {
     private val ALTERNATE: Map<Char, Char> = mapOf('η' to 'h', 'μ' to 'm', 'π' to 'n', 'θ' to 'o', 'φ' to 'o', 'δ' to 'd')
     private val PLAIN_GREEK: Map<Char, Char> = mapOf('η' to 'n', 'μ' to 'u', 'π' to 'n', 'θ' to 'o', 'φ' to 'o', 'δ' to 'd')
 
+    /** Marks that are drawn like a letter ("|" like l, "!" like i). */
+    private val SYMBOL_LOOKALIKES: Map<Int, String> = mapOf('|'.code to "l", '!'.code to "i", 0xA1 to "i")
+
     /**
      * What [text] looks like to a person: compatibility forms folded (fullwidth letters), accents removed, case ignored,
      * lookalikes made Latin. [alternate] reads the Greek letters that differ between capitals and small letters the other way.
+     * With [symbols], marks drawn like letters ("Sett|ngs", "Sett!ngs") are read as those letters; without it they stay as
+     * marks that separate words ("Pin|Search"), so a name is checked both ways.
      */
-    internal fun looksLike(text: String, alternate: Boolean = false): String {
-        val noAccents = Normalizer.normalize(Normalizer.normalize(text, Normalizer.Form.NFKC), Normalizer.Form.NFD)
+    internal fun looksLike(text: String, alternate: Boolean = false, symbols: Boolean = false): String {
+        // Each character is looked up as written first, because folding it (fullwidth "｜" to "|", "︱" to a dash) would lose it.
+        val written = StringBuilder(text.length)
+        var w = 0
+        while (w < text.length) {
+            val cp = text.codePointAt(w)
+            w += Character.charCount(cp)
+            val known = lookalike(cp, symbols)
+            if (known != null) written.append(known) else written.appendCodePoint(cp)
+        }
+        val noAccents = Normalizer.normalize(Normalizer.normalize(written.toString(), Normalizer.Form.NFKC), Normalizer.Form.NFD)
         val greek = if (alternate) ALTERNATE else PLAIN_GREEK
         val out = StringBuilder(noAccents.length)
         var i = 0
@@ -91,14 +105,20 @@ object Impersonation {
             val cp = noAccents.codePointAt(i)
             i += Character.charCount(cp)
             if (Character.getType(cp).toByte() == Character.NON_SPACING_MARK) continue
-            // Unicode's list first (every character it says is drawn like Latin), then the few extra readings kept here.
-            val unicode = Confusables.lookalikeOf(cp)
-            if (unicode != null) { out.append(unicode); continue }
+            val known = lookalike(cp, symbols)
+            if (known != null) { out.append(known); continue }
             val c = if (cp < 0x10000) cp.toChar() else null
             val lower = if (c != null) c.lowercaseChar() else null
             if (lower != null) out.append(greek[lower] ?: LOOKALIKES[lower] ?: lower) else out.appendCodePoint(cp)
         }
         return out.toString().lowercase(Locale.ROOT)
+    }
+
+    /** What the character [cp] is drawn like: Unicode's list, then the symbols read as letters (only when [symbols]). */
+    private fun lookalike(cp: Int, symbols: Boolean): String? {
+        val isSymbol = !Character.isLetterOrDigit(cp)
+        if (isSymbol && !symbols) return null
+        return Confusables.lookalikeOf(cp) ?: if (isSymbol) SYMBOL_LOOKALIKES[cp] else null
     }
 
     /** Letters that pass for each other in many typefaces (i, l and 1; q and g) are made one before comparing. */
@@ -121,13 +141,19 @@ object Impersonation {
     }
 
     /**
-     * True if [text] has letters from an alphabet outside [COMMON_ALPHABETS]. Some rare alphabets (Lisu, Cherokee and others)
-     * have capitals drawn like Latin ones, so a whole word in them can read as "SETTINGS" or "PORTAL"; no table of look-alikes
-     * can be complete, so names in those alphabets are refused instead. The ones in everyday use stay allowed.
+     * True if [text] has letters from an alphabet outside [COMMON_ALPHABETS] that has many letters drawn like Latin ones in
+     * Unicode's list (Lisu, Cherokee, Canadian syllabics and a few more): a whole word in one can read as "SETTINGS" or "PORTAL",
+     * and the list may not have every such letter, so names in those alphabets are refused. Alphabets with next to none
+     * (Odia, Thaana, Mongolian and most others) and the ones in everyday use are fine.
      */
     private fun usesRareAlphabet(text: String): Boolean = text.codePoints().toArray().any { cp ->
-        Character.isLetter(cp) && Character.UnicodeScript.of(cp) !in COMMON_ALPHABETS
+        if (!Character.isLetter(cp)) return@any false
+        val script = Character.UnicodeScript.of(cp)
+        script !in COMMON_ALPHABETS && Confusables.lookalikesIn(script) >= MAX_UNLISTED_LOOKALIKES
     }
+
+    /** An alphabet with fewer look-alikes than this in Unicode's list (Odia, Thaana, Mongolian and many others) is fine for names. */
+    private const val MAX_UNLISTED_LOOKALIKES = 5
 
     private val COMMON_ALPHABETS: Set<Character.UnicodeScript> = listOf(
         "LATIN", "COMMON", "INHERITED", "CYRILLIC", "GREEK", "ARABIC", "HEBREW", "ARMENIAN", "GEORGIAN", "DEVANAGARI", "BENGALI",
@@ -145,7 +171,9 @@ object Impersonation {
     fun reason(text: String): String? {
         if (usesRareAlphabet(text)) return "uses letters from an alphabet that is rarely used for names and easy to make look like Latin ones."
         if (mixesAlphabets(text)) return "mixes Latin letters with another alphabet's look-alikes in one word."
-        val found = hit(looksLike(text)) ?: hit(looksLike(text, alternate = true))
+        val found = listOf(false, true).firstNotNullOfOrNull { symbols ->
+            hit(looksLike(text, symbols = symbols)) ?: hit(looksLike(text, alternate = true, symbols = symbols))
+        }
         return if (found != null) "can pass for part of Portal or Android (\"$found\")." else null
     }
 
