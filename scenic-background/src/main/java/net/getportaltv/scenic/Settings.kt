@@ -20,7 +20,8 @@ data class Config(
     /** For the preview only: show everything that comes and goes, all the time. Not saved. */
     val boost: Boolean = false,
     /** For the preview only: the animation clock to start at, in seconds (0 for the usual start). */
-    val startTime: Double = 0.0
+    val startTime: Double = 0.0,
+    val startCam: Double = 0.0
 )
 
 object Settings {

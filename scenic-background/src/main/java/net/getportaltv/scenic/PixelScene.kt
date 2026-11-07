@@ -252,27 +252,29 @@ class PixelScene {
         val cover = s.cond.cloud
         if (cover < 0.01f) return
         val l = s.look
-        val slots = if (layer == 0) 14 else 10
-        val loop = if (layer == 0) 880 else 760
-        val parallax = if (layer == 0) 0.03 else 0.07
-        val speed = if (layer == 0) 0.55f else 1f
-        val lo = if (layer == 0) 6 else 38
-        val hi = if (layer == 0) 52 else 92
+        val low3 = layer == 2
+        val slots = if (low3) 6 else if (layer == 0) 14 else 10
+        val loop = if (low3) 700 else if (layer == 0) 880 else 760
+        val parallax = if (low3) 0.05 else if (layer == 0) 0.03 else 0.07
+        val speed = if (low3) 0.8f else if (layer == 0) 0.55f else 1f
+        val lo = if (low3) 70 else if (layer == 0) 6 else 38
+        val hi = if (low3) 92 else if (layer == 0) 52 else 92
         val c = l.cloudLit
         val mul = rgb(Colors.r(c), Colors.g(c), Colors.b(c))
-        val fogMix = (l.haze * 0.8f).coerceIn(0f, 0.95f)
+        // The low ones are far away, so they are paler and hazier.
+        val fogMix = (l.haze * 0.8f + if (low3) 0.3f else 0f).coerceIn(0f, 0.95f)
         val fogged = lerp(mul, l.fogColor, fogMix)
         spritePaint.colorFilter = LightingColorFilter(fogged, rgb(0, 0, 0))
         val baseAlpha = 1f - l.haze * 0.55f
         // More cloud means more clouds and bigger ones, until the whole sky is covered. Each cloud has its own level of cover at
         // which it is there: below it the cloud is gone, above it the cloud is whole, and in between (a little more than a tenth
         // of the range) it is faded, so clouds fade in as the weather clouds over and fade out as it clears, never popping.
-        val chance = cover * 1.25f - 0.05f
+        val chance = if (low3) cover * 0.8f - 0.1f else cover * 1.25f - 0.05f
         for (i in 0 until slots) {
             val fade = Colors.smoothstep(0f, FADE_RANGE, chance - Noise.unit(i, layer, 41))
             if (fade <= 0f) continue
             // The size follows the cover continuously too: the two nearest sizes are blended, so a cloud grows instead of changing shape at once.
-            val position = ((cover * 0.7f + Noise.unit(i, layer, 42) * 0.6f) * (clouds.size - 1)).coerceIn(0f, clouds.size - 1f)
+            val position = ((cover * 0.7f + Noise.unit(i, layer, 42) * 0.6f) * (if (low3) 0.6f else 1f) * (clouds.size - 1)).coerceIn(0f, clouds.size - 1f)
             val low = position.toInt().coerceAtMost(clouds.size - 2)
             val blend = (position - low).coerceIn(0f, 1f)
             val baseX = i * (loop.toFloat() / slots) + Noise.unit(i, layer, 43) * 40f
@@ -297,6 +299,8 @@ class PixelScene {
 
     private fun drawMountains(s: SceneState, cam: Double) {
         mountainRange(s, cam, factor = 0.03, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLine = 0.72f)
+        // Now and then a low cloud drifts in front of the far mountains (and behind the near ones).
+        drawClouds(s, 2)
         mountainRange(s, cam, factor = 0.06, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLine = 0.66f)
     }
 
@@ -393,8 +397,10 @@ class PixelScene {
         // Two passes so the nearer things (lower on the screen) cover the farther.
         for (pass in 0..1) for (i in first..first + W / chunk + 2) {
             val left = (i * chunk - offset).toInt()
-            // Trees: 3 to 6 a chunk, at their own depths.
-            val trees = 3 + (Noise.unit(i, 1) * 4).toInt()
+            // Some stretches are open country: a few trees, and no buildings or grazing herds.
+            val open = openCountry(Math.floorDiv(i, 6), 90)
+            // Trees: 3 to 6 a chunk, at their own depths (fewer in open country).
+            val trees = if (open) 1 + (Noise.unit(i, 1) * 2).toInt() else 3 + (Noise.unit(i, 1) * 4).toInt()
             for (t in 0 until trees) {
                 val depth = Noise.unit(i, 10 + t)
                 if ((depth > 0.5f) != (pass == 1)) continue
@@ -408,7 +414,7 @@ class PixelScene {
                     else -> sprite(Sprites.bush, x, y)
                 }
             }
-            if (pass == 1) {
+            if (pass == 1 && !open) {
                 // A building now and then, with its windows lit at night and smoke from the chimney.
                 val b = Noise.unit(i, 50)
                 val bx = left + 40 + (Noise.unit(i, 51) * 70).toInt()
@@ -434,6 +440,9 @@ class PixelScene {
         }
         spritePaint.colorFilter = null
     }
+
+    /** Whether this stretch of land is open country, with no farm or fence: about two in five are. */
+    private fun openCountry(block: Int, key: Int) = Noise.unit(block, key) < 0.4f
 
     private fun Double.roundToInt() = Math.round(this).toInt()
 
@@ -482,7 +491,7 @@ class PixelScene {
         val y = ROAD_TOP - 1
         val first = floor(offset / 160).toInt() - 1
         for (i in first..first + W / 160 + 2) {
-            if (Noise.unit(i, 80) < 0.28f) continue
+            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91)) continue
             val x0 = (i * 160 - offset).toInt()
             val len = 90 + (Noise.unit(i, 81) * 60).toInt()
             fill(x0, y - 4, x0 + len, y - 3, rail)

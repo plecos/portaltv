@@ -49,6 +49,7 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         val c = config()
         val s = state
         if (!started && c.startTime > 0.0) s.time = c.startTime
+        if (!started && c.startCam > 0.0) s.cam = c.startCam
         s.time += dtSeconds
 
         // The journey.

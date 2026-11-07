@@ -14,8 +14,7 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
 - **Follows the weather.** Cloud, rain, snow, fog and storms (with lightning) come from `weather.get`. Every part eases toward
   what it should be, so a change of weather fades in over a minute or so instead of jumping. Snow settles on the ground.
 - **Has life in it.** People walking, cycling or with a dog (and umbrellas in the rain), rabbits, deer, a tractor, ducks on the
-  pond, a train now and then on the railway, butterflies by day, fireflies on warm nights, bats at dusk, and a balloon or a
-  plane with a contrail. Each one turns up on its own schedule (`Life.kt`, tested in `LifeScheduleTest`) and they stay away
+  pond, a train now and then on the railway (which comes and goes, curving away into the distance), stretches of open country with no farm or fence, low clouds in front of the far mountains, butterflies by day, fireflies on warm nights, bats at dusk, and a plane (or, about once every ten minutes in full daylight, a balloon) with a contrail. Each one turns up on its own schedule (`Life.kt`, tested in `LifeScheduleTest`) and they stay away
   in storms.
 - **Looks like an old computer.** The scene is drawn at 320 by 180 pixels, dithered and limited to a small palette, then scaled
   up whole, so every pixel is a clean square on the TV. Only one style so far; more can be added as other renderers.
@@ -46,7 +45,7 @@ adb shell am start -n net.getportaltv.scenic/.PreviewActivity --ef hour 18.5 --e
 ```
 
 (`--ei days 9` looks at another day, which is how to check the moon's phases. `--ez boost true` makes the life elements turn up
-all the time, and `--ef at 62` jumps the scene clock to that many seconds, so a picture can catch one.)
+all the time, and `--ef cam 3000` starts the journey that many pixels along, and `--ef at 62` jumps the scene clock to that many seconds, so a picture can catch one.)
 
 ## Where things are
 

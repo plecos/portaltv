@@ -3,6 +3,7 @@ package net.getportaltv.scenic
 import net.getportaltv.scenic.Colors.lerp
 import net.getportaltv.scenic.Colors.rgb
 import net.getportaltv.scenic.Colors.smoothstep
+import android.graphics.Path
 import net.getportaltv.scenic.PixelScene.Companion.FIELD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.H
 import net.getportaltv.scenic.PixelScene.Companion.ROAD_BOTTOM
@@ -195,21 +196,59 @@ private val COACH_COLORS = intArrayOf(rgb(60, 100, 170), rgb(180, 60, 60), rgb(7
 private val boxcars by lazy { BOX_COLORS.map { LifeSprites.boxcar(it) } }
 private val coaches by lazy { COACH_COLORS.map { LifeSprites.coach(it) } }
 
-/** A single line of track across the far field, and a train along it every so often. */
+/** How much track there is at [worldX] along the railway: 1 where it runs alongside, 0 where there is none, and in between where it curves away into the distance or in from it. */
+internal fun trackAt(worldX: Double): Float {
+    val block = floor(worldX / TRACK_BLOCK).toInt()
+    if (!trackBlock(block)) return 0f
+    val into = (worldX - block * TRACK_BLOCK).toFloat()
+    val before = if (trackBlock(block - 1)) 1f else min(1f, into / TRACK_CURVE)
+    val after = if (trackBlock(block + 1)) 1f else min(1f, (TRACK_BLOCK.toFloat() - into) / TRACK_CURVE)
+    return smoothstep(0f, 1f, min(before, after))
+}
+
+private const val TRACK_BLOCK = 900.0
+private const val TRACK_CURVE = 130f
+private fun trackBlock(block: Int) = Noise.unit(block, 95) < 0.6f
+
+/** A line of track across the far field, in stretches (it curves away into the distance and comes back from it), and a train along it every so often. */
 internal fun PixelScene.drawRailway(s: SceneState) {
     val y = FIELD_TOP + 5
     val offset = s.cam * 0.3
-    val ballast = lit(s, rgb(122, 112, 100), 0.18f + s.look.haze * 0.3f)
-    val rail = lit(s, rgb(176, 176, 184), 0.18f + s.look.haze * 0.3f)
-    val sleeper = lit(s, rgb(96, 70, 50), 0.18f + s.look.haze * 0.3f)
-    fill(0, y + 1, W, y + 4, ballast)
-    var x = -Math.floorMod(offset.toInt(), 5)
-    while (x < W) { fill(x, y + 2, x + 2, y + 3, sleeper); x += 5 }
-    fill(0, y + 1, W, y + 2, rail)
-    fill(0, y + 3, W, y + 4, rail)
+    val haze = 0.18f + s.look.haze * 0.3f
+    val ballast = lit(s, rgb(122, 112, 100), haze)
+    val rail = lit(s, rgb(176, 176, 184), haze)
+    val sleeper = lit(s, rgb(96, 70, 50), haze)
+    val onTrack = Path()
+    var any = false
+    var runStart = -1
+    for (x in 0..W) {
+        val t = if (x < W) trackAt(x + offset) else 0f
+        val full = t >= 0.98f
+        if (full && runStart < 0) runStart = x
+        if (!full && runStart >= 0) { onTrack.addRect(runStart.toFloat(), 0f, x.toFloat(), H.toFloat(), Path.Direction.CW); runStart = -1; any = true }
+        if (x >= W || t < 0.04f) continue
+        // Curving away, the track climbs toward the horizon, gets thinner and fades into the haze.
+        val c = 1f - t
+        val top = y - (c * 4f).toInt()
+        val thick = if (t > 0.66f) 3 else if (t > 0.33f) 2 else 1
+        val far = c * 0.55f
+        fill(x, top + 1, x + 1, top + 1 + thick, if (far > 0f) lerp(ballast, airColor(s), far) else ballast)
+        if (t > 0.66f) {
+            val worldX = (x + offset).toInt()
+            if (Math.floorMod(worldX, 5) < 2) fill(x, top + 2, x + 1, top + 3, sleeper)
+            fill(x, top + 1, x + 1, top + 2, rail)
+            fill(x, top + 3, x + 1, top + 4, rail)
+        } else {
+            fill(x, top + 1, x + 1, top + 2, lerp(rail, airColor(s), far))
+        }
+    }
+    if (!any) return
 
     val travelV = if (s.travelling) Director.SPEED * 0.3f else 0f
     spritePaint.colorFilter = filter(s, 0.14f + s.look.haze * 0.3f)
+    // A train is only where the track runs alongside; where it curves away the train goes with it.
+    canvas.save()
+    canvas.clipPath(onTrack)
     for (ev in LifeSchedule.events(s.time, 55.0, 75.0, 0.55f, 301, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
         val passenger = ev.unit(2) < 0.4f
@@ -249,6 +288,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
             fillAlpha(sx.toInt(), bottom - 8 - (a * 7).toInt(), sx.toInt() + 2 + (a * 2).toInt(), bottom - 6 - (a * 7).toInt(), lit(s, rgb(206, 206, 210), 0.1f), (1f - a) * 0.55f)
         }
     }
+    canvas.restore()
     spritePaint.colorFilter = null
 }
 
@@ -288,8 +328,9 @@ internal fun PixelScene.drawSkyLife(s: SceneState) {
         }
     }
     // A hot air balloon drifting on a calm, clear day.
-    if (day > 0.45f && s.cond.wind < 25f && s.stormy() < 0.1f && s.cond.fog < 0.3f && s.cond.cloud < 0.7f) {
-        for (ev in LifeSchedule.events(s.time, 150.0, 130.0, 0.4f, 411, s.boost)) {
+    // It is rare, about once every ten minutes, and only in full daylight.
+    if (day > 0.7f && s.sunAlt > 12.0 && s.cond.wind < 25f && s.stormy() < 0.1f && s.cond.fog < 0.3f && s.cond.cloud < 0.7f) {
+        for (ev in LifeSchedule.events(s.time, if (s.boost) 150.0 else 600.0, 130.0, if (s.boost) 0.4f else 1f, 411, s.boost)) {
             val dir = if (s.windDir > 0) 1 else -1
             val age = (s.time - ev.spawn).toFloat()
             val v = dir * (3.5f + s.cond.wind * 0.12f)
