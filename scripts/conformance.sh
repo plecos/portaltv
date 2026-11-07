@@ -70,6 +70,30 @@ seed() {   # active profile id, signer to record, capabilities (comma separated,
   restart_portal
 }
 
+# A saved weather report (made-up numbers for a well-known city), so weather.get has something to answer with.
+seed_weather() {
+  local body
+  body="$(python3 - <<'PY'
+import json, time, datetime
+today = datetime.date.today()
+hours = [f"{today}T{h:02d}:00" for h in range(24)]
+doc = {
+  "latitude": 47.6062, "longitude": -122.3321, "utc_offset_seconds": -28800,
+  "current": {"time": f"{today}T12:00", "temperature_2m": 9.5, "apparent_temperature": 8.0, "relative_humidity_2m": 85,
+              "weather_code": 63, "wind_speed_10m": 14.0, "wind_direction_10m": 225, "wind_gusts_10m": 30.0,
+              "pressure_msl": 1008.0, "cloud_cover": 95, "is_day": 1},
+  "hourly": {"time": hours, "temperature_2m": [9.0]*24, "weather_code": [63]*24, "is_day": [1]*24,
+             "precipitation_probability": [70]*24, "uv_index": [1.0]*24, "visibility": [8000.0]*24},
+  "daily": {"time": [str(today)], "weather_code": [63], "temperature_2m_max": [11.0], "temperature_2m_min": [6.0],
+            "precipitation_probability_max": [80], "sunrise": [f"{today}T07:10"], "sunset": [f"{today}T16:40"]},
+}
+print(json.dumps(doc).replace('"', '&quot;'))
+PY
+)"
+  put_prefs portal_weather '<long name="body_time" value="'"$(( $(date +%s) * 1000 ))"'" />
+<string name="body">'"$body"'</string>'
+}
+
 # Preferences are read once when Portal starts, so it is restarted to read new ones, and to forget the rate limits. It is the
 # home app, so Android starts it again by itself a moment after it is stopped: any files had to be written first.
 restart_portal() {
@@ -117,10 +141,10 @@ adb_ install -r "$ROGUE_APK" >/dev/null || { echo "couldn't install the extensio
 
 echo "== nothing allowed: every call is refused"
 seed 1 "$SIGNER" ""
-run_suite refused 8
+run_suite refused 9
 
 echo "== an app that isn't an extension (the shell) can't call at all"
-for method in host.info reminders.add card.show items.set; do
+for method in host.info reminders.add card.show items.set weather.get; do
   CHECKS=$((CHECKS + 1))
   out="$(adb_ shell content call --uri content://net.getportaltv.host --method $method --extra title:s:x --extra at_millis:l:$AT 2>&1)"
   case "$out" in *not_allowed*) pass "shell: $method refused" ;; *) fail "shell: $method got: $out" ;; esac
@@ -128,11 +152,11 @@ done
 
 echo "== allowed, but signed by someone else now: every call is refused"
 seed 1 "0000000000000000000000000000000000000000000000000000000000000000" "reminders,cards,bar,clock,tiles"
-run_suite refused 8
+run_suite refused 9
 
 echo "== allowed, but a kid profile is in use"
-seed 2 "$SIGNER" "reminders,cards,bar,clock,tiles"
-run_suite kid 6
+seed 2 "$SIGNER" "reminders,cards,bar,clock,tiles,weather"
+run_suite kid 7
 
 echo "== arguments of any type, from an extension nobody allowed and from one allowed everything"
 seed 1 "$SIGNER" ""
@@ -165,6 +189,11 @@ run_suite tiles 13
 echo "== allowed: cards"
 seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"
 run_suite cards 3
+
+echo "== allowed: weather"
+seed_weather
+seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles,weather"
+run_suite weather 6
 
 echo "== allowed: a flood of changes"
 seed 1 "$SIGNER" "reminders,cards,bar,clock,tiles"

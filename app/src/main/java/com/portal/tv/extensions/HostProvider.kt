@@ -68,6 +68,7 @@ class HostProvider : ContentProvider() {
             when (value) {
                 is Int -> putInt(key, value)
                 is Long -> putLong(key, value)
+                is Double -> putDouble(key, value)
                 is Boolean -> putBoolean(key, value)
                 is String -> putString(key, value)
                 is List<*> -> if (value.all { it is Map<*, *> }) {
@@ -139,4 +140,16 @@ private class RealHostEnv(private val context: Context) : HostEnv {
     override fun saveTileDecorations(packageName: String, decorations: Map<String, TileDecor>) = ExtensionTileStore.put(context, packageName, decorations)
     override fun tilesChanged() = HostEvents.tilesChanged()
     override fun showCard(from: String, title: String, text: String, seconds: Int) = ReminderService.showCard(context, from, title, text, seconds)
+
+    /** The saved weather, read again only when a new one was saved, because extensions may ask often. */
+    private var weatherMemo: Pair<Long, WeatherSnapshot?>? = null
+
+    @Synchronized
+    override fun weather(): WeatherSnapshot? {
+        val stamp = com.portal.tv.repo.WeatherRepository.cachedStamp(context)
+        weatherMemo?.let { if (it.first == stamp) return it.second }
+        val snapshot = com.portal.tv.repo.WeatherRepository.cached(context)?.report?.let { WeatherSnapshot(it, stamp) }
+        weatherMemo = stamp to snapshot
+        return snapshot
+    }
 }
