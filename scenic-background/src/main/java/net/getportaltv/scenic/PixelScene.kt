@@ -242,7 +242,7 @@ class PixelScene {
 
     private fun drawClouds(s: SceneState, layer: Int) {
         val cover = s.cond.cloud
-        if (cover < 0.04f) return
+        if (cover < 0.01f) return
         val l = s.look
         val slots = if (layer == 0) 14 else 10
         val loop = if (layer == 0) 880 else 760
@@ -255,19 +255,29 @@ class PixelScene {
         val fogMix = (l.haze * 0.8f).coerceIn(0f, 0.95f)
         val fogged = lerp(mul, l.fogColor, fogMix)
         spritePaint.colorFilter = LightingColorFilter(fogged, rgb(0, 0, 0))
-        spritePaint.alpha = ((1f - l.haze * 0.55f) * 255).toInt()
-        // More cloud means more clouds and bigger ones, until the whole sky is covered.
-        val chance = (cover * 1.25f - 0.05f).coerceIn(0f, 1f)
+        val baseAlpha = 1f - l.haze * 0.55f
+        // More cloud means more clouds and bigger ones, until the whole sky is covered. Each cloud has its own level of cover at
+        // which it is there: below it the cloud is gone, above it the cloud is whole, and in between (a little more than a tenth
+        // of the range) it is faded, so clouds fade in as the weather clouds over and fade out as it clears, never popping.
+        val chance = cover * 1.25f - 0.05f
         for (i in 0 until slots) {
-            if (Noise.unit(i, layer, 41) > chance) continue
-            val sizeBias = cover * 0.7f + Noise.unit(i, layer, 42) * 0.6f
-            val index = (sizeBias * (clouds.size - 0.01f)).toInt().coerceIn(0, clouds.size - 1)
-            val bmp = clouds[index]
+            val fade = Colors.smoothstep(0f, FADE_RANGE, chance - Noise.unit(i, layer, 41))
+            if (fade <= 0f) continue
+            // The size follows the cover continuously too: the two nearest sizes are blended, so a cloud grows instead of changing shape at once.
+            val position = ((cover * 0.7f + Noise.unit(i, layer, 42) * 0.6f) * (clouds.size - 1)).coerceIn(0f, clouds.size - 1f)
+            val low = position.toInt().coerceAtMost(clouds.size - 2)
+            val blend = (position - low).coerceIn(0f, 1f)
             val baseX = i * (loop.toFloat() / slots) + Noise.unit(i, layer, 43) * 40f
-            val x = Math.floorMod((baseX - s.drift * speed - s.cam * parallax).toInt(), loop) - 130
-            val y = lo + (Noise.unit(i, layer, 44) * (hi - lo)).toInt() - bmp.height / 2
-            if (x > W) continue
-            canvas.drawBitmap(bmp, x.toFloat(), y.toFloat(), spritePaint)
+            val centerX = Math.floorMod((baseX - s.drift * speed - s.cam * parallax).toInt(), loop) - 65
+            val centerY = lo + (Noise.unit(i, layer, 44) * (hi - lo)).toInt()
+            for ((index, weight) in listOf(low to 1f - blend, low + 1 to blend)) {
+                if (weight <= 0f) continue
+                val bmp = clouds[index]
+                val left = centerX - bmp.width / 2
+                if (left > W || left + bmp.width < 0) continue
+                spritePaint.alpha = (baseAlpha * fade * weight * 255).toInt().coerceIn(0, 255)
+                canvas.drawBitmap(bmp, left.toFloat(), (centerY - bmp.height / 2).toFloat(), spritePaint)
+            }
         }
         spritePaint.colorFilter = null
         spritePaint.alpha = 255
@@ -734,6 +744,8 @@ class PixelScene {
     }
 
     companion object {
+        /** How much more cover than a cloud needs makes it fully there (it is faded in between). */
+        private const val FADE_RANGE = 0.14f
         const val W = 320
         const val H = 180
         /** Where the distant land meets the sky. */
