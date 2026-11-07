@@ -71,18 +71,22 @@ object ScheduleLogic {
     /** The last minute is a second-by-second countdown rather than a milestone. */
     const val COUNTDOWN_MS = 60_000L
 
+    /** No time-left reminder shows over an app while more than this is left. */
+    const val REMINDER_START_MS = 2 * 60 * 60_000L
+
     /**
-     * The time-left reminder to show now, or null. Over an app, the time left is only shown now and then: once
-     * for each whole hour while more than an hour is left, then at 1 hour, 30, 15 and 5 minutes. The final minute
+     * The time-left reminder to show now, or null. Over an app, the time left is only shown now and then, and
+     * only once [REMINDER_START_MS] or less is left: at 2 hours, 1 hour, 30, 15 and 5 minutes. The final minute
      * is the [COUNTDOWN_MS] countdown instead, so it returns null at or below that. The result is the milestone
      * in milliseconds; [lastShown] is the one already shown. The caller starts again from null if the time
-     * goes back above [lastShown] (a parent added time), and the first check after an app opens shows once.
+     * goes back above [lastShown] (a parent added time), and the first check after an app opens shows once
+     * if 2 hours or less are left.
      */
     fun nextReminder(remainingMs: Long, lastShown: Long?): Long? {
-        if (remainingMs <= COUNTDOWN_MS) return null
+        if (remainingMs <= COUNTDOWN_MS || remainingMs > REMINDER_START_MS) return null
         val hour = 60 * 60_000L
         val milestone = when {
-            remainingMs > hour -> (remainingMs + hour - 1) / hour * hour   // the whole hour at or just above it
+            remainingMs > hour -> REMINDER_START_MS
             remainingMs > 30 * 60_000L -> hour
             remainingMs > 15 * 60_000L -> 30 * 60_000L
             remainingMs > 5 * 60_000L -> 15 * 60_000L
