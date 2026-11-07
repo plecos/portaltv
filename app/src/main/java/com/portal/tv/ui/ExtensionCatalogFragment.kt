@@ -162,6 +162,7 @@ class ExtensionCatalogFragment : Fragment() {
         val offered = CatalogLabels.shown(c)
         shown = CatalogSearch.filter(offered, query, tag)
         status.text = (if (query.isNotBlank() || tag != null) "${shown.size} of ${CatalogLabels.count(offered.size)}" else CatalogLabels.count(offered.size)) + note +
+            (if (CatalogLabels.expired(c, System.currentTimeMillis())) " · installing is paused, this catalog hasn't been updated for a while" else "") +
             if (shown.isEmpty() && offered.isNotEmpty()) " · nothing matches, try other words or Tag: all" else ""
         adapter.notifyDataSetChanged()
         if (!installedLoaded) { installedLoaded = true; loadInstalled() }

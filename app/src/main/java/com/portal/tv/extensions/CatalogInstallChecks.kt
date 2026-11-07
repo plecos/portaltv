@@ -23,7 +23,12 @@ data class InstalledFacts(val versionCode: Long, val signer: String?)
 object CatalogInstallChecks {
 
     /** Before anything is downloaded: is there something to install, and is it allowed? */
-    fun start(catalog: Catalog, entry: CatalogEntry, installed: InstalledFacts?): Pair<CatalogVersion?, String?> {
+    fun start(
+        catalog: Catalog, entry: CatalogEntry, installed: InstalledFacts?, nowMs: Long = System.currentTimeMillis()
+    ): Pair<CatalogVersion?, String?> {
+        if (CatalogLabels.expired(catalog, nowMs)) {
+            return null to "The catalog hasn't been updated for a while, so installing from it is paused until it is."
+        }
         CatalogRules.revocation(catalog, entry.packageName, null, entry.signer)?.let {
             return null to "This extension has been withdrawn from the catalog: ${it.reason}"
         }

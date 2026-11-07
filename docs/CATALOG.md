@@ -24,6 +24,8 @@ This page is the format and how Portal shows it. The checks that run before anyt
 | Field | Meaning |
 |---|---|
 | `format` | Whole number. Portal reads the formats it knows and ignores a file with a higher one. |
+| `serial` | Whole number from 1, up by at least one with every published catalog. Required for a signed catalog (all of them). See [Signing](#signing). |
+| `expires` | A date like `2027-01-31`. After the end of that day Portal pauses installing from this catalog until a newer one is published; listing and withdrawals still work. Optional. |
 | `updated` | Free text date, shown to the person. Optional. |
 | `extensions` | Up to 500 entries. |
 | `revoked` | Up to 1000 lines. Optional. |
@@ -174,3 +176,67 @@ Before the catalog has ever been loaded, its page says it hasn't been checked ye
 
 To see these on the emulator: `REVOKE_SAMPLE=1 scripts/test-catalog.sh` (the catalog withdraws the sample), and
 `UNLIST_SAMPLE=1 scripts/test-catalog.sh` (the sample isn't listed). Then press Refresh in Browse.
+
+## Signing
+
+The catalog is a file on a web host, so Portal does not take its word for it. Portal reads a catalog only if it carries a
+valid **Ed25519 signature** from a key built into Portal. Whoever controls the host or the repository can't make a TV install
+an app, or withdraw one, without the private key, which is kept offline.
+
+### What is published
+
+Two files side by side: `catalog.json` and `catalog.json.sig`, the signature over the exact bytes of the first:
+
+```json
+{"key_id": "portal-2026-1", "signature": "<base64>"}
+```
+
+Portal fetches both, checks the signature before reading anything in the catalog, and keeps them together in one file. A
+catalog that is unsigned, signed by an unknown key, or altered by a single byte is refused, and the copy already on the TV
+stays in use. Checking works the same on every Android version Portal runs on (the check is written out in
+`Ed25519Verify.kt` rather than relying on the platform, and is tested against the RFC 8032 vectors and the JDK).
+
+### Old copies and stale copies
+
+A signed catalog is still only a snapshot, so two more rules close the gaps a signature alone leaves:
+
+- **`serial` never goes down.** Portal remembers the highest serial it has accepted and refuses a catalog with a lower one,
+  so an old signed copy (from before a withdrawal) can't be put back in front of it.
+- **`expires` limits how long a frozen catalog helps an attacker.** Someone who can block the real host and serve a
+  perfectly valid but old catalog is limited by the date in it. Past it, installing is paused (with a message), and
+  withdrawals already known stay in force. Choose it so there is time to publish again (say 60 to 90 days ahead) and move it
+  with every publication.
+
+### Setting up the key (once)
+
+```bash
+java scripts/CatalogSign.java keygen portal-catalog
+```
+
+This writes `portal-catalog.private` and `portal-catalog.public`. Keep the private file offline (an encrypted drive or a
+password manager; **not** in a repository and not in CI): it is the only thing that can publish a catalog Portal accepts.
+Paste the one line in `portal-catalog.public` into `CatalogTrust.RELEASE_KEYS` in `CatalogTrust.kt`, with an id such as
+`portal-2026-1`, and ship that in a release. **Until a key is added, a release build refuses every catalog** (it has nothing to
+check against); debug builds also trust a test key whose private half is in `docs/catalog/test`, and nothing else.
+
+### Publishing
+
+1. Build `catalog.json` from the entries (the catalog repository's job), with a `serial` one higher than the last and a new
+   `expires`.
+2. Check it: `scripts/validate-catalog.sh catalog.json`.
+3. Sign it, on the machine that holds the key:
+   `java scripts/CatalogSign.java sign portal-catalog.private portal-2026-1 catalog.json` (writes `catalog.json.sig`).
+4. Publish both files together. (`java scripts/CatalogSign.java verify portal-catalog.public catalog.json` checks a pair.)
+
+### Changing the key
+
+`CatalogTrust.RELEASE_KEYS` is a list. To rotate, add the new public key in a Portal release, wait until most TVs have it,
+then sign with the new key; the old key can be removed in a later release. If the private key is ever lost or stolen, TVs can
+only be protected by a Portal update that stops trusting that key, so keep it somewhere you would be sorry to lose.
+
+### Trying it
+
+`scripts/test-catalog.sh` signs the test catalog with the test key. Options show each refusal on the emulator:
+`SERIAL=n` (serve a lower serial than the last accepted to see it refused), `BAD_SIGNATURE=1`, `UNSIGNED=1` and
+`EXPIRES=2020-01-01`. With `KEEP=1` it only restarts the server, leaving Portal and its kept catalog alone, so the next
+Refresh shows what happens to a TV that already has a copy.

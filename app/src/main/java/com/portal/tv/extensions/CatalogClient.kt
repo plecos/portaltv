@@ -55,14 +55,45 @@ object CatalogClient {
     /** When a fetch was last tried, good or not, so being offline doesn't mean trying every time. */
     fun attemptedAt(context: Context): Long = prefs(context).getLong("attempted_at", 0L)
 
-    /** The copy kept from the last time, or null if there is none or it can't be read. No network. */
+    /**
+     * The copy kept from the last time, or null if there is none, it can't be read, or it no longer checks out against the
+     * keys this Portal trusts. No network. It is kept as the signature (one line) followed by the catalog, in one file, so
+     * the two can never be out of step.
+     */
     fun cached(context: Context): Copy? {
         val file = File(context.filesDir, FILE)
         if (!file.isFile) return null
-        val text = runCatching { file.readText() }.getOrNull() ?: return null
-        val ok = CatalogParser.parse(text, BuildConfig.DEBUG) as? CatalogParser.Result.Ok ?: return null
+        val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
+        val (signature, catalog) = split(bytes) ?: return null
+        if (CatalogTrust.verify(catalog, signature, CatalogTrust.keys(BuildConfig.DEBUG)) !is CatalogTrust.Result.Ok) return null
+        val ok = CatalogParser.parse(catalog.toString(Charsets.UTF_8), BuildConfig.DEBUG) as? CatalogParser.Result.Ok ?: return null
         return Copy(ok.catalog, prefs(context).getLong("fetched_at", 0L))
     }
+
+    /** The signature line and the catalog bytes of a kept file, or null if it has no signature line. */
+    internal fun split(stored: ByteArray): Pair<String, ByteArray>? {
+        val newline = stored.indexOf('\n'.code.toByte())
+        if (newline <= 0 || newline > CatalogTrust.MAX_SIGNATURE_BYTES) return null
+        return stored.copyOfRange(0, newline).toString(Charsets.UTF_8) to stored.copyOfRange(newline + 1, stored.size)
+    }
+
+    /** The signature file next to the catalog; null if it isn't there, so the catalog is then refused. */
+    private fun fetchSignature(address: String): String? {
+        val c = URL("$address.sig").openConnection() as HttpURLConnection
+        return try {
+            c.connectTimeout = 10_000
+            c.readTimeout = 20_000
+            c.setRequestProperty("User-Agent", USER_AGENT)
+            if (c.responseCode != 200) null else readCapped(c.inputStream, CatalogTrust.MAX_SIGNATURE_BYTES)
+        } catch (e: IOException) {
+            null
+        } finally {
+            c.disconnect()
+        }
+    }
+
+    /** The highest serial Portal has accepted; a catalog with a lower one is an old copy and is refused. */
+    fun lastSerial(context: Context): Long = prefs(context).getLong("serial", 0L)
 
     /** When Portal may next fetch on its own, after the host said it was busy (0 if never). */
     fun retryUntil(context: Context): Long = prefs(context).getLong("retry_until", 0L)
@@ -85,7 +116,7 @@ object CatalogClient {
         val c = URL(address).openConnection() as HttpURLConnection
         var etag: String? = null
         var modified: String? = null
-        val text: String? = try {
+        val body: ByteArray? = try {
             c.connectTimeout = 10_000
             c.readTimeout = 20_000
             c.setRequestProperty("User-Agent", USER_AGENT)
@@ -98,7 +129,7 @@ object CatalogClient {
                 200 -> {
                     etag = c.getHeaderField("ETag")
                     modified = c.getHeaderField("Last-Modified")
-                    readCapped(c.inputStream, CatalogParser.MAX_FILE_CHARS * 4)
+                    readBytesCapped(c.inputStream, CatalogParser.MAX_FILE_CHARS * 4)
                 }
                 304 -> if (have != null) null else throw IOException("The catalog answered 304 with nothing kept")
                 429, 503 -> {
@@ -120,22 +151,32 @@ object CatalogClient {
             c.disconnect()
         }
         val now = System.currentTimeMillis()
-        if (text == null) {
+        if (body == null) {
             // Not modified: the copy is as fresh as the host's.
             p.edit().putLong("fetched_at", now).putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
             return@withContext Copy(have!!.catalog, now)
         }
-        when (val r = CatalogParser.parse(text, BuildConfig.DEBUG)) {
+        // Nothing in the file is trusted until its signature checks out against a key built into this Portal.
+        val signature = fetchSignature(address)
+        when (val trust = CatalogTrust.verify(body, signature, CatalogTrust.keys(BuildConfig.DEBUG))) {
+            is CatalogTrust.Result.Refused -> throw IOException(trust.reason + " It was not used.")
+            is CatalogTrust.Result.Ok -> {}
+        }
+        when (val r = CatalogParser.parse(body.toString(Charsets.UTF_8), BuildConfig.DEBUG)) {
             is CatalogParser.Result.Invalid -> throw IOException(r.reason)
             is CatalogParser.Result.NeedsNewerPortal -> throw IOException("The catalog needs a newer Portal")
             is CatalogParser.Result.Ok -> {
-                // Written beside the old copy and moved into place, so a power cut can't leave half a file (which would read as
-                // "no catalog", and a withdrawal would stop being enforced).
+                if (r.catalog.serial < 1) throw IOException("The catalog has no serial number, so it was not used.")
+                // A signed catalog is still refused if it is older than one already used: that is how a withdrawal
+                // would be undone by putting an old copy back.
+                if (r.catalog.serial < lastSerial(context)) throw IOException("The catalog is older than one Portal already used, so it was not used.")
+                // The signature line and the catalog go into one file, written beside the old one and moved into place,
+                // so a power cut can't leave half a file (which would read as "no catalog" and stop withdrawals).
                 val target = File(context.filesDir, FILE)
                 val temp = File(context.filesDir, "$FILE.tmp")
-                temp.writeText(text)
+                temp.writeBytes((signature!!.trim() + "\n").toByteArray(Charsets.UTF_8) + body)
                 java.nio.file.Files.move(temp.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
-                p.edit().putLong("fetched_at", now).putString("etag", etag).putString("last_modified", modified)
+                p.edit().putLong("fetched_at", now).putLong("serial", r.catalog.serial).putString("etag", etag).putString("last_modified", modified)
                     .putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
                 Copy(r.catalog, now)
             }

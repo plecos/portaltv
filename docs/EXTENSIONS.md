@@ -274,4 +274,4 @@ are gone, and what was allowed is forgotten.
 
 ## Coming in later pieces (not available yet)
 
-- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it and install from it.
+- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it and install from it. The catalog is signed; see [CATALOG.md](CATALOG.md#signing).
