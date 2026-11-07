@@ -50,4 +50,26 @@ class PlacesTest {
         }
         throw AssertionError("no country to forest boundary in sixty stretches")
     }
+
+    @Test fun placesTakeTurnsWithCountrysideBetween() {
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(0))
+        assertEquals(Places.FOREST, Places.placeOf(1))
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(2))
+        assertEquals(Places.CITY, Places.placeOf(3))
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(4))
+        assertEquals(Places.FOREST, Places.placeOf(5))
+    }
+
+    @Test fun cityAndForestNeverMixAndEachReachesFull() {
+        var sawCity = false
+        var j = 0.0
+        while (j < Places.STRETCH * 12) {
+            val f = Places.forest(j, Places.JOURNEY)
+            val c = Places.city(j, Places.JOURNEY)
+            assertTrue("f $f c $c", f + c <= 1.0001f)
+            if (c > 0.99f) sawCity = true
+            j += 25.0
+        }
+        assertTrue(sawCity)
+    }
 }

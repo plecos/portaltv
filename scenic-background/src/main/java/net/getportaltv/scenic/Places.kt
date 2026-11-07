@@ -14,22 +14,32 @@ object Places {
     const val JOURNEY = "Journey"
     const val COUNTRYSIDE = "Countryside"
     const val FOREST = "Forest"
+    const val CITY = "City"
 
     /** The choices in settings, the first being the default. */
-    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST)
+    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, CITY)
+
+    /** The places the journey passes through between stretches of countryside, in turn. */
+    private val SPECIALS = listOf(FOREST, CITY)
 
     /** How far one stretch of the journey goes before the next place, in pixels of travel (about two and a half minutes). */
     const val STRETCH = 4500.0
     /** How far the change from one place to the next takes (about a minute), centred on the boundary between them. */
     const val BLEND = 1500.0
 
-    /** How much of the forest there is at [journey] pixels along the road, for the [mode] chosen. */
-    fun forest(journey: Double, mode: String): Float = when (mode) {
-        FOREST -> 1f
-        COUNTRYSIDE -> 0f
-        // The countryside and the forest take turns, starting in the countryside.
-        else -> along(journey, STRETCH, BLEND) { stretch -> if (stretch > 0 && stretch % 2 != 0) 1f else 0f }
+    /** Which place the journey is in during [stretch]: countryside, then each of the others in turn with countryside between. */
+    fun placeOf(stretch: Int): String =
+        if (stretch <= 0 || stretch % 2 == 0) COUNTRYSIDE else SPECIALS[((stretch - 1) / 2) % SPECIALS.size]
+
+    /** How much of [place] there is at [journey] pixels along the road, for the [mode] chosen: 0 to 1. */
+    fun amount(place: String, journey: Double, mode: String): Float = when (mode) {
+        JOURNEY -> along(journey, STRETCH, BLEND) { stretch -> if (placeOf(stretch) == place) 1f else 0f }
+        place -> 1f
+        else -> 0f
     }
+
+    fun forest(journey: Double, mode: String): Float = amount(FOREST, journey, mode)
+    fun city(journey: Double, mode: String): Float = amount(CITY, journey, mode)
 
     /** How tall the mountains are, from 0 (none: the hills run to the horizon) to 1, in stretches that come and go in any place. */
     fun mountains(journey: Double): Float =
@@ -50,8 +60,14 @@ object Places {
     }
 }
 
-/** How much forest there is at a point of a layer that moves at [factor] of the journey, [x] pixels into that layer's world. */
 /** How tall the mountains are now. The far ranges move so slowly that they cannot be placed by where they are, so it follows the journey as a whole: the mountains sink and rise together. */
 internal fun SceneState.mountainsNow(): Float = Places.mountains(cam)
 
+/** How much forest there is at a point of a layer that moves at [factor] of the journey, [x] pixels into that layer's world. */
 internal fun SceneState.forestAt(x: Double, factor: Double): Float = Places.forest(x / factor, placeMode)
+
+/** The same for the city. */
+internal fun SceneState.cityAt(x: Double, factor: Double): Float = Places.city(x / factor, placeMode)
+
+/** How much city there is where the journey is now (for things that cannot be placed by where they are). */
+internal fun SceneState.cityNow(): Float = Places.city(cam, placeMode)
