@@ -508,10 +508,13 @@ class PixelScene {
         val period = 3.5
         val slot = floor(s.time / period).toInt()
         val night = s.look.day < 0.45f
-        for (k in slot - 8..slot) {
+        // Two passes, far lane first: the cars coming toward us (facing left) are in the upper lane and are drawn behind the ones
+        // going our way (facing right) in the lane nearer the front, whatever order they set off in.
+        for (pass in 0..1) for (k in slot - 8..slot) {
             if (Noise.unit(k, 101) > 0.30f) continue
             val spawn = k * period + Noise.unit(k, 102) * period
             val ourLane = Noise.unit(k, 103) < 0.5f
+            if (ourLane != (pass == 1)) continue
             // Seen from the road: our own lane's cars go the way we do (slower or faster than us), the other lane's come toward us.
             val speed = if (ourLane) 14f + Noise.unit(k, 104) * 46f else 30f + Noise.unit(k, 104) * 50f
             val vScreen = if (ourLane) speed - travelV else -speed - travelV
