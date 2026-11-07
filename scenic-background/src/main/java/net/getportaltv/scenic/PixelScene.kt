@@ -540,14 +540,18 @@ class PixelScene {
         val night = s.look.day < 0.45f
         // Two passes, far lane first: the cars coming toward us (facing left) are in the upper lane and are drawn behind the ones
         // going our way (facing right) in the lane nearer the front, whatever order they set off in.
-        for (pass in 0..1) for (k in slot - 8..slot) {
+        // A car stays for as long as it takes to cross, so the look-back covers the slowest (MIN_SCREEN_SPEED) with room to spare;
+        // a shorter one would drop a slow car in the middle of the road.
+        for (pass in 0..1) for (k in slot - 14..slot) {
             if (Noise.unit(k, 101) > 0.30f) continue
             val spawn = k * period + Noise.unit(k, 102) * period
             val ourLane = Noise.unit(k, 103) < 0.5f
             if (ourLane != (pass == 1)) continue
             // Seen from the road: our own lane's cars go the way we do (slower or faster than us), the other lane's come toward us.
             val speed = if (ourLane) 14f + Noise.unit(k, 104) * 46f else 30f + Noise.unit(k, 104) * 50f
-            val vScreen = if (ourLane) speed - travelV else -speed - travelV
+            val raw = if (ourLane) speed - travelV else -speed - travelV
+            // Never nearly still on the screen (a car going our speed would sit there for ever), so it always crosses in time.
+            val vScreen = if (kotlin.math.abs(raw) < MIN_SCREEN_SPEED) (if (raw < 0f) -MIN_SCREEN_SPEED else MIN_SCREEN_SPEED) else raw
             val truck = Noise.unit(k, 105) < 0.22f
             val sp = if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val e = (s.time - spawn).toFloat()
@@ -771,6 +775,8 @@ class PixelScene {
         /** Where the distant land meets the sky. */
         const val HORIZON = 112
         const val FIELD_TOP = 132
+        /** The slowest a car moves across the screen, in pixels a second. */
+        const val MIN_SCREEN_SPEED = 12f
         const val ROAD_TOP = 154
         const val ROAD_BOTTOM = 168
     }
