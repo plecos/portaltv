@@ -108,6 +108,21 @@ object Impersonation {
         Character.UnicodeScript.LATIN in scripts && scripts.any { it !in WRITTEN_WITH_LATIN }
     }
 
+    /**
+     * True if [text] has letters from an alphabet outside [COMMON_ALPHABETS]. Some rare alphabets (Lisu, Cherokee and others)
+     * have capitals drawn like Latin ones, so a whole word in them can read as "SETTINGS" or "PORTAL"; no table of look-alikes
+     * can be complete, so names in those alphabets are refused instead. The ones in everyday use stay allowed.
+     */
+    private fun usesRareAlphabet(text: String): Boolean = text.codePoints().toArray().any { cp ->
+        Character.isLetter(cp) && Character.UnicodeScript.of(cp) !in COMMON_ALPHABETS
+    }
+
+    private val COMMON_ALPHABETS: Set<Character.UnicodeScript> = listOf(
+        "LATIN", "COMMON", "INHERITED", "CYRILLIC", "GREEK", "ARABIC", "HEBREW", "ARMENIAN", "GEORGIAN", "DEVANAGARI", "BENGALI",
+        "GUJARATI", "GURMUKHI", "TAMIL", "TELUGU", "KANNADA", "MALAYALAM", "SINHALA", "THAI", "LAO", "KHMER", "MYANMAR", "TIBETAN",
+        "ETHIOPIC", "HAN", "HIRAGANA", "KATAKANA", "HANGUL", "BOPOMOFO"
+    ).map { Character.UnicodeScript.valueOf(it) }.toSet()
+
     /** Scripts that are ordinarily written next to Latin letters (as in "TVアプリ") and have no letters made to look Latin. Every other script next to Latin is refused. */
     private val WRITTEN_WITH_LATIN = setOf(
         Character.UnicodeScript.LATIN, Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA,
@@ -116,6 +131,7 @@ object Impersonation {
 
     /** Why [text] can't be used as a name, or null if it can. */
     fun reason(text: String): String? {
+        if (usesRareAlphabet(text)) return "uses letters from an alphabet that is rarely used for names and easy to make look like Latin ones."
         if (mixesAlphabets(text)) return "mixes Latin letters with another alphabet's look-alikes in one word."
         val found = hit(looksLike(text)) ?: hit(looksLike(text, alternate = true))
         return if (found != null) "can pass for part of Portal or Android (\"$found\")." else null
@@ -125,7 +141,7 @@ object Impersonation {
      * Whether [packageName] has a part that is Portal's own name however it is joined or numbered: split at dots, at
      * underscores and at dashes, and also read with those and any digits taken out ("portal_tv", "getportaltv2").
      */
-    fun isReservedPackage(packageName: String): Boolean = packageName.split('.').any { segment ->
+    fun isReservedPackage(packageName: String): Boolean = joinsPortalWithAnother(packageName) || packageName.split('.').any { segment ->
         val pieces = segment.split('_', '-') + segment
         pieces.any { piece ->
             // As written (so "p0rtal" is read as letters), and with any digits taken out (so "getportaltv2" is too).
@@ -133,6 +149,17 @@ object Impersonation {
                 candidate.isNotEmpty() && (same(looksLike(candidate)) in RESERVED_SAME || same(looksLike(candidate, alternate = true)) in RESERVED_SAME)
             }
         }
+    }
+
+    /**
+     * "portal" alone in a part is a fair name for something that works with Portal ("com.acme.portalclock"), but "portal" with
+     * another official word anywhere in the package ("com.myportal.settings") reads as Portal's own app. Names that contain
+     * getportal or portaltv are reserved outright.
+     */
+    private fun joinsPortalWithAnother(packageName: String): Boolean {
+        val joined = same(looksLike(packageName.filter { it.isLetterOrDigit() }))
+        if (same("getportal") in joined || same("portaltv") in joined) return true
+        return same("portal") in joined && listOf("settings", "parental", "parentpin", "passcode", "launcher", "android", "google").any { same(it) in joined }
     }
 
     private val RESERVED_SAME = RESERVED_PARTS.map { same(it) }.toSet()
