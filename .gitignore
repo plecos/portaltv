@@ -23,3 +23,6 @@ conformance-logcat.txt
 # Catalog signing keys: the real private key must never be committed (only the labelled test key is).
 *.private
 !docs/catalog/test/test-signing-key.private
+
+# Draft screenshots, kept locally only
+branding/screenshots-draft/

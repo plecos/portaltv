@@ -137,7 +137,8 @@ object CatalogClient {
                     modified = c.getHeaderField("Last-Modified")
                     readBytesCapped(c.inputStream, CatalogParser.MAX_FILE_CHARS * 4)
                 }
-                304 -> if (have != null) { serverDate = c.getHeaderFieldDate("Date", 0L); null } else throw IOException("The catalog answered 304 with nothing kept")
+                // A "not modified" answer carries no signed content, so the date it carries is not used.
+                304 -> if (have != null) null else throw IOException("The catalog answered 304 with nothing kept")
                 429, 503 -> {
                     // The host asked for time: stay away for as long as it says (an hour if it doesn't say).
                     val wait = CatalogHttp.retryAfterMs(c.getHeaderField("Retry-After"), System.currentTimeMillis())
@@ -157,8 +158,6 @@ object CatalogClient {
             c.disconnect()
         }
         val now = System.currentTimeMillis()
-        // The latest date a host has told Portal only ever moves forward, so it can't be used to turn the clock back.
-        if (serverDate > 0 && serverDate > p.getLong("time_floor", 0L)) p.edit().putLong("time_floor", serverDate).apply()
         if (body == null) {
             // Not modified: the copy is as fresh as the host's.
             p.edit().putLong("fetched_at", now).putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
@@ -174,6 +173,9 @@ object CatalogClient {
             is CatalogParser.Result.Invalid -> throw IOException(r.reason)
             is CatalogParser.Result.NeedsNewerPortal -> throw IOException("The catalog needs a newer Portal")
             is CatalogParser.Result.Ok -> {
+                // The date a host gives is kept only once the reply has passed its signature check. Before that anyone who can
+                // answer the request could send a date far ahead, and the floor only moves forward.
+                if (serverDate > 0 && serverDate > p.getLong("time_floor", 0L)) p.edit().putLong("time_floor", serverDate).apply()
                 CatalogPolicy.check(r.catalog, trustedNow(context))?.let { throw IOException(it) }
                 // A signed catalog is still refused if it is older than one already used: that is how a withdrawal
                 // would be undone by putting an old copy back.

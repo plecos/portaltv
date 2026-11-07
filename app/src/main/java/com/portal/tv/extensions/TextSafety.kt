@@ -48,29 +48,59 @@ object Impersonation {
     /** Words that are refused only when they stand alone as a word (a name like "Update" but not "Updates for my pets"). */
     private val WORDS = setOf(
         "portal", "settings", "setting", "android", "google", "system", "parent", "parents", "pin", "profile", "profiles",
-        "update", "search", "launcher"
+        "update", "search", "launcher", "parental", "password", "passcode"
     )
 
     /** Longer names, refused wherever they appear once spaces and punctuation are ignored ("S e t t i n g s", "Portal-TV"). */
-    private val INSIDE = listOf("portal", "settings", "android", "google", "launcher", "parentpin")
+    private val INSIDE = listOf("portal", "settings", "android", "google", "launcher", "parentpin", "parental", "passcode")
 
-    // Letters from other alphabets that look like Latin ones, folded so "Pоrtal" (Cyrillic о) is caught.
-    private val LOOKALIKES = mapOf(
-        'а' to 'a', 'в' to 'b', 'е' to 'e', 'к' to 'k', 'м' to 'm', 'н' to 'h', 'о' to 'o', 'р' to 'p', 'с' to 'c', 'т' to 't',
-        'у' to 'y', 'х' to 'x', 'і' to 'i', 'ѕ' to 's', 'ј' to 'j', 'ԁ' to 'd', 'ɡ' to 'g', 'ο' to 'o', 'ν' to 'v', 'α' to 'a',
-        'ι' to 'i', 'ρ' to 'p', 'τ' to 't', 'υ' to 'u', 'κ' to 'k', 'ѵ' to 'v', '0' to 'o', '1' to 'l', '5' to 's'
-    )
+    /** Package names only Portal's own apps may use: a name like "net.getportaltv.settings" looks official on a card. */
+    private val RESERVED_PACKAGES = listOf("net.getportaltv", "com.portal.tv")
 
-    /** What [text] looks like to a person: compatibility forms folded (fullwidth letters), case ignored, lookalikes made Latin. */
-    internal fun looksLike(text: String): String =
-        Normalizer.normalize(text, Normalizer.Form.NFKC).lowercase(Locale.ROOT).map { LOOKALIKES[it] ?: it }.joinToString("")
+    /**
+     * Letters from other alphabets (and Latin ones with strokes) that look like Latin ones, folded so "Pоrtal" (Cyrillic о)
+     * and "Sεttings" (Greek ε) are caught. Letters are lower case here, because the text is lower-cased first.
+     */
+    private val LOOKALIKES: Map<Char, Char> = buildMap {
+        // Cyrillic
+        "а=a в=b е=e к=k м=m н=h о=o р=p с=c т=t у=y х=x і=i ѕ=s ј=j ԁ=d ѵ=v ь=b һ=h ӏ=l ԛ=q ԝ=w ѡ=w".split(' ')
+            .forEach { put(it[0], it[2]) }
+        // Greek
+        "α=a β=b γ=y ε=e ζ=z ι=i κ=k ν=v ο=o ρ=p τ=t υ=u χ=x ω=w ϲ=c ϳ=j ϸ=p".split(' ').forEach { put(it[0], it[2]) }
+        // Latin with a stroke or no dot, and a few more
+        "ı=i ɩ=i ł=l ø=o đ=d ħ=h ɡ=g ᴏ=o ᴜ=u ᴠ=v ᴡ=w ᴢ=z ʟ=l ɴ=n ʀ=r ɪ=i ꜱ=s ᴅ=d ᴇ=e ᴛ=t ᴍ=m ᴘ=p ᴋ=k ᴄ=c ʏ=y ɑ=a ց=g ο=o".split(' ')
+            .forEach { put(it[0], it[2]) }
+        // Digits that pass for letters
+        "0=o 1=l 5=s 3=e 4=a 7=t 8=b".split(' ').forEach { put(it[0], it[2]) }
+    }
+
+    /** Greek letters that look different in capitals and in small letters: read the other way too. */
+    private val ALTERNATE: Map<Char, Char> = mapOf('η' to 'h', 'μ' to 'm', 'π' to 'n', 'θ' to 'o', 'φ' to 'o', 'δ' to 'd')
+    private val PLAIN_GREEK: Map<Char, Char> = mapOf('η' to 'n', 'μ' to 'u', 'π' to 'n', 'θ' to 'o', 'φ' to 'o', 'δ' to 'd')
+
+    /**
+     * What [text] looks like to a person: compatibility forms folded (fullwidth letters), accents removed, case ignored,
+     * lookalikes made Latin. [alternate] reads the Greek letters that differ between capitals and small letters the other way.
+     */
+    internal fun looksLike(text: String, alternate: Boolean = false): String {
+        val noAccents = Normalizer.normalize(Normalizer.normalize(text, Normalizer.Form.NFKC), Normalizer.Form.NFD)
+            .filter { Character.getType(it).toByte() != Character.NON_SPACING_MARK }
+        val greek = if (alternate) ALTERNATE else PLAIN_GREEK
+        return noAccents.lowercase(Locale.ROOT).map { greek[it] ?: LOOKALIKES[it] ?: it }.joinToString("")
+    }
+
+    private fun hit(folded: String): String? {
+        val words = folded.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        val collapsed = folded.filter { it.isLetterOrDigit() }
+        return words.firstOrNull { it in WORDS } ?: INSIDE.firstOrNull { it in collapsed }
+    }
 
     /** Why [text] can't be used as a name, or null if it can. */
     fun reason(text: String): String? {
-        val folded = looksLike(text)
-        val words = folded.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
-        val collapsed = folded.filter { it.isLetterOrDigit() }
-        val hit = words.firstOrNull { it in WORDS } ?: INSIDE.firstOrNull { it in collapsed }
-        return if (hit != null) "can pass for part of Portal or Android (\"$hit\")." else null
+        val found = hit(looksLike(text)) ?: hit(looksLike(text, alternate = true))
+        return if (found != null) "can pass for part of Portal or Android (\"$found\")." else null
     }
+
+    /** Whether [packageName] is one only Portal's own apps may use. */
+    fun isReservedPackage(packageName: String): Boolean = RESERVED_PACKAGES.any { packageName == it || packageName.startsWith("$it.") }
 }
