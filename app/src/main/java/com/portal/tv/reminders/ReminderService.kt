@@ -258,7 +258,7 @@ class ReminderService : Service() {
             words.addView(text(16f, false, Color.rgb(176, 176, 192)).apply {
                 this.text = (profile?.name ?: "Reminder").uppercase() + "  ·  " +
                     if (f.late) "MISSED, WAS DUE ${ReminderLogic.whenLabel(f.reminder.atMillis, now).uppercase()}" else "REMINDER"
-                    f.reminder.source?.let { src -> "  ·  VIA " + (com.portal.tv.extensions.ExtensionRegistry.find(this@ReminderService, src)?.name ?: src).uppercase() }.orEmpty()
+                    f.reminder.source?.let { src -> "  ·  VIA " + ((com.portal.tv.extensions.ExtensionRegistry.find(this@ReminderService, src)?.name)?.let { "$it · $src" } ?: src).uppercase() }.orEmpty()
             })
             words.addView(text(30f, true).apply { this.text = f.reminder.title })
             if (f.reminder.needsButtons) {

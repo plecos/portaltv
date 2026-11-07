@@ -136,7 +136,7 @@ class CatalogPages(
 
     /** Checks there is something to install, then the PIN, then goes on. */
     private fun startInstall(catalog: Catalog, entry: CatalogEntry) {
-        val (version, refusal) = CatalogInstallChecks.start(catalog, entry, CatalogInstaller.installedFacts(context, entry.packageName))
+        val (version, refusal) = CatalogInstallChecks.start(catalog, entry, CatalogInstaller.installedFacts(context, entry.packageName), CatalogClient.trustedNow(context))
         if (version == null) { notice("Can't install ${entry.name}", refusal.orEmpty()); return }
         if (!CatalogInstaller.canInstall(context)) {
             PortalDialog.Builder(context)

@@ -231,13 +231,13 @@ object CatalogParser {
     /** Plain text of 1 to [max] characters with nothing that can't be shown. */
     private fun text(o: JSONObject, key: String, max: Int): String? {
         val s = (o.opt(key) as? String)?.trim() ?: return null
-        return s.takeIf { it.isNotEmpty() && it.length <= max && s.none { c -> c.isISOControl() } }
+        return s.takeIf { it.isNotEmpty() && it.length <= max && TextSafety.isPlain(s) }
     }
 
     /** An https address (http too when allowed) with a host and no name or password in it. */
     private fun url(value: Any?, allowHttp: Boolean): String? {
         val s = value as? String ?: return null
-        if (s.length > MAX_URL || s.any { it.isISOControl() || it == ' ' }) return null
+        if (s.length > MAX_URL || s.any { it.isISOControl() || it == ' ' } || !TextSafety.isPlain(s)) return null
         val rest = when {
             s.startsWith("https://") -> s.removePrefix("https://")
             allowHttp && s.startsWith("http://") -> s.removePrefix("http://")
@@ -261,12 +261,23 @@ object CatalogRules {
 
     /** The first revocation that applies to this package, version and signer, or null. A package that isn't listed can still be revoked. */
     fun revocation(catalog: Catalog, packageName: String, versionCode: Long?, signer: String?): CatalogRevocation? =
+        revocationBySigners(catalog, packageName, versionCode, listOfNotNull(signer))
+
+    /**
+     * Like [revocation] for an app that may have been signed by several keys, or by a key it has since rotated away
+     * from: a line that names a signer applies if ANY of the app's certificates (each joined group is split into its
+     * certificates) is that signer or one of the signers in the line. So withdrawing one key is not dodged by rotating to
+     * another, or by adding a second signer.
+     */
+    fun revocationBySigners(catalog: Catalog, packageName: String, versionCode: Long?, signers: Collection<String>): CatalogRevocation? {
+        val have = signers.flatMap { it.split('+') }.toSet()
         // A line applies when everything it names matches; what it leaves out matches anything.
-        catalog.revoked.firstOrNull { r ->
+        return catalog.revoked.firstOrNull { r ->
             (r.packageName == null || r.packageName == packageName) &&
-                (r.signer == null || r.signer == signer) &&
+                (r.signer == null || r.signer.split('+').any { it in have }) &&
                 (r.versionCode == null || r.versionCode == versionCode)
         }
+    }
 
     /** The version to offer: the newest this Portal can use and that isn't revoked. Null if none. */
     fun best(catalog: Catalog, entry: CatalogEntry, contract: Int = ManifestParser.CONTRACT_VERSION): CatalogVersion? =

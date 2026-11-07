@@ -92,6 +92,10 @@ object CatalogClient {
         }
     }
 
+    /** The time to judge a catalog's expiry by: the TV's clock, or the latest date a catalog host has told Portal if that is later. */
+    fun trustedNow(context: Context): Long =
+        CatalogPolicy.effectiveNow(System.currentTimeMillis(), prefs(context).getLong("time_floor", 0L))
+
     /** The highest serial Portal has accepted; a catalog with a lower one is an old copy and is refused. */
     fun lastSerial(context: Context): Long = prefs(context).getLong("serial", 0L)
 
@@ -116,6 +120,7 @@ object CatalogClient {
         val c = URL(address).openConnection() as HttpURLConnection
         var etag: String? = null
         var modified: String? = null
+        var serverDate = 0L
         val body: ByteArray? = try {
             c.connectTimeout = 10_000
             c.readTimeout = 20_000
@@ -127,11 +132,12 @@ object CatalogClient {
             }
             when (val code = c.responseCode) {
                 200 -> {
+                    serverDate = c.getHeaderFieldDate("Date", 0L)
                     etag = c.getHeaderField("ETag")
                     modified = c.getHeaderField("Last-Modified")
                     readBytesCapped(c.inputStream, CatalogParser.MAX_FILE_CHARS * 4)
                 }
-                304 -> if (have != null) null else throw IOException("The catalog answered 304 with nothing kept")
+                304 -> if (have != null) { serverDate = c.getHeaderFieldDate("Date", 0L); null } else throw IOException("The catalog answered 304 with nothing kept")
                 429, 503 -> {
                     // The host asked for time: stay away for as long as it says (an hour if it doesn't say).
                     val wait = CatalogHttp.retryAfterMs(c.getHeaderField("Retry-After"), System.currentTimeMillis())
@@ -151,6 +157,8 @@ object CatalogClient {
             c.disconnect()
         }
         val now = System.currentTimeMillis()
+        // The latest date a host has told Portal only ever moves forward, so it can't be used to turn the clock back.
+        if (serverDate > 0 && serverDate > p.getLong("time_floor", 0L)) p.edit().putLong("time_floor", serverDate).apply()
         if (body == null) {
             // Not modified: the copy is as fresh as the host's.
             p.edit().putLong("fetched_at", now).putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
@@ -166,7 +174,7 @@ object CatalogClient {
             is CatalogParser.Result.Invalid -> throw IOException(r.reason)
             is CatalogParser.Result.NeedsNewerPortal -> throw IOException("The catalog needs a newer Portal")
             is CatalogParser.Result.Ok -> {
-                if (r.catalog.serial < 1) throw IOException("The catalog has no serial number, so it was not used.")
+                CatalogPolicy.check(r.catalog, trustedNow(context))?.let { throw IOException(it) }
                 // A signed catalog is still refused if it is older than one already used: that is how a withdrawal
                 // would be undone by putting an old copy back.
                 if (r.catalog.serial < lastSerial(context)) throw IOException("The catalog is older than one Portal already used, so it was not used.")

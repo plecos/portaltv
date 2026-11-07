@@ -3,6 +3,7 @@ package com.portal.tv.extensions
 import com.portal.tv.reminders.Reminder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -246,7 +247,7 @@ class HostConformanceTest {
         h.call(A, HostApi.CARD_SHOW, mapOf("title" to "Again")).assertError(HostApi.Error.RATE_LIMITED)
         assertEquals(1, tv.cardsShown.size)
         // It is labelled with the extension's name, and the time is capped.
-        assertEquals(listOf("Ext $A", "Garage open", "Sent by A", HostLimits.MAX_CARD_SECONDS.toString()), tv.cardsShown[0])
+        assertEquals(listOf("Ext $A · $A", "Garage open", "Sent by A", HostLimits.MAX_CARD_SECONDS.toString()), tv.cardsShown[0])
         tv.elapsed += HostLimits.CARD_INTERVAL_MS
         assertTrue(h.call(A, HostApi.CARD_SHOW, mapOf("title" to "Later")).ok)
     }
@@ -410,8 +411,8 @@ class HostReviewFixesTest {
     fun theHandlerKnowsOnlyInstalledExtensions() {
         val tv = FakeTv().apply { install(A, ALL) }
         val h = HostHandler(tv)
-        assertTrue(h.knows(A))
-        assertFalse(h.knows("net.example.stranger"))
+        assertNotNull(h.lookup(A))
+        assertNull(h.lookup("net.example.stranger"))
     }
 
     @Test
@@ -434,4 +435,31 @@ class HostReviewFixesTest {
         assertEquals(HostLimits.MAX_REMINDERS, ok.get())
         assertEquals(HostLimits.MAX_REMINDERS, tv.remindersFrom(A).size)
     }
+
+    @Test
+    fun anyKindOfCallIsLimitedBeforeAnythingIsLookedUp() {
+        val tv = FakeTv().apply { install(A, ALL); install(B, ALL) }
+        val h = HostHandler(tv)
+        repeat(HostLimits.CALLS_PER_MINUTE) { assertTrue(h.admit(A)) }
+        assertFalse(h.admit(A))
+        // Each extension has its own allowance, and a minute later it is back.
+        assertTrue(h.admit(B))
+        tv.elapsed += 60_000L
+        assertTrue(h.admit(A))
+    }
+
+    @Test
+    fun aHostCallWithAnExtensionAlreadyLookedUpDoesNotLookItUpAgain() {
+        val tv = CountingTv(FakeTv().apply { install(A, ALL) })
+        val h = HostHandler(tv)
+        val ext = h.lookup(A)!!
+        repeat(5) { h.call(ext, HostApi.INFO, emptyMap()) }
+        assertEquals(1, tv.lookups)
+    }
+}
+
+/** A fake TV that counts how often an extension is looked up. */
+private class CountingTv(private val inner: FakeTv) : HostEnv by inner {
+    var lookups = 0
+    override fun extension(packageName: String): HostExtension? { lookups++; return inner.extension(packageName) }
 }

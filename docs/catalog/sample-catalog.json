@@ -1,7 +1,8 @@
 {
-  "format": 1,
   "serial": 1,
-  "updated": "2026-11-06",
+  "updated": "2026-11-07",
+  "expires": "2027-05-06",
+  "format": 1,
   "extensions": [
     {
       "package": "net.getportaltv.sample",

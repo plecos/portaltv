@@ -45,7 +45,7 @@ object CatalogInstaller {
     /** What is installed now for [packageName], or null if nothing is. */
     fun installedFacts(context: Context, packageName: String): InstalledFacts? = try {
         val info = context.packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong()))
-        InstalledFacts(info.longVersionCode, signerOf(info))
+        InstalledFacts(info.longVersionCode, signerOf(info), signersOf(info))
     } catch (e: PackageManager.NameNotFoundException) {
         null
     }
@@ -160,7 +160,14 @@ object CatalogInstaller {
                 unknown = parsed.manifest.unknownCapabilities
             }
         }
-        return ArchiveFacts(info.packageName, info.longVersionCode, signerOf(info), capabilities, unknown)
+        return ArchiveFacts(info.packageName, info.longVersionCode, signerOf(info), signersOf(info), capabilities, unknown)
+    }
+
+    /** Every certificate the app has been signed with, now or earlier (its rotation history), one hash each. */
+    private fun signersOf(info: android.content.pm.PackageInfo): Set<String> {
+        val signing = info.signingInfo ?: return emptySet()
+        val certs = if (signing.hasMultipleSigners()) signing.apkContentsSigners else signing.signingCertificateHistory
+        return certs.orEmpty().map { ExtensionAccess.sha256Hex(it.toByteArray()) }.toSet()
     }
 
     private fun signerOf(info: android.content.pm.PackageInfo): String? =

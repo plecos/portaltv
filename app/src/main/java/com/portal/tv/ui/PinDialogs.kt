@@ -14,9 +14,12 @@ import com.portal.tv.repo.ProfileCode
 /** Dialogs for entering, setting and changing the parent PIN. */
 object PinDialogs {
 
+    /** Said every time the PIN is asked for, so a look-alike screen from an app is easier to spot. */
+    const val PIN_WARNING = "Portal asks for this PIN only here, in its own Settings and profile screens. If any other app or page asks for it, don't enter it."
+
     /** Asks for the current PIN and runs [onVerified] if it matches. */
     fun verify(context: Context, title: String = "Enter parent PIN", onVerified: () -> Unit) {
-        PinPad.ask(context, title, onDone = { pin ->
+        PinPad.ask(context, title, PIN_WARNING, onDone = { pin ->
             if (ParentPin.verify(context, pin)) onVerified()
             else toast(context, "Wrong PIN")
         })

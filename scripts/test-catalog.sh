@@ -113,13 +113,14 @@ json.dump(cat, open(os.path.join(d, "catalog.json"), "w"))
 PY
   echo "Added $MANY made-up extensions."
 fi
-if [ -n "${SERIAL:-}${EXPIRES:-}" ]; then
-  python3 - "$SERVE" "${SERIAL:-}" "${EXPIRES:-}" <<'PY'
+# A real publication is stamped (serial, updated, expires) just before signing; so is this one.
+java scripts/CatalogSign.java stamp "$SERVE/catalog.json" --serial "${SERIAL:-1}" >/dev/null
+if [ -n "${EXPIRES:-}" ]; then
+  python3 - "$SERVE" "$EXPIRES" <<'PY'
 import json, sys, os
 p = os.path.join(sys.argv[1], "catalog.json")
 cat = json.load(open(p))
-if sys.argv[2]: cat["serial"] = int(sys.argv[2])
-if sys.argv[3]: cat["expires"] = sys.argv[3]
+cat["expires"] = sys.argv[2]
 json.dump(cat, open(p, "w"))
 PY
 fi

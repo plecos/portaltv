@@ -6,6 +6,8 @@ data class ArchiveFacts(
     val versionCode: Long,
     /** Who signed it, in the form [ExtensionAccess.combineSigners] gives; null if it can't be told. */
     val signer: String?,
+    /** Every certificate in its signing history (a key it has rotated away from still counts), one hash each. */
+    val signers: Set<String> = emptySet(),
     /** What its extension file asks for, or null if there is no extension file or it can't be read. */
     val capabilities: Set<String>?,
     /** Capabilities it asks for that this Portal doesn't know. */
@@ -13,7 +15,7 @@ data class ArchiveFacts(
 )
 
 /** The same extension as it is installed on this TV now. */
-data class InstalledFacts(val versionCode: Long, val signer: String?)
+data class InstalledFacts(val versionCode: Long, val signer: String?, val signers: Set<String> = emptySet())
 
 /**
  * Every check made before a catalog extension is installed, without Android so each can be tested. Each returns the reason
@@ -29,13 +31,17 @@ object CatalogInstallChecks {
         if (CatalogLabels.expired(catalog, nowMs)) {
             return null to "The catalog hasn't been updated for a while, so installing from it is paused until it is."
         }
-        CatalogRules.revocation(catalog, entry.packageName, null, entry.signer)?.let {
+        // Withdrawn by package, or by any key the listing or the installed app has ever been signed with.
+        val keys = listOf(entry.signer) + installed?.signers.orEmpty() + listOfNotNull(installed?.signer)
+        CatalogRules.revocationBySigners(catalog, entry.packageName, null, keys)?.let {
             return null to "This extension has been withdrawn from the catalog: ${it.reason}"
         }
         val version = CatalogRules.best(catalog, entry)
             ?: return null to "There isn't a version of it this Portal can install."
         if (installed != null) {
-            if (installed.signer != null && installed.signer != entry.signer) {
+            // An installed app whose signer can't be read can't be shown to be the listed one: refuse rather than assume.
+            if (installed.signer == null) return null to "Portal can't tell who signed the app on this TV, so it can't be replaced from here."
+            if (installed.signer != entry.signer) {
                 return null to "The app on this TV is signed by someone else, so it isn't the listed extension and can't be replaced from here."
             }
             if (installed.versionCode >= version.versionCode) return null to "You already have the newest version."
@@ -56,11 +62,12 @@ object CatalogInstallChecks {
         if (archive.versionCode != version.versionCode) return "The download is a different version from the one listed."
         if (archive.signer == null) return "The download isn't signed."
         if (archive.signer != entry.signer) return "The download isn't signed by the person the catalog lists."
-        CatalogRules.revocation(catalog, archive.packageName, archive.versionCode, archive.signer)?.let {
+        CatalogRules.revocationBySigners(catalog, archive.packageName, archive.versionCode, archive.signers + listOfNotNull(archive.signer))?.let {
             return "This version has been withdrawn from the catalog: ${it.reason}"
         }
         if (installed != null) {
-            if (installed.signer != null && installed.signer != archive.signer) return "The app on this TV is signed by someone else, so this can't replace it."
+            if (installed.signer == null) return "Portal can't tell who signed the app on this TV, so this can't replace it."
+            if (installed.signer != archive.signer) return "The app on this TV is signed by someone else, so this can't replace it."
             if (archive.versionCode <= installed.versionCode) return "The download isn't newer than what is installed."
         }
         val capabilities = archive.capabilities ?: return "The download isn't a Portal extension, or its extension file can't be read."

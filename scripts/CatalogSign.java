@@ -1,6 +1,7 @@
 // Signs and checks the extension catalog with Ed25519. One file, no libraries; needs a JDK (15 or newer):
 //
 //   java scripts/CatalogSign.java keygen  <name>                       writes <name>.private and <name>.public
+//   java scripts/CatalogSign.java stamp   catalog.json [--serial N] [--days 180]   sets serial, updated and expires
 //   java scripts/CatalogSign.java sign    <name>.private <key-id> catalog.json [catalog.json.sig]
 //   java scripts/CatalogSign.java verify  <name>.public  catalog.json [catalog.json.sig]
 //
@@ -31,6 +32,7 @@ public class CatalogSign {
         if (a.length < 2) usage();
         switch (a[0]) {
             case "keygen" -> keygen(a[1]);
+            case "stamp" -> stamp(a);
             case "sign" -> {
                 if (a.length < 4) usage();
                 sign(a[1], a[2], Path.of(a[3]), a.length > 4 ? Path.of(a[4]) : Path.of(a[3] + ".sig"));
@@ -41,6 +43,32 @@ public class CatalogSign {
             }
             default -> usage();
         }
+    }
+
+    // Sets the three fields Portal checks for freshness: serial (one more than before, or --serial), updated (today) and
+    // expires (today plus --days, 180 by default, at most 365). Run it just before signing, every time the catalog is published.
+    private static void stamp(String[] a) throws Exception {
+        Path file = Path.of(a[1]);
+        long serial = -1;
+        int days = 180;
+        for (int i = 2; i + 1 < a.length; i += 2) {
+            if (a[i].equals("--serial")) serial = Long.parseLong(a[i + 1]);
+            else if (a[i].equals("--days")) days = Integer.parseInt(a[i + 1]);
+            else usage();
+        }
+        if (days < 1 || days > 365) { System.err.println("--days must be from 1 to 365 (Portal refuses a catalog that is good for longer)."); System.exit(2); }
+        String text = Files.readString(file);
+        if (serial < 0) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"serial\"\\s*:\\s*(\\d+)").matcher(text);
+            serial = m.find() ? Long.parseLong(m.group(1)) + 1 : 1;
+        }
+        text = text.replaceAll("\"(serial|updated|expires)\"\\s*:\\s*(\"[^\"]*\"|\\d+)\\s*,?\\s*", "");
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+        int open = text.indexOf('{');
+        if (open < 0) { System.err.println("That isn't a JSON object."); System.exit(2); }
+        String fields = "\n  \"serial\": " + serial + ",\n  \"updated\": \"" + today + "\",\n  \"expires\": \"" + today.plusDays(days) + "\",";
+        Files.writeString(file, text.substring(0, open + 1) + fields + text.substring(open + 1));
+        System.out.println("Stamped " + file + ": serial " + serial + ", updated " + today + ", expires " + today.plusDays(days));
     }
 
     private static void keygen(String name) throws Exception {
