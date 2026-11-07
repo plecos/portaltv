@@ -30,3 +30,4 @@ rootProject.name = "Portal"
 include(":app")
 include(":sample-extension")
 include(":conformance-extension")
+include(":scenic-background")
