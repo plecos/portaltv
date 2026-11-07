@@ -185,14 +185,25 @@ class ScheduleWarningTest {
     private fun mins(m: Long) = m * 60_000L
 
     @Test
-    fun nextReminder_showsOnceWhenAnAppOpensThenEachHour() {
-        // Opening with 2 h 40 min left shows once (the 3 hour mark), then at 2 hours, then at 1 hour.
-        assertEquals(mins(180), ScheduleLogic.nextReminder(mins(160), null))
-        assertEquals(null, ScheduleLogic.nextReminder(mins(150), mins(180)))
-        assertEquals(null, ScheduleLogic.nextReminder(mins(121), mins(180)))
-        assertEquals(mins(120), ScheduleLogic.nextReminder(mins(120), mins(180)))
+    fun nextReminder_nothingWhileMoreThanTwoHoursAreLeft() {
+        assertEquals(null, ScheduleLogic.nextReminder(mins(600), null))
+        assertEquals(null, ScheduleLogic.nextReminder(mins(160), null))
+        assertEquals(null, ScheduleLogic.nextReminder(mins(120) + 1, null))
+    }
+
+    @Test
+    fun nextReminder_firstShowsAtTwoHoursThenAtOneHour() {
+        // Opening with 2 h 40 min left shows nothing; the first reminder is the 2 hour mark, then 1 hour.
+        assertEquals(null, ScheduleLogic.nextReminder(mins(160), null))
+        assertEquals(mins(120), ScheduleLogic.nextReminder(mins(120), null))
         assertEquals(null, ScheduleLogic.nextReminder(mins(90), mins(120)))
         assertEquals(mins(60), ScheduleLogic.nextReminder(mins(60), mins(120)))
+    }
+
+    @Test
+    fun nextReminder_openingWithJustUnderTwoHoursShowsTheTwoHourMarkOnce() {
+        assertEquals(mins(120), ScheduleLogic.nextReminder(mins(100), null))
+        assertEquals(null, ScheduleLogic.nextReminder(mins(95), mins(120)))
     }
 
     @Test
