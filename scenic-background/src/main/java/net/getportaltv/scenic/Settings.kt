@@ -16,7 +16,11 @@ data class Config(
     val environment: String = Settings.ENVIRONMENTS[0],
     val style: String = Settings.STYLES[0],
     /** Days from today for the date used with a chosen time (for the preview only: it is not saved). */
-    val dayOffset: Int = 0
+    val dayOffset: Int = 0,
+    /** For the preview only: show everything that comes and goes, all the time. Not saved. */
+    val boost: Boolean = false,
+    /** For the preview only: the animation clock to start at, in seconds (0 for the usual start). */
+    val startTime: Double = 0.0
 )
 
 object Settings {

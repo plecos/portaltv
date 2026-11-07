@@ -7,13 +7,20 @@ import net.getportaltv.scenic.Colors.rgb
  * Small pictures drawn as text, one character per pixel, so the scenery is easy to read and change. A dot is empty. They are
  * turned into bitmaps once; colour and light are applied when they are drawn.
  */
-class Sprite(rows: List<String>, palette: Map<Char, Int>) {
-    val width = rows.maxOf { it.length }
-    val height = rows.size
-    val bitmap: Bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { b ->
-        rows.forEachIndexed { y, row ->
-            row.forEachIndexed { x, ch -> palette[ch]?.let { b.setPixel(x, y, it) } }
+class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bitmap) {
+
+    constructor(rows: List<String>, palette: Map<Char, Int>) : this(
+        rows.maxOf { it.length }, rows.size,
+        Bitmap.createBitmap(rows.maxOf { it.length }, rows.size, Bitmap.Config.ARGB_8888).also { b ->
+            rows.forEachIndexed { y, row ->
+                row.forEachIndexed { x, ch -> palette[ch]?.let { b.setPixel(x, y, it) } }
+            }
         }
+    )
+
+    companion object {
+        /** A sprite made from a picture that is already drawn. */
+        fun of(bitmap: Bitmap) = Sprite(bitmap.width, bitmap.height, bitmap)
     }
 }
 

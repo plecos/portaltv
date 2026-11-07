@@ -36,6 +36,8 @@ class PreviewActivity : Activity() {
         if (intent.hasExtra("scroll")) config = config.copy(scroll = intent.getBooleanExtra("scroll", true))
         if (intent.hasExtra("real_weather")) config = config.copy(realWeather = intent.getBooleanExtra("real_weather", false))
         if (intent.hasExtra("days")) config = config.copy(dayOffset = intent.getIntExtra("days", 0))
+        if (intent.hasExtra("at")) config = config.copy(startTime = intent.getFloatExtra("at", 0f).toDouble())
+        if (intent.hasExtra("boost")) config = config.copy(boost = intent.getBooleanExtra("boost", false))
         lapse = intent.getBooleanExtra("lapse", false)
         view = ScenicView(this, 30, { config }, PortalWeather(this))
         readout = TextView(this).apply { setTextColor(Color.WHITE); setShadowLayer(4f, 1f, 1f, Color.BLACK); textSize = 18f; setPadding(32, 24, 32, 24) }

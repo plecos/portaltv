@@ -27,9 +27,9 @@ import kotlin.math.sqrt
 class PixelScene {
 
     val bitmap: Bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
-    private val canvas = Canvas(bitmap)
-    private val paint = Paint().apply { isAntiAlias = false; isFilterBitmap = false; isDither = false }
-    private val spritePaint = Paint().apply { isAntiAlias = false; isFilterBitmap = false; isDither = false }
+    internal val canvas = Canvas(bitmap)
+    internal val paint = Paint().apply { isAntiAlias = false; isFilterBitmap = false; isDither = false }
+    internal val spritePaint = Paint().apply { isAntiAlias = false; isFilterBitmap = false; isDither = false }
     private val pixels = IntArray(W * H)
 
     /** Levels per colour channel in the final picture: 6 gives 216 colours. */
@@ -56,6 +56,7 @@ class PixelScene {
         drawStars(s)
         drawSun(s)
         drawMoon(s)
+        drawSkyLife(s)
         drawClouds(s, 0)
         drawClouds(s, 1)
         drawMountains(s, cam)
@@ -64,11 +65,18 @@ class PixelScene {
         drawHills(s, cam, 0.26f, 134, 14f, 0.028f, 29, rgb(84, 148, 78), 0.34f, 0.40f)
         drawTreeLine(s, cam, 0.30f, 0.06f)
         drawField(s)
+        drawRailway(s)
+        drawPonds(s)
+        drawFieldAnimals(s)
         drawFarm(s, cam)
+        drawButterflies(s)
         drawFence(s, cam)
         drawRoad(s, cam)
         drawTraffic(s)
+        drawWalkers(s)
         drawBirds(s)
+        drawBats(s)
+        drawFireflies(s)
         drawForeground(s, cam)
         drawRain(s)
         drawSnow(s)
@@ -80,17 +88,17 @@ class PixelScene {
     // ---------- colours ----------
 
     /** [base] as it looks in this light, with [air] of the distance's haze mixed in. */
-    private fun lit(s: SceneState, base: Int, air: Float, snowy: Float = 0.97f): Int {
+    internal fun lit(s: SceneState, base: Int, air: Float, snowy: Float = 0.97f): Int {
         val l = s.look
         var c = Colors.mul(base, l.tintR, l.tintG, l.tintB)
         if (s.snowCover > 0f) c = lerp(c, Colors.mul(rgb(236, 240, 248), l.tintR, l.tintG, l.tintB), s.snowCover * snowy)
         return lerp(c, airColor(s), air)
     }
 
-    private fun airColor(s: SceneState) = lerp(s.look.skyBottom, s.look.fogColor, s.look.haze * 0.8f)
+    internal fun airColor(s: SceneState) = lerp(s.look.skyBottom, s.look.fogColor, s.look.haze * 0.8f)
 
     /** A filter that gives sprites the same light and haze. */
-    private fun filter(s: SceneState, air: Float, extraBright: Float = 1f): LightingColorFilter {
+    internal fun filter(s: SceneState, air: Float, extraBright: Float = 1f): LightingColorFilter {
         val l = s.look
         // Snow settles on the trees and roofs too: lighter, and paler.
         val dust = s.snowCover * 70
@@ -101,19 +109,19 @@ class PixelScene {
         return LightingColorFilter(mul, add)
     }
 
-    private fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
+    internal fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
         paint.color = color
         canvas.drawRect(x0.toFloat(), y0.toFloat(), x1.toFloat(), y1.toFloat(), paint)
     }
 
-    private fun fillAlpha(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) {
+    internal fun fillAlpha(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) {
         paint.color = color
         paint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt()
         canvas.drawRect(x0.toFloat(), y0.toFloat(), x1.toFloat(), y1.toFloat(), paint)
         paint.alpha = 255
     }
 
-    private fun sprite(sp: Sprite, x: Int, bottom: Int, flip: Boolean = false) {
+    internal fun sprite(sp: Sprite, x: Int, bottom: Int, flip: Boolean = false) {
         if (x > W || x + sp.width < 0) return
         if (flip) {
             canvas.save()
@@ -199,7 +207,7 @@ class PixelScene {
         fillCircle(x, y, 8f, core, shine)
     }
 
-    private fun fillCircle(cx: Float, cy: Float, r: Float, color: Int, alpha: Float) {
+    internal fun fillCircle(cx: Float, cy: Float, r: Float, color: Int, alpha: Float) {
         paint.color = color
         paint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt()
         canvas.drawCircle(cx, cy, r, paint)
@@ -270,7 +278,7 @@ class PixelScene {
             val baseX = i * (loop.toFloat() / slots) + Noise.unit(i, layer, 43) * 40f
             val centerX = Math.floorMod((baseX - s.drift * speed - s.cam * parallax).toInt(), loop) - 65
             val centerY = lo + (Noise.unit(i, layer, 44) * (hi - lo)).toInt()
-            for ((index, weight) in listOf(low to 1f - blend, low + 1 to blend)) {
+            for ((index, weight) in listOf((if (blend < 0.5f) low else low + 1) to 1f)) {
                 if (weight <= 0f) continue
                 val bmp = clouds[index]
                 val left = centerX - bmp.width / 2

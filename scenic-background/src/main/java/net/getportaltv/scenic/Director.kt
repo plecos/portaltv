@@ -23,6 +23,8 @@ class SceneState {
     /** Which way the wind blows on screen: -1 left, +1 right (0 when still). */
     var windDir = 1f
     var travelling = true
+    /** For the preview: everything that comes and goes is there, so it can be looked at. */
+    var boost = false
     var lat = 40.0
     var lon = 0.0
 }
@@ -46,10 +48,12 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
     fun step(dtSeconds: Float) {
         val c = config()
         val s = state
+        if (!started && c.startTime > 0.0) s.time = c.startTime
         s.time += dtSeconds
 
         // The journey.
         s.travelling = c.scroll
+        s.boost = c.boost
         if (c.scroll) s.cam += SPEED * dtSeconds
 
         // The weather eases toward its target: slowly for real changes, faster when someone picks one.

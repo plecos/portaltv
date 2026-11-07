@@ -13,6 +13,10 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
   Sunrise and sunset colour the sky, clouds and light together. The moon shows the real phase and which side is lit.
 - **Follows the weather.** Cloud, rain, snow, fog and storms (with lightning) come from `weather.get`. Every part eases toward
   what it should be, so a change of weather fades in over a minute or so instead of jumping. Snow settles on the ground.
+- **Has life in it.** People walking, cycling or with a dog (and umbrellas in the rain), rabbits, deer, a tractor, ducks on the
+  pond, a train now and then on the railway, butterflies by day, fireflies on warm nights, bats at dusk, and a balloon or a
+  plane with a contrail. Each one turns up on its own schedule (`Life.kt`, tested in `LifeScheduleTest`) and they stay away
+  in storms.
 - **Looks like an old computer.** The scene is drawn at 320 by 180 pixels, dithered and limited to a small palette, then scaled
   up whole, so every pixel is a clean square on the TV. Only one style so far; more can be added as other renderers.
 - **Looks after a slow TV.** It aims for 30 frames a second and steps down to 20, 15 or 10 (and drops the dithering and some
@@ -41,12 +45,14 @@ time-lapse). Intent extras set where it starts, for taking pictures:
 adb shell am start -n net.getportaltv.scenic/.PreviewActivity --ef hour 18.5 --es weather Rain --ez hide_readout true
 ```
 
-(`--ei days 9` looks at another day, which is how to check the moon's phases.)
+(`--ei days 9` looks at another day, which is how to check the moon's phases. `--ez boost true` makes the life elements turn up
+all the time, and `--ef at 62` jumps the scene clock to that many seconds, so a picture can catch one.)
 
 ## Where things are
 
 | File | What it does |
 | --- | --- |
+| `Life.kt`, `LifeSprites.kt` | The people, animals, vehicles and sky life: when they appear and how they are drawn |
 | `Astronomy.kt` | Sun and moon positions and phase, tested against known dates |
 | `Look.kt` | The light: sky, tint, clouds and fog from the sun's height and the weather |
 | `Conditions.kt` | The weather as numbers, and how it eases from one to another |
