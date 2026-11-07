@@ -10,7 +10,7 @@ object CatalogPolicy {
      * No catalog with a lower serial is read. Raised with each Portal release to the serial current at the time, so a
      * freshly installed Portal (which has seen no catalog yet) can't be shown a catalog older than its own release.
      */
-    const val MIN_SERIAL = 1L
+    const val MIN_SERIAL = 2L
 
     /** The most a catalog may say it is good for, counted from now. The signing tool's default is half of this. */
     const val MAX_VALIDITY_DAYS = 365L
@@ -18,9 +18,9 @@ object CatalogPolicy {
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
     /**
-     * What time it is for the purpose of expiry: the later of the TV's clock and the latest date a catalog host has told
-     * Portal. A TV whose clock was reset to long ago (or never set) can't make an old catalog look current, and a host
-     * can't push time backwards. A clock that runs fast can cause an early pause, which a corrected clock ends.
+     * What time it is for the purpose of expiry: the later of the TV's clock and the latest publication day (`updated`) of a
+     * signed catalog Portal has used. A TV whose clock was reset to long ago (or never set) can't make an old catalog look
+     * current, and nothing unsigned can move it. A clock that runs fast can cause an early pause, which a corrected clock ends.
      */
     fun effectiveNow(deviceNowMs: Long, latestServerDateMs: Long): Long = maxOf(deviceNowMs, latestServerDateMs)
 

@@ -17,10 +17,10 @@ object CatalogTrust {
     class Key(val id: String, /** The 32-byte Ed25519 public key, base64. */ val publicKey: String)
 
     /**
-     * The keys that may sign the catalog in a release build. Empty until the maintainer adds the public key from
-     * `java scripts/CatalogSign.java keygen` (see docs/CATALOG.md): until then a release build refuses every catalog.
+     * The keys that may sign the catalog in a release build: the public halves of keys made with
+     * `java scripts/CatalogSign.java keygen` (see docs/CATALOG.md). The private half is kept offline by the maintainer.
      */
-    val RELEASE_KEYS: List<Key> = emptyList()
+    val RELEASE_KEYS: List<Key> = listOf(Key("portal-catalog-1", "am2qirMYwo56iE7KRih13KSraXqBX4rJUo9GbRYrdLQ="))
 
     /** Trusted by debug builds only. Its private half is in the repository on purpose, so tests and the test script can sign. */
     val TEST_KEYS: List<Key> = listOf(Key("test-1", "fG2NO/oNai5WEX7PPdj+r5H3tXjjAIwqsOAu39zliwc="))

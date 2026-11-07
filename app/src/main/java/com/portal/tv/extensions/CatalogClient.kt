@@ -92,9 +92,14 @@ object CatalogClient {
         }
     }
 
-    /** The time to judge a catalog's expiry by: the TV's clock, or the latest date a catalog host has told Portal if that is later. */
+    /** The time to judge a catalog's expiry by: the TV's clock, or the latest publication day of a signed catalog it has used, if that is later. */
     fun trustedNow(context: Context): Long =
         CatalogPolicy.effectiveNow(System.currentTimeMillis(), prefs(context).getLong("time_floor", 0L))
+
+    /** The latest publication day seen in a catalog whose signature checked out only ever moves forward. */
+    private fun noteSignedTime(p: android.content.SharedPreferences, catalog: Catalog) {
+        if (catalog.updatedAtMs > p.getLong("time_floor", 0L)) p.edit().putLong("time_floor", catalog.updatedAtMs).apply()
+    }
 
     /** The highest serial Portal has accepted; a catalog with a lower one is an old copy and is refused. */
     fun lastSerial(context: Context): Long = prefs(context).getLong("serial", 0L)
@@ -120,7 +125,6 @@ object CatalogClient {
         val c = URL(address).openConnection() as HttpURLConnection
         var etag: String? = null
         var modified: String? = null
-        var serverDate = 0L
         val body: ByteArray? = try {
             c.connectTimeout = 10_000
             c.readTimeout = 20_000
@@ -132,12 +136,10 @@ object CatalogClient {
             }
             when (val code = c.responseCode) {
                 200 -> {
-                    serverDate = c.getHeaderFieldDate("Date", 0L)
                     etag = c.getHeaderField("ETag")
                     modified = c.getHeaderField("Last-Modified")
                     readBytesCapped(c.inputStream, CatalogParser.MAX_FILE_CHARS * 4)
                 }
-                // A "not modified" answer carries no signed content, so the date it carries is not used.
                 304 -> if (have != null) null else throw IOException("The catalog answered 304 with nothing kept")
                 429, 503 -> {
                     // The host asked for time: stay away for as long as it says (an hour if it doesn't say).
@@ -159,6 +161,7 @@ object CatalogClient {
         }
         val now = System.currentTimeMillis()
         if (body == null) {
+            have?.let { noteSignedTime(p, it.catalog) }
             // Not modified: the copy is as fresh as the host's.
             p.edit().putLong("fetched_at", now).putLong("jitter_ms", CatalogHttp.newJitterMs(kotlin.random.Random)).remove("retry_until").apply()
             return@withContext Copy(have!!.catalog, now)
@@ -173,9 +176,9 @@ object CatalogClient {
             is CatalogParser.Result.Invalid -> throw IOException(r.reason)
             is CatalogParser.Result.NeedsNewerPortal -> throw IOException("The catalog needs a newer Portal")
             is CatalogParser.Result.Ok -> {
-                // The date a host gives is kept only once the reply has passed its signature check. Before that anyone who can
-                // answer the request could send a date far ahead, and the floor only moves forward.
-                if (serverDate > 0 && serverDate > p.getLong("time_floor", 0L)) p.edit().putLong("time_floor", serverDate).apply()
+                // The time floor comes from the signed catalog's own `updated` day, never from a header: a header isn't signed,
+                // so anyone who can answer the request could send a far-future date, and the floor only moves forward.
+                noteSignedTime(p, r.catalog)
                 CatalogPolicy.check(r.catalog, trustedNow(context))?.let { throw IOException(it) }
                 // A signed catalog is still refused if it is older than one already used: that is how a withdrawal
                 // would be undone by putting an old copy back.
