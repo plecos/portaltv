@@ -203,8 +203,8 @@ answer has: `as_of_millis` (when it was fetched) and `stale` (more than three ho
 when known, `temp_c`, `visibility_km` when known and `is_day`; `utc_offset_seconds`; `sunrise_millis` and `sunset_millis` for today
 when known; and `latitude` and `longitude` (doubles) when the TV's place is known. The place is rounded to a tenth of a degree
 (about 10 km): enough to place the sun and moon, never a street. Portal gives no city name or address, and an adult is told what
-the capability allows before turning it on. If there is no weather yet the answer is `unavailable`. Kid profiles get `kid_profile`
-like every other call.
+the capability allows before turning it on. If there is no weather yet the answer is `unavailable`. Unlike the other calls it works on a kid profile too, since Portal shows
+the weather to kids itself.
 
 **Reminders** are yours: `list`, `update` and `delete` only see the ones you made, and they belong to the profile that was in
 use when you added them. Portal's own reminders and other extensions' are out of reach. They are marked "from extension <your name>" on

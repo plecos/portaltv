@@ -93,7 +93,8 @@ class RunActivity : Activity() {
         expectError("set bar item refused for a kid", call("items.set", "area" to "bar", "id" to "a", "text" to "x"), "kid_profile")
         expectError("list reminders refused for a kid", call("reminders.list"), "kid_profile")
         expectError("decorate tile refused for a kid", call("tile.update", "id" to "panel", "badge" to "1"), "kid_profile")
-        expectError("weather refused for a kid", call("weather.get"), "kid_profile")
+        val kidWeather = call("weather.get")
+        check("weather is allowed for a kid", kidWeather.isOk() && kidWeather.getString("condition") != null, "ok=${kidWeather.isOk()} error=${kidWeather.error()}")
     }
 
     // ---------- allowed weather ----------

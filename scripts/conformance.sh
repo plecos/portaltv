@@ -155,6 +155,7 @@ seed 1 "0000000000000000000000000000000000000000000000000000000000000000" "remin
 run_suite refused 9
 
 echo "== allowed, but a kid profile is in use"
+seed_weather
 seed 2 "$SIGNER" "reminders,cards,bar,clock,tiles,weather"
 run_suite kid 7
 

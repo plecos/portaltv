@@ -90,9 +90,11 @@ class HostHandler(
             else -> return HostReply.fail(HostApi.Error.NO_SUCH_METHOD)
         }
         if (needs !in ext.granted) return HostReply.fail(HostApi.Error.NOT_ALLOWED)
+        // The weather is shown to everyone on Portal's own weather page, kids included, so it is given to whoever is using the TV.
+        if (method == HostApi.WEATHER_GET) return weather()
         val profile = env.activeProfile() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
         if (profile.isKids) return HostReply.fail(HostApi.Error.KID_PROFILE)
-        val changes = method != HostApi.REMINDERS_LIST && method != HostApi.ITEMS_LIST && method != HostApi.WEATHER_GET
+        val changes = method != HostApi.REMINDERS_LIST && method != HostApi.ITEMS_LIST
         if (changes && !writes.allow(caller, env.elapsedMillis())) return HostReply.fail(HostApi.Error.RATE_LIMITED)
         return when (method) {
             HostApi.REMINDERS_ADD -> addReminder(ext, profile.id, args)
@@ -101,7 +103,6 @@ class HostHandler(
             HostApi.REMINDERS_DELETE -> deleteReminder(ext, args)
             HostApi.CARD_SHOW -> showCard(ext, args)
             HostApi.TILE_UPDATE -> updateTile(ext, args)
-            HostApi.WEATHER_GET -> weather()
             else -> items(ext, method, args)
         }
     }
