@@ -73,6 +73,7 @@ class SettingsFragment : Fragment() {
         setupWeatherLocation(view)
         setupShaderColors(view)
         setupSpeed(view)
+        setupBrightness(view)
         setupSound(view)
         setupVideoChoices(view)
         setupKidsVideoAccess(view)
@@ -1635,6 +1636,55 @@ class SettingsFragment : Fragment() {
         chips.forEach { (level, chip) ->
             chip.setOnClickListener {
                 BackgroundSettings.setSound(context, level)
+                refresh()
+                onBackgroundChanged?.invoke()
+            }
+        }
+        val previous = refreshShaderColors
+        refreshShaderColors = { previous?.invoke(); refresh() }
+        refresh()
+    }
+
+    /**
+     * How bright the picture is behind the home screen, for the video and an extension's background: the higher, the less
+     * it is dimmed (and the harder the text on top is to read). The shader is left out: it is already dark.
+     */
+    private fun setupBrightness(view: View) {
+        val context = requireContext()
+        val group = view.findViewById<View>(R.id.brightness_group)
+        val row = view.findViewById<android.widget.LinearLayout>(R.id.brightness_row)
+        val px = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+        val chips = listOf(0.25f to "25%", 0.5f to "50%", 0.75f to "75%", 1f to "100%").map { (value, label) ->
+            val chip = TextView(context).apply {
+                text = label
+                textSize = 18f
+                typeface = resources.getFont(R.font.inter)
+                gravity = android.view.Gravity.CENTER
+                setPadding(px(24), 0, px(24), 0)
+                isFocusable = true
+                contentDescription = "Brightness $label"
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, px(48)
+                ).apply { marginEnd = px(8) }
+            }
+            row.addView(chip)
+            value to chip
+        }
+        fun refresh() {
+            val mode = BackgroundSettings.getMode(context)
+            group.visibility = if (mode == "video" || mode == com.portal.tv.extensions.BackgroundChoice.MODE) View.VISIBLE else View.GONE
+            val brightness = BackgroundSettings.getBrightness(context)
+            // The one nearest the saved value is lit (older saves may sit between steps).
+            val nearest = chips.minByOrNull { kotlin.math.abs(it.first - brightness) }?.first
+            chips.forEach { (value, chip) ->
+                val on = value == nearest
+                chip.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+                chip.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
+            }
+        }
+        chips.forEach { (value, chip) ->
+            chip.setOnClickListener {
+                BackgroundSettings.setBrightness(context, value)
                 refresh()
                 onBackgroundChanged?.invoke()
             }
