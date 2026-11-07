@@ -266,6 +266,37 @@ scripts/conformance.sh
 - A change to what an extension may do takes effect on its next call. Turning a capability off also removes what the
   extension made with it, and uninstalling an extension removes everything Portal kept for it at once.
 
+## Checking your names before you install
+
+Portal refuses an extension whose names could pass for part of Portal or Android. It shows "Can't be used" and a reason on the
+extension's page. Check yours first, on your computer, with the same code Portal runs:
+
+```bash
+scripts/check-extension.sh com.yourname.garage app/src/main/res/xml/portal_extension.xml app/src/main/res/values/strings.xml
+```
+
+The first argument is your package name, the second is your `portal-extension` file, and the third (optional) is the
+`strings.xml` that holds the words behind any `@string/...` names. It prints each problem and the reason, and exits 0 when
+Portal would accept the names. It needs a JDK and this repository. A catalog listing is checked by the same rules in
+`scripts/validate-catalog.sh`, so a pull request that adds a refused name fails with the reason.
+
+### The rules, exactly
+
+A name is your extension's name, a tile's name, a button's words, and a catalog listing's name. Text lines (`bar-text`,
+`clock-text`) are not buttons and may say anything plain.
+
+| Rule | Refused | Fine |
+| --- | --- | --- |
+| A whole word that is one of: portal, settings, setting, android, google, system, parent, parents, pin, profile, profiles, update, search, launcher, parental, password, passcode | "Update", "Parent PIN", "My Settings page" | "Updates for my pets", "Searchlight", "Pinball" |
+| Those longer names anywhere once spaces and punctuation are ignored: portal, settings, android, google, launcher, parentpin, parental, passcode | "S e t t i n g s", "Portal-TV", "Google TV" | "Garage door" |
+| Look-alike letters are read as the Latin letter: accents are dropped, full-width letters are folded, and letters from other alphabets (Cyrillic, Greek and others) and symbols that look Latin are mapped to it. i, l and 1 count as the same letter, and so do q and g, and the digits 0 and 5 | "Sεttings", "Pörtal", "Sett1ngs", "Settlngs", "Settinqs", "p0rtal" | |
+| A word that mixes Latin letters with any other alphabet, except Han, Hiragana, Katakana, Hangul and Bopomofo | "Pօrtal", "ᑭortal", "Раrent" | "TVアプリ", "Игра" (all one alphabet) |
+| Hidden or confusing characters: control characters, zero-width and direction-changing characters, private-use or unassigned characters, more than 3 combining marks in a row | | |
+| A package name with a part that is portal, portaltv, getportal or getportaltv, once split at dots, underscores and dashes and with digits removed | `tv.portal.settings`, `com.portal_tv.x`, `net.getportaltv2.app`, `net.getportaltv.anything` | `net.example.garage`, `com.dev.portalclock` |
+
+A reserved package name is used only if the app is signed with Portal's own key. Everyone else should choose a package name of
+their own. A name that is refused makes the whole extension unusable, so fix it and install again.
+
 ## Names, text and limits
 
 - An extension's name, its tiles' names and its buttons' words can't pass for Portal or Android ("Portal", "Settings",

@@ -5,8 +5,8 @@
   "format": 1,
   "extensions": [
     {
-      "package": "net.getportaltv.sample",
-      "name": "Portal sample",
+      "package": "net.example.sample",
+      "name": "Sample extension",
       "description": "Shows every part of the extension contract: a tile, a settings page, top bar items, a background and reminders.",
       "author": "Portal TV",
       "source": "https://github.com/plecos/portaltv/tree/main/sample-extension",
