@@ -12,8 +12,8 @@ import com.portal.tv.repo.PinEntry
 
 /**
  * A PIN entry made for a remote with someone watching. Up and Down choose a row of numbers; Left,
- * OK or Right then choose the first, second or third number in it. Every press looks the same from
- * across the room, and the PIN shows only as dots, so a child can't read the code off the screen
+ * OK or Right then choose the first, second or third number in it. A press shows nothing on the
+ * pad itself, only one more dot, and the PIN shows only as dots, so a child can't read the code off the screen
  * or the buttons.
  *
  * The PIN is always four digits and is submitted on the fourth, so there is no Done button to
@@ -53,15 +53,9 @@ object PinPad {
             if (result != null) onDone(result) else onCancel()
         }
 
-        val pads = Array(LAST_ROW + 1) { arrayOfNulls<View>(3) }
-
         fun press(row: Int, column: Int) {
-            // Every key in the row dips together, whichever one was pressed: a dip on one key would show the digit.
-            pads[row].forEach { k ->
-                k?.animate()?.cancel()
-                k?.scaleX = 0.82f; k?.scaleY = 0.82f
-                k?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(120)?.start()
-            }
+            // Nothing on the pad moves or lights up on a press, so nobody watching can see which row or key it was.
+            // Only the dots change.
             if (row == LAST_ROW && column == 0) {
                 entry.delete(); showDots()
             } else if (row == LAST_ROW && column == 2) {
@@ -137,12 +131,11 @@ object PinPad {
                         setBackgroundResource(R.drawable.bg_pin_key)
                     }
                 }
-                // Each key is a round button in the middle of its third of the row; it dips a little when pressed.
+                // Each key is a round button in the middle of its third of the row.
                 val cell = android.widget.FrameLayout(context).apply {
                     addView(key, android.widget.FrameLayout.LayoutParams(px(44), px(44), Gravity.CENTER))
                     setOnClickListener { press(r, column) } // touch and mouse
                 }
-                pads[r][column] = key
                 row.addView(cell, LinearLayout.LayoutParams(0, px(50), 1f))
             }
             rows += row
