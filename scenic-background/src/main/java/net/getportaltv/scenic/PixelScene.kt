@@ -69,6 +69,9 @@ class PixelScene {
         drawPonds(s)
         drawFieldAnimals(s)
         drawFarm(s, cam)
+        drawRoadsideTrees(s)
+        drawForestMist(s)
+        drawSunShafts(s)
         drawButterflies(s)
         drawFence(s, cam)
         drawRoad(s, cam)
@@ -338,16 +341,22 @@ class PixelScene {
         val a = air + s.look.haze * 0.3f
         val body = lit(s, color, a)
         val crest = lit(s, Colors.mul(color, 1.12f, 1.14f, 1.1f), a)
+        // Under forest the hills are darker, bluer and softer along the top.
+        val forestColor = Colors.mul(color, 0.6f, 0.76f, 0.72f)
+        val forestBody = lit(s, forestColor, a)
+        val forestCrest = lit(s, Colors.mul(forestColor, 1.1f, 1.12f, 1.08f), a)
         // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
         val offset = floor(cam * factor).toFloat()
         for (x in 0 until W) {
             val h = Noise.ridge((x + offset) * freq, seed, 3)
             val top = (base - h * amp).toInt()
-            fill(x, top, x + 1, H, body)
-            fill(x, top, x + 1, top + 1, crest)
+            val f = s.forestAt((x + offset).toDouble(), factor.toDouble())
+            fill(x, top, x + 1, H, if (f > 0f) lerp(body, forestBody, f) else body)
+            fill(x, top, x + 1, top + 1, if (f > 0f) lerp(crest, forestCrest, f) else crest)
         }
         // Fields on the slopes: a darker band, so the hills read as farmland.
         if (airTop < 0.5f) for (x in 0 until W step 2) {
+            if (s.forestAt((x + offset).toDouble(), factor.toDouble()) > 0.5f) continue
             val h = Noise.ridge((x + offset) * freq, seed, 3)
             val top = (base - h * amp).toInt() + 4
             if (Noise.unit(Math.floorDiv((x + offset).toInt(), 24), seed, 5) < 0.4f) fillAlpha(x, top, x + 2, top + 5, lit(s, Colors.mul(color, 0.82f, 0.9f, 0.78f), a), 0.55f)
@@ -363,13 +372,17 @@ class PixelScene {
         val base = if (factor < 0.2f) 124 else 134
         val amp = if (factor < 0.2f) 18f else 14f
         val start = floor(offset / 11.0).toInt() - 1
-        for (i in start..start + W / 11 + 2) {
-            if (Noise.unit(i, seed, 71) > 0.55f) continue
-            val worldX = i * 11 + (Noise.unit(i, seed, 72) * 8).toInt()
+        for (i in start..start + W / 11 + 2) for (extra in 0..1) {
+            val worldX = i * 11 + (Noise.unit(i, seed, 72 + extra * 40) * 8).toInt() + extra * 5
+            // In forest the trees crowd together (a second one beside most of them) and are mostly firs.
+            val f = s.forestAt(worldX.toDouble(), factor.toDouble())
+            if (extra == 1 && Noise.unit(i, seed, 74) > f * 0.9f) continue
+            if (Noise.unit(i, seed, 71 + extra * 40) > 0.55f + 0.4f * f) continue
             val x = (worldX - offset).toInt()
             val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
             val y = (base - h * amp).toInt() + 3
-            sprite(if (Noise.unit(i, seed, 73) < 0.5f) Sprites.pineSmall else Sprites.roundSmall, x, y)
+            val firs = 0.5f + 0.45f * f
+            sprite(if (Noise.unit(i, seed, 73 + extra) < firs) (if (f > 0.5f && Noise.unit(i, seed, 75) < 0.4f) Sprites.pine else Sprites.pineSmall) else Sprites.roundSmall, x, y)
         }
         spritePaint.colorFilter = null
     }
@@ -385,6 +398,15 @@ class PixelScene {
             fill(0, y, W, y + 1, dark)
             y += 3 + k % 2
             k++
+        }
+        // Under trees the ground is darker, with fallen leaves and needles instead of crops.
+        val floorColor = lit(s, rgb(58, 82, 48), 0.1f + s.look.haze * 0.3f)
+        val litter = lit(s, rgb(84, 70, 46), 0.1f + s.look.haze * 0.3f)
+        for (x in 0 until W) {
+            val f = s.forestAt(x + floor(s.cam), 1.0)
+            if (f <= 0.01f) continue
+            fillAlpha(x, FIELD_TOP, x + 1, ROAD_TOP, floorColor, f * 0.85f)
+            if (Noise.unit(Math.floorMod(x + floor(s.cam).toInt(), 7), 611) < 0.3f) fillAlpha(x, FIELD_TOP + 3 + (Noise.unit(x + floor(s.cam).toInt(), 612) * 14).toInt(), x + 2, FIELD_TOP + 4 + (Noise.unit(x + floor(s.cam).toInt(), 612) * 14).toInt(), litter, f * 0.7f)
         }
     }
 
@@ -402,22 +424,30 @@ class PixelScene {
             val left = (i * chunk - offset).toInt()
             // Some stretches are open country: a few trees, and no buildings or grazing herds.
             val open = openCountry(Math.floorDiv(i, 6), 90)
-            // Trees: 3 to 6 a chunk, at their own depths (fewer in open country).
-            val trees = if (open) 1 + (Noise.unit(i, 1) * 2).toInt() else 3 + (Noise.unit(i, 1) * 4).toInt()
+            // How much of this stretch is forest: it brings more trees, and takes the farms away.
+            val forest = s.forestAt(i * chunk + chunk / 2.0, factor)
+            // Trees: 3 to 6 a chunk, at their own depths (fewer in open country), and in forest up to eleven more, each there once the forest is thick enough for it.
+            val farmTrees = if (open) 1 + (Noise.unit(i, 1) * 2).toInt() else 3 + (Noise.unit(i, 1) * 4).toInt()
+            val trees = if (forest > 0f) farmTrees + 20 else farmTrees
             for (t in 0 until trees) {
-                val depth = Noise.unit(i, 10 + t)
+                val wood = t >= farmTrees
+                if (wood && Noise.unit(i, 400 + t) > forest * 1.1f) continue
+                val depth = Noise.unit(i, if (t < 7) 10 + t else 300 + t)
                 if ((depth > 0.5f) != (pass == 1)) continue
-                val x = left + (Noise.unit(i, 20 + t) * chunk).toInt()
+                val x = left + (Noise.unit(i, if (t < 7) 20 + t else 320 + t) * chunk).toInt()
                 val y = FIELD_TOP + 6 + (depth * 12f).toInt()
-                val kind = Noise.unit(i, 30 + t)
+                val kind = Noise.unit(i, if (t < 7) 30 + t else 340 + t)
                 val swing = (sin(s.time * 1.7 + x * 0.1) * sway * 1.1).roundToInt()
                 when {
+                    wood && kind < 0.5f -> sprite(Sprites.firs[(Noise.unit(i, 360 + t) * Sprites.firs.size).toInt().coerceIn(0, Sprites.firs.size - 1)], x + swing, y)
+                    wood && kind < 0.85f -> sprite(Sprites.broads[(Noise.unit(i, 360 + t) * Sprites.broads.size).toInt().coerceIn(0, Sprites.broads.size - 1)], x + swing, y)
+                    wood -> sprite(Sprites.bush, x, y)
                     kind < 0.4f -> sprite(Sprites.pine, x + swing, y)
                     kind < 0.8f -> sprite(Sprites.roundTree, x + swing, y)
                     else -> sprite(Sprites.bush, x, y)
                 }
             }
-            if (pass == 1 && !open) {
+            if (pass == 1 && !open && forest < 0.3f) {
                 // A building now and then, with its windows lit at night and smoke from the chimney.
                 val b = Noise.unit(i, 50)
                 val bx = left + 40 + (Noise.unit(i, 51) * 70).toInt()
@@ -494,7 +524,7 @@ class PixelScene {
         val y = ROAD_TOP - 1
         val first = floor(offset / 160).toInt() - 1
         for (i in first..first + W / 160 + 2) {
-            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91)) continue
+            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f) continue
             val x0 = (i * 160 - offset).toInt()
             val len = 90 + (Noise.unit(i, 81) * 60).toInt()
             fill(x0, y - 4, x0 + len, y - 3, rail)

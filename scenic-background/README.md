@@ -21,6 +21,14 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
 - **Looks after a slow TV.** It aims for 30 frames a second and steps down to 20, 15 or 10 (and drops the dithering and some
   of the rain) if drawing is taking too long.
 
+## Places
+
+The journey passes through places that run into each other slowly (about a minute for each change), so the land changes
+gradually: trees thicken, farms thin out, the ground darkens. Today there are the **countryside** and the **forest** (dense firs
+and broad trees, big trees along the road, beams of light and mist, more deer). The **Journey** setting moves between them; the
+others stay in one. Each piece of scenery asks `Places` how much forest there is at its own place on the road, so nothing pops
+in or out as the change passes. In the preview, `--es place Forest` (or `Countryside`, `Journey`) picks one.
+
 ## Settings
 
 Under Settings, Extensions, Scenic Travel (with a live preview): follow the real weather or always show one, follow the real
@@ -52,6 +60,7 @@ all the time, and `--ef cam 3000` starts the journey that many pixels along, and
 | File | What it does |
 | --- | --- |
 | `Life.kt`, `LifeSprites.kt` | The people, animals, vehicles and sky life: when they appear and how they are drawn |
+| `Places.kt`, `Forest.kt` | Where the journey is (how much forest at each point) and what only the forest has |
 | `Astronomy.kt` | Sun and moon positions and phase, tested against known dates |
 | `Look.kt` | The light: sky, tint, clouds and fog from the sun's height and the weather |
 | `Conditions.kt` | The weather as numbers, and how it eases from one to another |

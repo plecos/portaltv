@@ -13,7 +13,7 @@ data class Config(
     val hour: Float = 12f,
     /** Let the world scroll by, or stand still. */
     val scroll: Boolean = true,
-    val environment: String = Settings.ENVIRONMENTS[0],
+    val environment: String = Places.JOURNEY,
     val style: String = Settings.STYLES[0],
     /** Days from today for the date used with a chosen time (for the preview only: it is not saved). */
     val dayOffset: Int = 0,
@@ -25,7 +25,7 @@ data class Config(
 )
 
 object Settings {
-    val ENVIRONMENTS = listOf("Countryside")
+    val ENVIRONMENTS = Places.CHOICES
     val STYLES = listOf("8-bit")
 
     private const val FILE = "scenic"

@@ -161,7 +161,8 @@ internal fun PixelScene.drawFieldAnimals(s: SceneState) {
     spritePaint.colorFilter = filter(s, 0.07f + s.look.haze * 0.3f)
     for (i in first..first + W / chunk + 2) {
         val left = (i * chunk - offset).toInt()
-        if (Noise.unit(i, 150) < 0.24f) {
+        val forest = s.forestAt(i * chunk + chunk / 2.0, 0.5)
+        if (Noise.unit(i, 150) < 0.24f + forest * 0.4f) {
             val n = 1 + (Noise.unit(i, 151) * 3).toInt()
             val dx = left + 10 + (Noise.unit(i, 152) * 120).toInt()
             for (d in 0 until n) {
@@ -170,7 +171,7 @@ internal fun PixelScene.drawFieldAnimals(s: SceneState) {
                 sprite(if (up) LifeSprites.deerUp else LifeSprites.deerGraze, dx + d * 15, FIELD_TOP + 12 + (Noise.unit(i, 154 + d) * 3).toInt(), flip = Noise.unit(i, 160 + d) < 0.5f)
             }
         }
-        if (s.day() > 0.5f && s.stormy() < 0.3f && Noise.unit(i, 170) < 0.14f) {
+        if (forest < 0.2f && s.day() > 0.5f && s.stormy() < 0.3f && Noise.unit(i, 170) < 0.14f) {
             // The tractor goes up and down its field, turning at each end.
             val run = 70.0
             val phase = (s.time * 10.0 + Noise.unit(i, 171) * 200)

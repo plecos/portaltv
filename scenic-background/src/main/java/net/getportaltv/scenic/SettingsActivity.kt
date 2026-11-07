@@ -69,7 +69,7 @@ class SettingsActivity : Activity() {
         row("Scrolling", { if (config.scroll) "The journey moves on" else "Standing still" }) { _ ->
             config = config.copy(scroll = !config.scroll); save(); refresh()
         }
-        row("Place", { config.environment }) { d ->
+        row("Place", { if (config.environment == Places.JOURNEY) "Journey: the place changes as you go" else config.environment }) { d ->
             val i = Settings.ENVIRONMENTS.indexOf(config.environment)
             config = config.copy(environment = Settings.ENVIRONMENTS[(i + d + Settings.ENVIRONMENTS.size) % Settings.ENVIRONMENTS.size]); save(); refresh()
         }

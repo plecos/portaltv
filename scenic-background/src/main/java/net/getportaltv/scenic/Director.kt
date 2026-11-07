@@ -23,6 +23,8 @@ class SceneState {
     /** Which way the wind blows on screen: -1 left, +1 right (0 when still). */
     var windDir = 1f
     var travelling = true
+    /** Which place the journey is in: see [Places]. */
+    var placeMode = Places.JOURNEY
     /** For the preview: everything that comes and goes is there, so it can be looked at. */
     var boost = false
     var lat = 40.0
@@ -55,6 +57,7 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         // The journey.
         s.travelling = c.scroll
         s.boost = c.boost
+        s.placeMode = c.environment
         if (c.scroll) s.cam += SPEED * dtSeconds
 
         // The weather eases toward its target: slowly for real changes, faster when someone picks one.

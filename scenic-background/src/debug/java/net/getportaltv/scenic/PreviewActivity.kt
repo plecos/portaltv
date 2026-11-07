@@ -37,6 +37,7 @@ class PreviewActivity : Activity() {
         if (intent.hasExtra("real_weather")) config = config.copy(realWeather = intent.getBooleanExtra("real_weather", false))
         if (intent.hasExtra("days")) config = config.copy(dayOffset = intent.getIntExtra("days", 0))
         if (intent.hasExtra("at")) config = config.copy(startTime = intent.getFloatExtra("at", 0f).toDouble())
+        intent.getStringExtra("place")?.let { if (it in Places.CHOICES) config = config.copy(environment = it) }
         if (intent.hasExtra("cam")) config = config.copy(startCam = intent.getFloatExtra("cam", 0f).toDouble())
         if (intent.hasExtra("boost")) config = config.copy(boost = intent.getBooleanExtra("boost", false))
         lapse = intent.getBooleanExtra("lapse", false)

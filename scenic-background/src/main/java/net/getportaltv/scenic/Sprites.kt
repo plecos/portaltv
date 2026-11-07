@@ -80,6 +80,57 @@ object Sprites {
         ), GREEN
     )
 
+    /** A tall fir: [tiers] layers of branches, each wider than the one above, lit on the left, with a short trunk. */
+    fun fir(tiers: Int): Sprite {
+        val half = tiers + 1
+        val width = half * 2 + 1
+        val rows = ArrayList<String>()
+        for (k in 0 until tiers) for (r in 0..2) {
+            val hw = k + r
+            rows += CharArray(width) { x ->
+                val d = x - half
+                when {
+                    kotlin.math.abs(d) > hw -> '.'
+                    kotlin.math.abs(d) == hw && hw > 0 -> 'd'
+                    d < 0 -> if (r == 1) 'l' else 'g'
+                    d == 0 -> 'g'
+                    else -> if (r == 2) 'd' else 'g'
+                }
+            }.concatToString()
+        }
+        for (t in 0 until 2) rows += CharArray(width) { x -> if (x == half || x == half - 1 && t == 1) (if (x == half) 'B' else 'b') else '.' }.concatToString()
+        return Sprite(rows, GREEN)
+    }
+
+    /** A broad tree with a round crown of the given [radius], lit from the upper left, on a trunk. */
+    fun broadleaf(radius: Int, seed: Int): Sprite {
+        val width = radius * 2 + 1
+        val height = radius * 2 - 1
+        val rows = ArrayList<String>()
+        for (y in 0 until height) {
+            rows += CharArray(width) { x ->
+                val dx = (x - radius).toFloat()
+                val dy = (y - (height - 1) / 2f) * 1.05f
+                val r2 = dx * dx + dy * dy
+                val limit = radius * radius.toFloat() * (0.94f + 0.12f * Noise.unit(x, y, seed))
+                when {
+                    r2 > limit -> '.'
+                    r2 > limit * 0.72f -> if (dx + dy < 0) 'g' else 'd'
+                    dx * -0.6f + dy * -0.8f > radius * 0.35f -> 'l'
+                    Noise.unit(x, y, seed + 1) < 0.2f -> 'd'
+                    else -> 'g'
+                }
+            }.concatToString()
+        }
+        val trunk = (radius / 2).coerceAtLeast(2)
+        for (t in 0 until trunk) rows += CharArray(width) { x -> if (x == radius) 'B' else if (x == radius - 1) 'b' else '.' }.concatToString()
+        return Sprite(rows, GREEN)
+    }
+
+    /** Trees for the forest: tall firs and broad trees of a few sizes. */
+    val firs by lazy { listOf(fir(4), fir(5), fir(7)) }
+    val broads by lazy { listOf(broadleaf(5, 1), broadleaf(6, 2), broadleaf(8, 3)) }
+
     val bush = Sprite(
         listOf(
             ".dggd..",

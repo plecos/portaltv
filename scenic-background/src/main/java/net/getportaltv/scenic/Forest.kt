@@ -1,0 +1,95 @@
+package net.getportaltv.scenic
+
+import android.graphics.Path
+import net.getportaltv.scenic.Colors.lerp
+import net.getportaltv.scenic.Colors.rgb
+import net.getportaltv.scenic.Colors.smoothstep
+import net.getportaltv.scenic.PixelScene.Companion.FIELD_TOP
+import net.getportaltv.scenic.PixelScene.Companion.H
+import net.getportaltv.scenic.PixelScene.Companion.ROAD_TOP
+import net.getportaltv.scenic.PixelScene.Companion.W
+import kotlin.math.floor
+import kotlin.math.sin
+
+/** Things that only the forest has: the big trees along the road, light coming down between them, and mist on the ground. */
+
+private val bigFirs by lazy { listOf(Sprites.fir(8), Sprites.fir(10), Sprites.fir(12)) }
+private val bigBroads by lazy { listOf(Sprites.broadleaf(10, 4), Sprites.broadleaf(12, 5), Sprites.broadleaf(14, 6)) }
+
+/** The tall trees standing right beside the road, in front of the rest of the wood. */
+internal fun PixelScene.drawRoadsideTrees(s: SceneState) {
+    val factor = 0.9
+    val offset = floor(s.cam * factor)
+    val cell = 30
+    val first = floor(offset / cell).toInt() - 2
+    spritePaint.colorFilter = filter(s, 0.02f + s.look.haze * 0.25f)
+    for (i in first..first + W / cell + 5) {
+        val worldX = i * cell + (Noise.unit(i, 621) * 20).toInt()
+        val f = s.forestAt(worldX.toDouble(), factor)
+        if (f <= 0f || Noise.unit(i, 622) > f * 0.85f) continue
+        val x = (worldX - offset).toInt()
+        val tree = if (Noise.unit(i, 623) < 0.6f) bigFirs[(Noise.unit(i, 624) * bigFirs.size).toInt().coerceIn(0, bigFirs.size - 1)]
+        else bigBroads[(Noise.unit(i, 624) * bigBroads.size).toInt().coerceIn(0, bigBroads.size - 1)]
+        val sway = (sin(s.time * 1.3 + i) * minOf(1f, s.cond.wind / 30f)).toFloat().let { Math.round(it) }
+        sprite(tree, x - tree.width / 2 + sway, ROAD_TOP - 1 - (Noise.unit(i, 625) * 3).toInt())
+    }
+    spritePaint.colorFilter = null
+}
+
+/** Beams of sun slanting down from the tops of the trees on a bright day. */
+internal fun PixelScene.drawSunShafts(s: SceneState) {
+    val forest = s.forestAt(s.cam + W / 2.0, 1.0)
+    if (forest < 0.05f) return
+    val l = s.look
+    val sunny = smoothstep(8f, 25f, s.sunAlt.toFloat()) * (1f - s.cond.cloud * 0.9f) * (1f - s.cond.rain) * (1f - s.cond.fog * 0.6f)
+    val amount = forest * sunny
+    if (amount < 0.03f) return
+    // The beams lean away from the sun, so they come down toward the side it is not on.
+    val lean = if (s.sunAz < 180.0) 0.45f else -0.45f
+    val color = lerp(rgb(255, 244, 196), l.skyBottom, 0.15f)
+    paint.color = color
+    for (b in 0 until 7) {
+        val base = (b * 53 + Noise.unit(b, 631) * 30).toFloat()
+        val sway = (sin(s.time * 0.12 + b * 1.7) * 5f).toFloat()
+        val top = base + sway - 20f
+        val start = 104f
+        val width = 9f + Noise.unit(b, 632) * 12f
+        val pulse = 0.55f + 0.45f * sin(s.time * 0.2 + b * 2.3).toFloat()
+        val bottomY = (ROAD_TOP - 2).toFloat()
+        val run = bottomY - start
+        // In strips, each fainter than the one above, so a beam fades out toward the ground instead of ending in an edge.
+        val strips = 6
+        for (k in 0 until strips) {
+            val y0 = start + run * k / strips
+            val y1 = start + run * (k + 1) / strips
+            val path = Path()
+            path.moveTo(top + lean * (y0 - start), y0)
+            path.lineTo(top + width + lean * (y0 - start), y0)
+            path.lineTo(top + width + lean * (y1 - start), y1)
+            path.lineTo(top + lean * (y1 - start), y1)
+            path.close()
+            val fade = 1f - (k + 0.5f) / strips
+            paint.alpha = (amount * pulse * 0.26f * fade * 255).toInt().coerceIn(0, 255)
+            canvas.drawPath(path, paint)
+        }
+    }
+    paint.alpha = 255
+}
+
+/** Mist lying along the ground in the woods, thicker at dawn and dusk and when it is damp. */
+internal fun PixelScene.drawForestMist(s: SceneState) {
+    val forest = s.forestAt(s.cam + W / 2.0, 1.0)
+    if (forest < 0.05f) return
+    val low = 1f - smoothstep(6f, 24f, s.sunAlt.toFloat())
+    val damp = maxOf(s.cond.rain, s.cond.fog)
+    val amount = forest * (0.18f + 0.5f * low + 0.4f * damp).coerceAtMost(0.8f)
+    val color = lerp(s.look.fogColor, rgb(220, 230, 235), 0.4f * (1f - low))
+    for (band in 0 until 4) {
+        val y = FIELD_TOP + band * 4 - 2
+        val drift = (s.time * (1.2 + band * 0.4) + band * 40) % W
+        for (seg in 0 until 3) {
+            val x0 = ((seg * (W / 3f) + drift) % (W + 60)).toInt() - 60
+            fillAlpha(x0, y, x0 + 90, y + 3, color, amount * (0.22f - band * 0.03f))
+        }
+    }
+}
