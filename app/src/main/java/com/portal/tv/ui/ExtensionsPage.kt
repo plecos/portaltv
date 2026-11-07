@@ -217,17 +217,6 @@ class ExtensionsPage(
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
         }
-        manifest?.description?.takeIf { it.isNotEmpty() }?.let { box.addView(text(it, 16f, soft)) }
-        box.addView(View(context), LinearLayout.LayoutParams(1, px(8)))
-        val statusColor = when (ext.state) {
-            ExtensionState.ALLOWED -> Color.rgb(140, 230, 160)
-            ExtensionState.NOT_ALLOWED -> Color.rgb(255, 200, 100)
-            else -> Color.rgb(255, 120, 120)  // withdrawn, signed by someone else, can't be used
-        }
-        box.addView(text(ExtensionLabels.status(ext.state, ext.granted), 17f, statusColor))
-        if (ext.state == ExtensionState.NOT_ALLOWED && ext.parsed is ManifestParser.Result.Ok) {
-            box.addView(text("Nothing is turned on yet. Choose what it can do below, then Save.", 14f, soft))
-        }
         // One line says whether to trust it. Verified: one of ours, or the one the catalog lists (same signer). Otherwise a warning.
         // Only judged once the catalog has been loaded.
         val listing = catalog?.let { CatalogLabels.listing(it, ext.packageName, ext.signer) }
@@ -247,6 +236,18 @@ class ExtensionsPage(
             } else {
                 box.addView(text("Not checked yet. Open Browse extensions once to check it.", 14f, soft))
             }
+        }
+        box.addView(View(context), LinearLayout.LayoutParams(1, px(8)))
+        manifest?.description?.takeIf { it.isNotEmpty() }?.let { box.addView(text(it, 16f, soft)) }
+        box.addView(View(context), LinearLayout.LayoutParams(1, px(8)))
+        val statusColor = when (ext.state) {
+            ExtensionState.ALLOWED -> Color.rgb(140, 230, 160)
+            ExtensionState.NOT_ALLOWED -> Color.rgb(255, 200, 100)
+            else -> Color.rgb(255, 120, 120)  // withdrawn, signed by someone else, can't be used
+        }
+        box.addView(text(ExtensionLabels.status(ext.state, ext.granted), 17f, statusColor))
+        if (ext.state == ExtensionState.NOT_ALLOWED && ext.parsed is ManifestParser.Result.Ok) {
+            box.addView(text("Nothing is turned on yet. Choose what it can do below, then Save.", 14f, soft))
         }
         if (ext.state == ExtensionState.REVOKED) {
             box.addView(text(
