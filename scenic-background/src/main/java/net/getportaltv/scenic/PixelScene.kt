@@ -254,7 +254,8 @@ class PixelScene {
             val crater = Noise.hash(px + 20, py + 20, 7) and 7
             var col = if (lit) rgb(240, 238, 214) else lerp(rgb(34, 40, 62), rgb(120, 130, 160), l.day)
             if (lit && crater < 2) col = rgb(206, 204, 186)
-            val a = if (lit) shine else shine * (0.55f * night + 0.15f)
+            // In full daylight the moon is only a faint ghost; it shows properly as the sky darkens.
+            val a = (if (lit) shine else shine * (0.55f * night + 0.15f)) * (0.22f + 0.78f * night)
             fillAlpha((cx + px).toInt(), (cy + py).toInt(), (cx + px).toInt() + 1, (cy + py).toInt() + 1, col, a)
         }
     }
