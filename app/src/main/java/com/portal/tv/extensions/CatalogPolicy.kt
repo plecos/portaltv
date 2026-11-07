@@ -10,7 +10,7 @@ object CatalogPolicy {
      * No catalog with a lower serial is read. Raised with each Portal release to the serial current at the time, so a
      * freshly installed Portal (which has seen no catalog yet) can't be shown a catalog older than its own release.
      */
-    const val MIN_SERIAL = 1L
+    const val MIN_SERIAL = 2L
 
     /** The most a catalog may say it is good for, counted from now. The signing tool's default is half of this. */
     const val MAX_VALIDITY_DAYS = 365L

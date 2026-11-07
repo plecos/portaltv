@@ -205,7 +205,7 @@ A signed catalog is still only a snapshot, so rules close the gaps a signature a
 
 - **`serial` never goes down.** Portal remembers the highest serial it has accepted and refuses a lower one, so an old signed
   copy (from before a withdrawal) can't be put back in front of it. Each Portal release also has a minimum serial built in
-  (`CatalogPolicy.MIN_SERIAL`, raised when you release; serial 1 is the test catalog's, so the real one starts at 2 or more, and the release workflow refuses a release while it is still 1), so a TV with no history can't be shown a catalog older than its own
+  (`CatalogPolicy.MIN_SERIAL`, raised when you release; it is 2 now, so the real catalog starts at serial 2 or more, and the release workflow refuses a release while it is still 1), so a TV with no history can't be shown a catalog older than its own
   release, and a cleared Portal or a new TV doesn't start from zero.
 - **`expires` is required, and at most a year ahead.** It limits how long a frozen catalog helps an attacker: someone who can
   stand in for the host could otherwise serve a perfectly valid but old catalog for ever. A catalog with no `expires`, or one

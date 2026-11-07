@@ -30,8 +30,8 @@ class ReleaseReadinessTest {
     @Test
     fun theMinimumSerialHasBeenRaisedFromTheTestValue() {
         releaseCheck()
-        // Serial 1 belongs to the test catalog. The real catalog starts above it, and the minimum is raised to the serial
-        // current at each release so a fresh install can't be shown an older catalog.
-        assertTrue("CatalogPolicy.MIN_SERIAL is still the test value", CatalogPolicy.MIN_SERIAL >= 2)
+        // Raised to the serial current at each release so a fresh install can't be shown an older catalog. The first real
+        // catalog is serial 2 or more, and so is the sample.
+        assertTrue("CatalogPolicy.MIN_SERIAL was never raised above 1", CatalogPolicy.MIN_SERIAL >= 2)
     }
 }

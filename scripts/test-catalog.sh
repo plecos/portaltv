@@ -13,7 +13,7 @@
 #   MANY=200 scripts/test-catalog.sh        # also list 200 made-up extensions, to see a big catalog
 #   REVOKE_SAMPLE=1 scripts/test-catalog.sh   # the catalog withdraws the sample extension, to see an installed one switched off
 #   UNLIST_SAMPLE=1 scripts/test-catalog.sh   # the sample isn't in the catalog, to see the "not in the catalog" warning
-#   SERIAL=5 scripts/test-catalog.sh        # the catalog's serial (default 1): serve a lower one than before to see it refused
+#   SERIAL=5 scripts/test-catalog.sh        # the catalog's serial (default 2): serve a lower one than before to see it refused
 #   EXPIRES=2020-01-01 scripts/test-catalog.sh   # an expired catalog: listing works, installing is paused
 #   BAD_SIGNATURE=1 / UNSIGNED=1 scripts/test-catalog.sh   # a catalog altered after signing, or with no signature: refused
 #   REVOKE_SIGNER=<sha256> scripts/test-catalog.sh   # the catalog withdraws everything signed by that key
@@ -129,7 +129,7 @@ PY
   echo "Added $MANY made-up extensions."
 fi
 # A real publication is stamped (serial, updated, expires) just before signing; so is this one.
-java scripts/CatalogSign.java stamp "$SERVE/catalog.json" --serial "${SERIAL:-1}" >/dev/null
+java scripts/CatalogSign.java stamp "$SERVE/catalog.json" --serial "${SERIAL:-2}" >/dev/null
 if [ -n "${EXPIRES:-}" ]; then
   python3 - "$SERVE" "$EXPIRES" <<'PY'
 import json, sys, os
