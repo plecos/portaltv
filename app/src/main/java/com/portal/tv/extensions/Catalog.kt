@@ -166,6 +166,13 @@ object CatalogParser {
         val pkg = o.opt("package") as? String ?: return bad("it has no package.")
         if (pkg.length > 100 || !PACKAGE.matches(pkg)) return bad("the package name isn't valid.")
         val name = text(o, "name", ManifestParser.MAX_LABEL) ?: return bad("it has no name, or one that is too long.")
+        // The same rules Portal applies to an installed extension, so a listing is refused here, with the reason, instead of
+        // being listed and then failing on a TV.
+        // A debug build reading a test server ([allowHttp]) is exempt, because the test catalog lists Portal's own sample.
+        if (!allowHttp) {
+            Impersonation.reason(name)?.let { return bad("its name \"$name\" $it") }
+            if (Impersonation.isReservedPackage(pkg)) return bad("its package name is reserved for Portal's own apps.")
+        }
         val description = text(o, "description", ManifestParser.MAX_DESCRIPTION) ?: return bad("it has no description, or one that is too long.")
         val author = text(o, "author", MAX_AUTHOR) ?: return bad("it has no author, or one that is too long.")
         val source = url(o.opt("source"), allowHttp) ?: return bad("it needs a source link that is an https address.")

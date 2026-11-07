@@ -243,7 +243,7 @@ check against); debug builds also trust a test key whose private half is in `doc
 1. Build `catalog.json` from the entries (the catalog repository's job).
 2. Stamp it: `java scripts/CatalogSign.java stamp catalog.json` sets `serial` (one more than before), `updated` (today) and
    `expires` (today plus 180 days; `--days N` for another length, up to 365; `--serial N` to set it).
-3. Check it: `scripts/validate-catalog.sh catalog.json` (refuses a catalog with no serial, no expiry, or one too far ahead).
+3. Check it: `scripts/validate-catalog.sh catalog.json` (refuses a catalog with no serial, no expiry, or one too far ahead, and any listing whose name or package name Portal would refuse; the rules are in [EXTENSIONS.md](EXTENSIONS.md#checking-your-names-before-you-install)).
 4. Sign it, on the machine that holds the key:
    `java scripts/CatalogSign.java sign portal-catalog.private portal-2026-1 catalog.json` (writes `catalog.json.sig`).
 5. Publish both files together. (`java scripts/CatalogSign.java verify portal-catalog.public catalog.json` checks a pair.)
