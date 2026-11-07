@@ -112,6 +112,7 @@ class SleepyMoonView @JvmOverloads constructor(context: Context, attrs: Attribut
         if (w == 0f || h == 0f) return
         val t = (SystemClock.uptimeMillis() % 3_600_000L) / 1000f
 
+        fill.alpha = 255
         fill.shader = sky
         canvas.drawRect(0f, 0f, w, h, fill)
         fill.shader = null
@@ -157,6 +158,10 @@ class SleepyMoonView @JvmOverloads constructor(context: Context, attrs: Attribut
         val cy = h * 0.305f + bob
         val breath = 1f + 0.022f * sin(t * 2f * PI.toFloat() / 4f)
         val tilt = 2.2f * sin(t * 2f * PI.toFloat() / 9f)
+
+        // A shader is still faded by the paint's alpha, and the stars just left a twinkling one on it,
+        // so make the paint fully opaque again or the moon fades in and out with the last star.
+        fill.alpha = 255
 
         // A soft glow around the moon.
         fill.shader = RadialGradient(cx, cy, r * 2.5f, intArrayOf(0x4DB4BEFF, 0x00B4BEFF), floatArrayOf(0.35f, 1f), Shader.TileMode.CLAMP)
