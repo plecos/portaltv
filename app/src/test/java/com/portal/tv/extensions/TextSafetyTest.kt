@@ -33,13 +33,14 @@ class TextSafetyTest {
     @Test
     fun namesThatPassForPortalOrAndroidAreRefused() {
         for (bad in listOf("Portal", "portal", "PORTAL", "Settings", "Portal Settings", "Parent PIN", "Android System", "Google TV",
-            "Update", "Profile", "Search", "Launcher", "S e t t i n g s", "Portal-TV", "ＰＯＲＴＡＬ", "Pоrtal", "Ѕettings", "p0rtal", "My Settings page", "S\u03b5ttings", "Parental controls", "P\u00f6rtal", "Sett\u0131ngs", "\u0420arent PIN", "\u0397elp Settings")) {
+            "Update", "Profile", "Search", "Launcher", "S e t t i n g s", "Portal-TV", "ＰＯＲＴＡＬ", "Pоrtal", "Ѕettings", "p0rtal", "My Settings page", "S\u03b5ttings", "Parental controls", "P\u00f6rtal", "Sett\u0131ngs", "\u0420arent PIN", "\u0397elp Settings", "Sett1ngs", "Settlngs", "P\u0585rtal", "\u13daettings", "P\u1d0f\u0280t\u1d00l", "Settinqs")) {
             assertNotNull(bad, Impersonation.reason(bad))
         }
     }
 
     @Test
     fun packageNamesOfPortalsOwnAppsAreReserved() {
+        for (p in listOf("tv.portal.settings", "com.portaltv.x", "net.getportal.tv", "net.getportaltv.settings")) assertTrue(p, Impersonation.isReservedPackage(p))
         assertTrue(Impersonation.isReservedPackage("net.getportaltv.settings"))
         assertTrue(Impersonation.isReservedPackage("com.portal.tv"))
         assertTrue(Impersonation.isReservedPackage("com.portal.tv.debug"))
@@ -50,7 +51,7 @@ class TextSafetyTest {
     @Test
     fun ordinaryNamesAreFine() {
         for (ok in listOf("Garage door", "Photo frame", "Doorbell Security Cam", "Weather radar", "Lights", "Home: day", "Updates for my pets",
-            "Kids chores", "Sample extension", "Searchlight", "Pinball")) {
+            "Kids chores", "Sample extension", "Searchlight", "Pinball", "TV\u30a2\u30d7\u30ea", "\u0418\u0433\u0440\u0430", "Caf\u00e9 menu")) {
             assertNull(ok, Impersonation.reason(ok))
         }
     }

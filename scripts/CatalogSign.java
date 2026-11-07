@@ -82,6 +82,13 @@ public class CatalogSign {
     }
 
     private static void sign(String privateFile, String keyId, Path catalog, Path out) throws Exception {
+        // Portal raises its clock floor to a catalog's "updated" day and never lowers it, so a mistyped future date would pause
+        // installs on every TV for good. Refuse to sign one more than a day ahead.
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"updated\"\\s*:\\s*\"(\\d{4}-\\d{2}-\\d{2})\"").matcher(Files.readString(catalog));
+        if (m.find() && java.time.LocalDate.parse(m.group(1)).isAfter(java.time.LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1))) {
+            System.err.println("Refusing to sign: \"updated\" is " + m.group(1) + ", which is in the future. Run stamp first.");
+            System.exit(1);
+        }
         PrivateKey key = KeyFactory.getInstance("Ed25519")
             .generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(Files.readString(Path.of(privateFile)).trim())));
         Signature s = Signature.getInstance("Ed25519");

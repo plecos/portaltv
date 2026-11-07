@@ -194,11 +194,11 @@ nobody can act for you.
 | `items.list` | `bar` or `clock` | `area` | `items`: a list of Bundles with `id`, `text`, `button` |
 
 **Reminders** are yours: `list`, `update` and `delete` only see the ones you made, and they belong to the profile that was in
-use when you added them. Portal's own reminders and other extensions' are out of reach. They are marked "via <your name>" on
+use when you added them. Portal's own reminders and other extensions' are out of reach. They are marked "from extension <your name>" on
 the card and in Settings, you may keep 50, and they are removed when an adult turns reminders off for you or you are
 uninstalled. A reminder whose extension is no longer allowed is dropped rather than shown. You can pick only the built-in tones.
 
-**Cards** use the same card as reminders, over whatever app is open, headed "via <your name>" so they can't pass for
+**Cards** use the same card as reminders, over whatever app is open, headed "from extension <your name>" so they can't pass for
 Portal. They have no buttons and no sound and go away by themselves. Without the "Display over other apps" permission Portal
 shows a notification instead.
 
@@ -271,7 +271,10 @@ scripts/conformance.sh
 - An extension's name, its tiles' names and its buttons' words can't pass for Portal or Android ("Portal", "Settings",
   "Parent PIN", "Update", and so on); an extension that does is unusable, and its own app label is used only if it is clean,
   otherwise its package name. Text can't contain control, invisible or direction-changing characters. See
-  [CATALOG.md](CATALOG.md#names-that-pass-for-portal).
+  [CATALOG.md](CATALOG.md#names-that-pass-for-portal). A word that mixes Latin letters with Cyrillic, Greek, Armenian or similar
+  look-alikes is refused, and i, l and 1 (and q and g) are read as the same letter. A package name with a part that is
+  Portal's own name (`portal`, `portaltv`, `getportal`, `getportaltv`) is used only if the app is signed like Portal, so
+  don't build an extension under those names.
 - Every host call counts against 120 calls a minute per extension (reads too), before anything else happens; changes also have
   their own lower limit. A caller that isn't allowed anything is refused before its arguments are read.
 - Pictures an extension supplies (icons) must be no larger than 512 pixels a side; a bigger one, or one that can't be read, is
