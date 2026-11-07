@@ -56,7 +56,14 @@ data class CatalogRevocation(
 data class Catalog(
     val updated: String,
     val extensions: List<CatalogEntry>,
-    val revoked: List<CatalogRevocation>
+    val revoked: List<CatalogRevocation>,
+    /**
+     * Goes up with every published catalog. Portal never goes back to a lower one, so an old signed copy (from before a
+     * withdrawal, say) can't be put back in front of it. 0 if the file has none.
+     */
+    val serial: Long = 0,
+    /** When installing from this catalog is paused until a newer one is published (end of that day, UTC); 0 for never. */
+    val expiresAtMs: Long = 0
 ) {
     fun find(packageName: String): CatalogEntry? = extensions.firstOrNull { it.packageName == packageName }
 }
@@ -109,6 +116,12 @@ object CatalogParser {
 
         val problems = mutableListOf<String>()
         val updated = (root.opt("updated") as? String).orEmpty().take(40)
+        val serial = if (root.has("serial")) (root.opt("serial") as? Number)?.toLong()?.takeIf { it >= 1 } ?: return Result.Invalid("Its serial isn't a whole number from 1.") else 0L
+        val expiresAt = if (root.has("expires")) {
+            val day = (root.opt("expires") as? String)?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
+                ?: return Result.Invalid("Its expires isn't a date like 2027-01-31.")
+            day.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        } else 0L
 
         val entries = mutableListOf<CatalogEntry>()
         val list = root.opt("extensions") as? JSONArray ?: return Result.Invalid("It has no list of extensions.")
@@ -135,7 +148,7 @@ object CatalogParser {
                 if (r.second != null) problems += "Revoked line ${i + 1}: ${r.second}" else revoked += r.first!!
             }
         }
-        return Result.Ok(Catalog(updated, entries, revoked), problems)
+        return Result.Ok(Catalog(updated, entries, revoked, serial, expiresAt), problems)
     }
 
     private sealed class Entry {

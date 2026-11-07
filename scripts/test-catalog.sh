@@ -13,6 +13,9 @@
 #   MANY=200 scripts/test-catalog.sh        # also list 200 made-up extensions, to see a big catalog
 #   REVOKE_SAMPLE=1 scripts/test-catalog.sh   # the catalog withdraws the sample extension, to see an installed one switched off
 #   UNLIST_SAMPLE=1 scripts/test-catalog.sh   # the sample isn't in the catalog, to see the "not in the catalog" warning
+#   SERIAL=5 scripts/test-catalog.sh        # the catalog's serial (default 1): serve a lower one than before to see it refused
+#   EXPIRES=2020-01-01 scripts/test-catalog.sh   # an expired catalog: listing works, installing is paused
+#   BAD_SIGNATURE=1 / UNSIGNED=1 scripts/test-catalog.sh   # a catalog altered after signing, or with no signature: refused
 #   scripts/test-catalog.sh --off           # forget the test address
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -26,13 +29,15 @@ if [ "${1:-}" = "--off" ]; then
   echo "Test address removed."; exit 0
 fi
 
+if [ -z "${KEEP:-}" ]; then   # KEEP=1: only restart the server, leaving Portal and its kept catalog alone
 adb shell "run-as com.portal.tv sh -c 'mkdir -p shared_prefs && cat > $PREFS'" <<XML
 <?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 <map><string name="url">http://$HOST:$PORT/catalog.json</string></map>
 XML
 adb shell "run-as com.portal.tv rm -f shared_prefs/extension_catalog.xml files/extension_catalog.json"   # no stale copy from another catalog
 adb shell am force-stop com.portal.tv   # Portal is the home app, so it comes straight back and reads the new address
-echo "Portal now reads http://$HOST:$PORT/catalog.json (debug builds only)."
+fi
+if [ -z "${KEEP:-}" ]; then echo "Portal now reads http://$HOST:$PORT/catalog.json (debug builds only)."; fi
 echo "Open Settings, Extensions, Browse extensions. Ctrl-C stops the server."
 SERVE="$(mktemp -d)"
 cp -R docs/catalog/test/. "$SERVE/"
@@ -107,5 +112,23 @@ for i in range(n):
 json.dump(cat, open(os.path.join(d, "catalog.json"), "w"))
 PY
   echo "Added $MANY made-up extensions."
+fi
+if [ -n "${SERIAL:-}${EXPIRES:-}" ]; then
+  python3 - "$SERVE" "${SERIAL:-}" "${EXPIRES:-}" <<'PY'
+import json, sys, os
+p = os.path.join(sys.argv[1], "catalog.json")
+cat = json.load(open(p))
+if sys.argv[2]: cat["serial"] = int(sys.argv[2])
+if sys.argv[3]: cat["expires"] = sys.argv[3]
+json.dump(cat, open(p, "w"))
+PY
+fi
+# The catalog is signed with the test key (trusted by debug builds only); a release build refuses this catalog.
+java scripts/CatalogSign.java sign docs/catalog/test/test-signing-key.private test-1 "$SERVE/catalog.json" >/dev/null
+if [ -n "${BAD_SIGNATURE:-}" ]; then
+  echo " " >> "$SERVE/catalog.json"; echo "The catalog was changed after it was signed."
+fi
+if [ -n "${UNSIGNED:-}" ]; then
+  rm -f "$SERVE/catalog.json.sig"; echo "The catalog has no signature."
 fi
 cd "$SERVE" && exec python3 -m http.server "$PORT" --bind 0.0.0.0

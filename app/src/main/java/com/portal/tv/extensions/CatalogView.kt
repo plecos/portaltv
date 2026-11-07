@@ -20,6 +20,9 @@ object CatalogLabels {
 
     fun isStale(fetchedAtMs: Long, nowMs: Long): Boolean = fetchedAtMs <= 0 || nowMs - fetchedAtMs >= REFRESH_AFTER_MS || nowMs < fetchedAtMs
 
+    /** The catalog says it should have been replaced by now; installing from it is paused (withdrawals still apply). */
+    fun expired(catalog: Catalog, nowMs: Long): Boolean = catalog.expiresAtMs > 0 && nowMs >= catalog.expiresAtMs
+
     /** The entries to list: the ones with a version Portal could offer, by name. */
     fun shown(catalog: Catalog): List<CatalogEntry> =
         catalog.extensions.filter { CatalogRules.best(catalog, it) != null }.sortedBy { it.name.lowercase() }
