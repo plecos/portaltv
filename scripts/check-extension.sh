@@ -7,11 +7,14 @@
 # Exit status 0: Portal would accept the names. 1: it would refuse them, and each reason is printed.
 set -uo pipefail
 { [ $# -ge 2 ] && [ -f "$2" ] && { [ $# -lt 3 ] || [ -f "$3" ]; }; } || { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
-cd "$(dirname "$0")/.."
 abs() { echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; }
+# Full paths are worked out before moving to the repository folder, so a relative path means what the caller meant.
+XML_PATH="$(abs "$2")"
+STRINGS_PATH=""; [ $# -ge 3 ] && STRINGS_PATH="$(abs "$3")"
+cd "$(dirname "$0")/.."
 OUT="$(mktemp)"
-ENVS=(PORTAL_CHECK_PACKAGE="$1" PORTAL_CHECK_XML="$(abs "$2")" PORTAL_CHECK_OUT="$OUT")
-[ $# -ge 3 ] && ENVS+=(PORTAL_CHECK_STRINGS="$(abs "$3")")
+ENVS=(PORTAL_CHECK_PACKAGE="$1" PORTAL_CHECK_XML="$XML_PATH" PORTAL_CHECK_OUT="$OUT")
+[ $# -ge 3 ] && ENVS+=(PORTAL_CHECK_STRINGS="$STRINGS_PATH")
 LOG="$(mktemp)"
 env "${ENVS[@]}" ./gradlew :app:testDebugUnitTest --tests 'com.portal.tv.extensions.ExtensionFileTest.checksTheExtensionNamedByTheEnvironment' --rerun -q >"$LOG" 2>&1
 STATUS=$?
