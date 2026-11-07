@@ -201,7 +201,9 @@ object ExtensionRegistry {
     private fun describe(context: Context, pm: PackageManager, app: ApplicationInfo): Extension {
         val pkg = app.packageName
         val f = facts(pm, app)
-        val parsed = f.parsed
+        // A package name that looks like Portal's own is for Portal's own apps: one signed by anyone else is not used.
+        val reserved = Impersonation.isReservedPackage(pkg) && f.signers.none { it in ownSigners(context, pm) }
+        val parsed = if (reserved) ManifestParser.Result.Invalid("Its package name is reserved for Portal's own apps.") else f.parsed
         // What it has changed while running (new words, taken away, lines it added) is applied on top.
         val items = if (parsed is ManifestParser.Result.Ok) ItemOverrides.apply(f.usableItems, ExtensionItemStore.get(context, pkg)) else emptyList()
         val signer = f.signer
@@ -216,8 +218,15 @@ object ExtensionRegistry {
             ?.let { CatalogRules.revocationBySigners(it, pkg, f.versionCode, f.signers + listOfNotNull(signer)) }
         if (revocation != null && allowance != null) disallow(context, pkg)
         val (state, effective) = ExtensionAccess.withRevocation(ExtensionAccess.state(parsed, allowance, matches), granted, revocation)
-        return Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason)
+        return if (reserved) Extension(pkg, f.appLabel, parsed, emptyList(), null, emptyList(), null, f.problems, signer, state, effective, revocation?.reason)
+        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason)
     }
+
+    @Volatile private var ownSignersMemo: Set<String>? = null
+
+    /** Who signed Portal itself (known once per run: an update restarts the process). */
+    private fun ownSigners(context: Context, pm: PackageManager): Set<String> =
+        ownSignersMemo ?: signersOf(pm, context.packageName).second.also { ownSignersMemo = it }
 
     private fun readManifest(pm: PackageManager, app: ApplicationInfo): ManifestParser.Result {
         val id = app.metaData?.getInt(META_KEY, 0) ?: 0

@@ -5,6 +5,7 @@ import android.content.res.Resources
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
 import android.util.TypedValue
+import org.xmlpull.v1.XmlPullParser
 import com.portal.tv.R
 
 /**
@@ -24,20 +25,51 @@ object SafeIcons {
     fun load(res: Resources, id: Int): Drawable? {
         if (id == 0) return null
         return try {
-            val value = TypedValue()
-            res.getValue(id, value, true)
-            val file = value.string?.toString().orEmpty().lowercase()
-            if (RASTER.any { file.endsWith(it) }) {
-                // Only the size is read first; a big picture is never decoded.
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                res.openRawResource(id, value).use { BitmapFactory.decodeStream(it, null, bounds) }
-                if (!allowed(bounds.outWidth, bounds.outHeight)) return null
-            }
+            if (!sizeOk(res, id, 0)) return null
             val drawable = res.getDrawable(id, null) ?: return null
-            // A drawable made from several pieces (an adaptive icon) can hide a big one: its own size says.
+            // A vector can say any size; the size it reports is checked too.
             if (drawable.intrinsicWidth > MAX_SIDE * 8 || drawable.intrinsicHeight > MAX_SIDE * 8) null else drawable
         } catch (t: Throwable) {
             null
+        }
+    }
+
+    /**
+     * Whether every picture that drawing [id] would decode is small enough, found by reading sizes only, never decoding a
+     * big one. A picture file is checked by its size. A drawable made of XML (a `<bitmap>`, an adaptive icon, a layer list)
+     * is followed into the pictures it names, because such a wrapper can point at a huge one; an XML kind not known here is
+     * refused. Colors are fine.
+     */
+    private fun sizeOk(res: Resources, id: Int, depth: Int): Boolean {
+        if (id == 0 || depth > MAX_DEPTH) return false
+        val value = TypedValue()
+        res.getValue(id, value, true)
+        val file = value.string?.toString().orEmpty().lowercase()
+        if (file.isEmpty()) return value.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT
+        if (RASTER.any { file.endsWith(it) }) {
+            // Only the size is read first; a big picture is never decoded.
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            res.openRawResource(id, value).use { BitmapFactory.decodeStream(it, null, bounds) }
+            return allowed(bounds.outWidth, bounds.outHeight)
+        }
+        if (!file.endsWith(".xml")) return false
+        val parser = res.getXml(id)
+        try {
+            var first = true
+            while (parser.next() != XmlPullParser.END_DOCUMENT) {
+                if (parser.eventType != XmlPullParser.START_TAG) continue
+                if (first) {
+                    if (parser.name !in XML_KINDS) return false
+                    first = false
+                }
+                for (attribute in REFERENCES) {
+                    val target = parser.getAttributeResourceValue(ANDROID, attribute, 0)
+                    if (target != 0 && !sizeOk(res, target, depth + 1)) return false
+                }
+            }
+            return !first
+        } finally {
+            parser.close()
         }
     }
 
@@ -56,5 +88,9 @@ object SafeIcons {
 
     fun generic(context: Context): Drawable = context.getDrawable(R.drawable.ic_cat_extensions)!!
 
+    private const val MAX_DEPTH = 4
+    private const val ANDROID = "http://schemas.android.com/apk/res/android"
+    private val XML_KINDS = setOf("vector", "adaptive-icon", "layer-list", "inset", "bitmap", "rotate", "scale", "clip")
+    private val REFERENCES = listOf("drawable", "src")
     private val RASTER = listOf(".png", ".webp", ".jpg", ".jpeg", ".gif", ".bmp")
 }

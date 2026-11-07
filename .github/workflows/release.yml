@@ -31,21 +31,18 @@ jobs:
           major_minor=$(grep '^VERSION_MAJOR_MINOR=' gradle.properties | cut -d= -f2)
           echo "VERSION=$major_minor.$(( $(git rev-list --count HEAD) - 1 ))" >> "$GITHUB_ENV"
 
-      # Portal reads a catalog only if it is signed by a key built into the app. A release with no key built in would refuse
-      # every catalog (and so never hear of a withdrawal), so it is not published. See docs/CATALOG.md, Signing.
-      - name: A catalog key must be built in
-        run: |
-          if grep -Eq 'RELEASE_KEYS: *List<Key> *= *emptyList\(\)' app/src/main/java/com/portal/tv/extensions/CatalogTrust.kt; then
-            echo "::error::CatalogTrust.RELEASE_KEYS is empty. Add the catalog's public key (java scripts/CatalogSign.java keygen) before releasing."
-            exit 1
-          fi
-
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
 
       - uses: gradle/actions/setup-gradle@v6
+
+      # Portal reads a catalog only if it is signed by a key built into the app. A release with no key built in would refuse
+      # every catalog (and so never hear of a withdrawal), so it is not published. This runs the real values through a test,
+      # not a text search, so how they are written doesn't matter. See docs/CATALOG.md, Signing.
+      - name: Catalog key and minimum serial must be set
+        run: PORTAL_RELEASE_CHECK=1 ./gradlew testDebugUnitTest --tests '*ReleaseReadinessTest' --rerun
 
       - name: Unit tests and lint
         run: ./gradlew testDebugUnitTest lintDebug
