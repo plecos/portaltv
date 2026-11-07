@@ -51,6 +51,8 @@ class SettingsFragment : Fragment() {
 
     /** Shows or hides the shader color picker to match the background mode. */
     private var refreshShaderColors: (() -> Unit)? = null
+    /** Looks again at which extensions may draw the background and updates the choices on the Background page. */
+    private var refreshBackgroundChoices: (() -> Unit)? = null
 
 
     fun setBackgroundChangedListener(listener: () -> Unit) {
@@ -1188,7 +1190,8 @@ class SettingsFragment : Fragment() {
         val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
         val kidId = com.portal.tv.repo.ProfileManager.getActiveId(context)
         val kidMay = kid && kidId != null && BackgroundSettings.kidCanPickExtension(context, kidId)
-        viewLifecycleOwner.lifecycleScope.launch {
+        // Looked up again whenever an extension is allowed or changed (from the Extensions page), so the choices are never out of date.
+        val load = { viewLifecycleOwner.lifecycleScope.launch {
             val drawers = if (kid && !kidMay) emptyList() else withContext(Dispatchers.IO) {
                 com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
                     com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
@@ -1225,7 +1228,9 @@ class SettingsFragment : Fragment() {
             drawers.forEach { ext -> extensionTiles += ext.packageName to tile(ext.name) { choose(ext.packageName) } }
             extensionTiles.forEach { typeRow.addView(it.second) }
             highlight()
-        }
+        } }
+        refreshBackgroundChoices = { load() }
+        load()
 
         highlight()
     }
@@ -1829,6 +1834,7 @@ class SettingsFragment : Fragment() {
         val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }, { found, allowed ->
             extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed)
             refreshCategories?.invoke()
+            refreshBackgroundChoices?.invoke()
         }) {
             // Back from the catalog lands on this page again.
             returnToCategory = R.id.cat_extensions
