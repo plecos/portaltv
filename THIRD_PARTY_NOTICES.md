@@ -77,3 +77,10 @@ page it came from. NASA media is generally in the public domain, and NASA does n
 
 The Google "G" beside a profile's name marks a profile linked to a Google account. It is a trademark
 of Google LLC, used only to show that link. Portal is not made or endorsed by Google.
+
+## Look-alike characters
+
+Portal's check on extension names uses the Unicode Consortium's list of confusable characters (confusables.txt,
+Unicode Security Mechanisms, UTS #39), kept in `app/src/main/resources/confusables.txt` and made by
+`scripts/gen-confusables.py`. Copyright Unicode, Inc., used under the Unicode License
+(https://www.unicode.org/terms_of_use.html).
