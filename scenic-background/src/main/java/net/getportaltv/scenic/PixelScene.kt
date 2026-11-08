@@ -94,6 +94,7 @@ class PixelScene {
         phase("drawCityGround") { drawCityGround(s) }
         phase("drawBeachGround") { drawBeachGround(s) }
         phase("drawSuburbGround") { drawSuburbGround(s) }
+        phase("drawParkGround") { drawParkGround(s) }
         phase("drawSeaLife") { drawSeaLife(s) }
         phase("drawRiverBehind") { drawRiverBehind(s) }
         phase("drawRailway") { drawRailway(s) }
@@ -102,12 +103,14 @@ class PixelScene {
         phase("drawFieldAnimals") { drawFieldAnimals(s) }
         phase("drawFarm") { drawFarm(s, cam) }
         phase("drawSuburbBlocks") { drawSuburbBlocks(s) }
+        phase("drawParkRides") { drawParkRides(s) }
         phase("drawCityBlocks") { drawCityBlocks(s) }
         phase("drawStreetLamps") { drawStreetLamps(s) }
         phase("drawBeachFront") { drawBeachFront(s) }
         phase("drawSubwayEntrances") { drawSubwayEntrances(s) }
         phase("drawCityPeople") { drawCityPeople(s) }
         phase("drawSuburbPeople") { drawSuburbPeople(s) }
+        phase("drawParkFront") { drawParkFront(s) }
         phase("drawRoadsideTrees") { drawRoadsideTrees(s) }
         phase("drawCampsites") { drawCampsites(s) }
         phase("drawForestMist") { drawForestMist(s) }
@@ -931,7 +934,7 @@ class PixelScene {
             // the sea and the road.
             val a = i * spacing.toDouble()
             val b = (i + 1) * spacing.toDouble()
-            if (s.cityAt(a, 1.7) > 0.3f || s.cityAt(b, 1.7) > 0.3f || s.beachAt(a, 1.7) > 0.3f || s.beachAt(b, 1.7) > 0.3f) continue
+            if (s.cityAt(a, 1.7) > 0.3f || s.cityAt(b, 1.7) > 0.3f || s.beachAt(a, 1.7) > 0.3f || s.beachAt(b, 1.7) > 0.3f || s.parkAt(a, 1.7) > 0.3f || s.parkAt(b, 1.7) > 0.3f) continue
             fill(x, 112, x + 3, H, wood)
             fill(x - 6, 116, x + 9, 118, wood)
             fill(x - 4, 124, x + 7, 125, wood)

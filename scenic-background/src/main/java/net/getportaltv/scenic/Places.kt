@@ -17,15 +17,17 @@ object Places {
     const val CITY = "City"
     const val BEACH = "Beach"
     const val SUBURBIA = "Suburbia"
+    const val AMUSEMENT = "Amusement park"
 
     /** The choices in settings, the first being the default. */
-    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, SUBURBIA, CITY, BEACH)
+    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, SUBURBIA, CITY, AMUSEMENT, BEACH)
 
     /**
      * The places the journey passes through, stretch by stretch, over and over. Suburbia comes right before and right after the
-     * city, with no countryside between, so the town thickens into the city and thins out again.
+     * city, with no countryside between, so the town thickens into the city and thins out again; the amusement park follows the
+     * suburbs on the way out, its car park running in from either side.
      */
-    private val SEQUENCE = listOf(COUNTRYSIDE, FOREST, COUNTRYSIDE, SUBURBIA, CITY, SUBURBIA, COUNTRYSIDE, BEACH)
+    private val SEQUENCE = listOf(COUNTRYSIDE, FOREST, COUNTRYSIDE, SUBURBIA, CITY, SUBURBIA, AMUSEMENT, COUNTRYSIDE, BEACH)
 
     /** How far one stretch of the journey goes before the next place, in pixels of travel (about two and a half minutes). */
     const val STRETCH = 4500.0
@@ -46,6 +48,7 @@ object Places {
     fun city(journey: Double, mode: String): Float = amount(CITY, journey, mode)
     fun beach(journey: Double, mode: String): Float = amount(BEACH, journey, mode)
     fun suburbia(journey: Double, mode: String): Float = amount(SUBURBIA, journey, mode)
+    fun amusement(journey: Double, mode: String): Float = amount(AMUSEMENT, journey, mode)
 
     /**
      * How tall the mountains are at [journey] (a position in the range's own world: its x divided by how fast it moves), from 0 (none:
@@ -93,7 +96,10 @@ internal fun SceneState.suburbAt(x: Double, factor: Double): Float = Places.subu
 
 internal fun SceneState.suburbNow(): Float = Places.suburbia(cam, placeMode)
 
-/** How much of the land is built or sand rather than wild country (city, beach or suburbia): the farms, fences, ponds and wildlife give way to it. */
-internal fun SceneState.hardAt(x: Double, factor: Double): Float = maxOf(cityAt(x, factor), beachAt(x, factor), 0.9f * suburbAt(x, factor))
+/** The same for the amusement park. */
+internal fun SceneState.parkAt(x: Double, factor: Double): Float = Places.amusement(x / factor, placeMode)
 
-internal fun SceneState.hardNow(): Float = maxOf(cityNow(), beachNow(), 0.9f * suburbNow())
+/** How much of the land is built or sand rather than wild country (city, beach or suburbia): the farms, fences, ponds and wildlife give way to it. */
+internal fun SceneState.hardAt(x: Double, factor: Double): Float = maxOf(cityAt(x, factor), beachAt(x, factor), 0.9f * suburbAt(x, factor), 0.9f * parkAt(x, factor))
+
+internal fun SceneState.hardNow(): Float = maxOf(cityNow(), beachNow(), 0.9f * suburbNow(), 0.9f * Places.amusement(cam, placeMode))
