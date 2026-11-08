@@ -3,7 +3,6 @@ package net.getportaltv.scenic
 import net.getportaltv.scenic.Colors.lerp
 import net.getportaltv.scenic.Colors.rgb
 import net.getportaltv.scenic.Colors.smoothstep
-import android.graphics.Path
 import net.getportaltv.scenic.PixelScene.Companion.FIELD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.H
 import net.getportaltv.scenic.PixelScene.Companion.ROAD_BOTTOM
@@ -229,7 +228,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
     val rail = lit(s, rgb(176, 176, 184), haze)
     val sleeper = lit(s, rgb(96, 70, 50), haze)
     val bed = lit(s, rgb(70, 72, 82), haze)
-    val onTrack = Path()
+    val onTrack = BooleanArray(W)
     var any = false
     var runStart = -1
     for (x in 0..W) {
@@ -238,7 +237,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
         val t = if (park) 1f else if (x < W) trackAt(x + offset) * (1f - s.hardOnScreen(x)) else 0f
         val full = t >= 0.98f
         if (full && runStart < 0) runStart = x
-        if (!full && runStart >= 0) { onTrack.addRect(runStart.toFloat(), 0f, x.toFloat(), H.toFloat(), Path.Direction.CW); runStart = -1; any = true }
+        if (!full && runStart >= 0) { for (c in runStart until x) onTrack[c] = true; runStart = -1; any = true }
         if (x >= W || t < 0.04f) continue
         // Curving away, the track climbs toward the horizon, gets thinner and fades into the haze.
         val c = 1f - t
@@ -260,8 +259,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
     val travelV = if (s.travelling) s.speed * 0.3f else 0f
     spritePaint.colorFilter = filter(s, 0.14f + s.look.haze * 0.3f)
     // A train is only where the track runs alongside; where it curves away the train goes with it.
-    canvas.save()
-    canvas.clipPath(onTrack)
+    clipCols = onTrack
     for (ev in LifeSchedule.events(s.time, 55.0, 75.0, 0.55f, 301, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
         val passenger = ev.unit(2) < 0.4f
@@ -301,7 +299,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
             fillAlpha(sx.toInt(), bottom - 8 - (a * 7).toInt(), sx.toInt() + 2 + (a * 2).toInt(), bottom - 6 - (a * 7).toInt(), lit(s, rgb(206, 206, 210), 0.1f), (1f - a) * 0.55f)
         }
     }
-    canvas.restore()
+    clipCols = null
     spritePaint.colorFilter = null
 }
 

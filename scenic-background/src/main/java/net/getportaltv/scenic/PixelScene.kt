@@ -1,9 +1,6 @@
 package net.getportaltv.scenic
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.LightingColorFilter
-import android.graphics.Paint
 import net.getportaltv.scenic.Colors.lerp
 import net.getportaltv.scenic.Colors.rgb
 import kotlin.math.abs
@@ -26,11 +23,20 @@ import kotlin.math.sqrt
  */
 class PixelScene {
 
+    /** The finished picture, which the view scales up. */
     val bitmap: Bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
-    internal val canvas = Canvas(bitmap)
-    internal val paint = Paint().apply { isAntiAlias = false; isFilterBitmap = false; isDither = false }
-    internal val spritePaint = Paint().apply { isAntiAlias = false; isFilterBitmap = false; isDither = false }
-    private val pixels = IntArray(W * H)
+
+    /**
+     * The picture as it is drawn: every pixel an opaque colour. Everything is drawn straight into this array rather than through a
+     * Canvas, because a slow TV spends far longer setting up each Canvas call (thousands a frame) than the few pixels each one fills.
+     */
+    private val fb = IntArray(W * H)
+
+    /** How sprites are drawn now: how opaque, and the light and haze they are given (see [filter]). */
+    internal val spritePaint = SpritePaint()
+
+    /** When set, drawing only reaches the columns that are true here (the train stays on the stretch of track that runs alongside). */
+    internal var clipCols: BooleanArray? = null
 
     /** Levels per colour channel in the final picture: 6 gives 216 colours. */
     var levels = 10
@@ -39,7 +45,7 @@ class PixelScene {
     var particleScale = 1f
 
     // The pictures that are drawn many times, made once.
-    private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> Sprites.cloud(w, h, 100 + i) }
+    private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> Sprite.of(Sprites.cloud(w, h, 100 + i)) }
     private val carBodies = intArrayOf(rgb(214, 56, 56), rgb(60, 110, 200), rgb(236, 200, 60), rgb(240, 240, 240), rgb(70, 74, 84), rgb(70, 160, 96))
     private val cars = carBodies.map { Sprites.car(it) }
     private val taxi = Sprites.taxi(rgb(244, 196, 40))
@@ -133,7 +139,7 @@ class PixelScene {
     internal fun airColor(s: SceneState) = lerp(s.look.skyBottom, s.look.fogColor, s.look.haze * 0.8f)
 
     /** A filter that gives sprites the same light and haze. */
-    internal fun filter(s: SceneState, air: Float, extraBright: Float = 1f, snowy: Boolean = true): LightingColorFilter {
+    internal fun filter(s: SceneState, air: Float, extraBright: Float = 1f, snowy: Boolean = true): Tint {
         val l = s.look
         // Snow settles on the trees and roofs too: lighter, and paler.
         val dust = if (snowy) s.snowCover * 70 else 0f
@@ -141,41 +147,151 @@ class PixelScene {
         val mul = rgb((min(1f, l.tintR * extraBright) * keep * 255).toInt(), (min(1f, l.tintG * extraBright) * keep * 255).toInt(), (min(1f, l.tintB * extraBright) * keep * 255).toInt())
         val a = airColor(s)
         val add = rgb((Colors.r(a) * air + dust).toInt(), (Colors.g(a) * air + dust).toInt(), (Colors.b(a) * air + dust).toInt())
-        return LightingColorFilter(mul, add)
+        return Tint(mul, add)
     }
 
     internal fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
         Profile.draws++
-        paint.color = color
-        canvas.drawRect(x0.toFloat(), y0.toFloat(), x1.toFloat(), y1.toFloat(), paint)
+        val xa = if (x0 < 0) 0 else x0
+        val xb = if (x1 > W) W else x1
+        val ya = if (y0 < 0) 0 else y0
+        val yb = if (y1 > H) H else y1
+        if (xa >= xb || ya >= yb) return
+        val c = color or OPAQUE
+        val clip = clipCols
+        for (y in ya until yb) {
+            var i = y * W + xa
+            if (clip == null) {
+                java.util.Arrays.fill(fb, i, i + (xb - xa), c)
+            } else {
+                for (x in xa until xb) { if (clip[x]) fb[i] = c; i++ }
+            }
+        }
     }
 
     internal fun fillAlpha(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) {
+        val a = (alpha.coerceIn(0f, 1f) * 255).toInt()
+        if (a >= 255) { fill(x0, y0, x1, y1, color); return }
         Profile.draws++
-        paint.color = color
-        paint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt()
-        canvas.drawRect(x0.toFloat(), y0.toFloat(), x1.toFloat(), y1.toFloat(), paint)
-        paint.alpha = 255
+        if (a <= 0) return
+        val xa = if (x0 < 0) 0 else x0
+        val xb = if (x1 > W) W else x1
+        val ya = if (y0 < 0) 0 else y0
+        val yb = if (y1 > H) H else y1
+        if (xa >= xb || ya >= yb) return
+        val clip = clipCols
+        val sr = (color shr 16) and 0xFF
+        val sg = (color shr 8) and 0xFF
+        val sb = color and 0xFF
+        val ia = 255 - a
+        for (y in ya until yb) {
+            var i = y * W + xa
+            for (x in xa until xb) {
+                if (clip == null || clip[x]) {
+                    val d = fb[i]
+                    fb[i] = OPAQUE or (((sr * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
+                        (((sg * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or ((sb * a + (d and 0xFF) * ia + 127) / 255)
+                }
+                i++
+            }
+        }
+    }
+
+    /** One pixel, [color] over what is there at strength [a] (0 to 255). */
+    private fun dot(x: Int, y: Int, color: Int, a: Int) {
+        if (x < 0 || x >= W || y < 0 || y >= H) return
+        val clip = clipCols
+        if (clip != null && !clip[x]) return
+        val i = y * W + x
+        if (a >= 255) { fb[i] = color or OPAQUE; return }
+        val d = fb[i]
+        val ia = 255 - a
+        fb[i] = OPAQUE or ((((color shr 16 and 0xFF) * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
+            ((((color shr 8 and 0xFF) * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or (((color and 0xFF) * a + (d and 0xFF) * ia + 127) / 255)
+    }
+
+    internal fun fillCircle(cx: Float, cy: Float, r: Float, color: Int, alpha: Float) = fillOval(cx - r, cy - r, cx + r, cy + r, color, alpha)
+
+    /** An ellipse inside the box (no smoothing: every pixel whose middle is inside it). */
+    internal fun fillOval(left: Float, top: Float, right: Float, bottom: Float, color: Int, alpha: Float) {
+        Profile.draws++
+        val a = (alpha.coerceIn(0f, 1f) * 255).toInt()
+        if (a <= 0) return
+        val cx = (left + right) / 2f
+        val cy = (top + bottom) / 2f
+        val rx = (right - left) / 2f
+        val ry = (bottom - top) / 2f
+        if (rx <= 0f || ry <= 0f) return
+        val ya = floor(top).toInt().coerceAtLeast(0)
+        val yb = kotlin.math.ceil(bottom).toInt().coerceAtMost(H - 1)
+        for (y in ya..yb) {
+            val dy = (y + 0.5f - cy) / ry
+            val rest = 1f - dy * dy
+            if (rest < 0f) continue
+            val half = rx * sqrt(rest)
+            val xa = kotlin.math.ceil(cx - half - 0.5f).toInt()
+            val xb = floor(cx + half - 0.5f).toInt()
+            for (x in xa..xb) dot(x, y, color, a)
+        }
+    }
+
+    /** A line one pixel wide from ([x0], [y0]) to ([x1], [y1]), [color] at strength [a] (0 to 255). */
+    internal fun line(x0: Float, y0: Float, x1: Float, y1: Float, color: Int, a: Int = 255) {
+        Profile.draws++
+        val dx = x1 - x0
+        val dy = y1 - y0
+        val n = kotlin.math.max(abs(dx), abs(dy)).toInt().coerceAtLeast(1)
+        for (k in 0..n) {
+            val t = k.toFloat() / n
+            dot(floor(x0 + dx * t).toInt(), floor(y0 + dy * t).toInt(), color, a)
+        }
+    }
+
+    /** Draws a picture's pixels at ([x], [top]), mirrored if [flip], at the sprite paint's strength and light. */
+    private fun blit(px: IntArray, sw: Int, sh: Int, x: Int, top: Int, flip: Boolean, alpha: Int) {
+        if (alpha <= 0) return
+        val tint = spritePaint.colorFilter
+        val mr = if (tint == null) 255 else (tint.mul shr 16) and 0xFF
+        val mg = if (tint == null) 255 else (tint.mul shr 8) and 0xFF
+        val mb = if (tint == null) 255 else tint.mul and 0xFF
+        val ar = if (tint == null) 0 else (tint.add shr 16) and 0xFF
+        val ag = if (tint == null) 0 else (tint.add shr 8) and 0xFF
+        val ab = if (tint == null) 0 else tint.add and 0xFF
+        val clip = clipCols
+        for (sy in 0 until sh) {
+            val y = top + sy
+            if (y < 0 || y >= H) continue
+            for (sx in 0 until sw) {
+                val dx = x + sx
+                if (dx < 0 || dx >= W) continue
+                if (clip != null && !clip[dx]) continue
+                val c = px[sy * sw + (if (flip) sw - 1 - sx else sx)]
+                val sa = c ushr 24
+                if (sa == 0) continue
+                val a = if (alpha >= 255) sa else (sa * alpha + 127) / 255
+                if (a <= 0) continue
+                val r = kotlin.math.min(255, ((c shr 16) and 0xFF) * mr / 255 + ar)
+                val g = kotlin.math.min(255, ((c shr 8) and 0xFF) * mg / 255 + ag)
+                val b = kotlin.math.min(255, (c and 0xFF) * mb / 255 + ab)
+                val i = y * W + dx
+                if (a >= 255) { fb[i] = OPAQUE or (r shl 16) or (g shl 8) or b; continue }
+                val d = fb[i]
+                val ia = 255 - a
+                fb[i] = OPAQUE or (((r * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
+                    (((g * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or ((b * a + (d and 0xFF) * ia + 127) / 255)
+            }
+        }
     }
 
     internal fun sprite(sp: Sprite, x: Int, bottom: Int, flip: Boolean = false) {
         Profile.sprites++
         if (x > W || x + sp.width < 0) return
-        if (flip) {
-            canvas.save()
-            canvas.scale(-1f, 1f, x + sp.width / 2f, 0f)
-            canvas.drawBitmap(sp.bitmap, x.toFloat(), (bottom - sp.height).toFloat(), spritePaint)
-            canvas.restore()
-        } else canvas.drawBitmap(sp.bitmap, x.toFloat(), (bottom - sp.height).toFloat(), spritePaint)
+        val top = bottom - sp.height
+        blit(sp.pixels, sp.width, sp.height, x, top, flip, spritePaint.alpha)
         // Evergreens grow white as snow builds up on them.
         val s = scene
         val frost = if (s != null && s.snowCover > 0.03f) Sprites.frosted(sp) else null
-        if (frost != null) {
-            val keep = spritePaint.alpha
-            spritePaint.alpha = (keep * s!!.snowCover).toInt().coerceIn(0, 255)
-            canvas.drawBitmap(frost.bitmap, x.toFloat(), (bottom - sp.height).toFloat(), spritePaint)
-            spritePaint.alpha = keep
-        }
+        if (frost != null) blit(frost.pixels, frost.width, frost.height, x, top, flip, (spritePaint.alpha * s!!.snowCover).toInt().coerceIn(0, 255))
     }
 
     // ---------- sky ----------
@@ -192,11 +308,9 @@ class PixelScene {
             val sx = skyX(s.sunAz)
             val sy = skyY(s.sunAlt)
             for (i in 6 downTo 1) {
-                paint.color = l.glow
-                paint.alpha = (l.glowStrength * 38 * (7 - i) / 6f).toInt().coerceIn(0, 255)
-                canvas.drawOval(sx - i * 20f, sy - i * 11f, sx + i * 20f, sy + i * 11f, paint)
+                val a = (l.glowStrength * 38 * (7 - i) / 6f).toInt().coerceIn(0, 255)
+                fillOval(sx - i * 20f, sy - i * 11f, sx + i * 20f, sy + i * 11f, l.glow, a / 255f)
             }
-            paint.alpha = 255
         }
     }
 
@@ -254,13 +368,6 @@ class PixelScene {
         fillCircle(x, y, 8f, core, shine)
     }
 
-    internal fun fillCircle(cx: Float, cy: Float, r: Float, color: Int, alpha: Float) {
-        paint.color = color
-        paint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt()
-        canvas.drawCircle(cx, cy, r, paint)
-        paint.alpha = 255
-    }
-
     private fun drawMoon(s: SceneState) {
         val m = s.moon ?: return
         if (m.altDeg < -4) return
@@ -312,7 +419,7 @@ class PixelScene {
         // The low ones are far away, so they are paler and hazier.
         val fogMix = (l.haze * 0.8f + if (low3) 0.3f else 0f).coerceIn(0f, 0.95f)
         val fogged = lerp(mul, l.fogColor, fogMix)
-        spritePaint.colorFilter = LightingColorFilter(fogged, rgb(0, 0, 0))
+        spritePaint.colorFilter = Tint(fogged, rgb(0, 0, 0))
         val baseAlpha = 1f - l.haze * 0.55f
         // More cloud means more clouds and bigger ones, until the whole sky is covered. Each cloud has its own level of cover at
         // which it is there: below it the cloud is gone, above it the cloud is whole, and in between (a little more than a tenth
@@ -333,8 +440,7 @@ class PixelScene {
                 val bmp = clouds[index]
                 val left = centerX - bmp.width / 2
                 if (left > W || left + bmp.width < 0) continue
-                spritePaint.alpha = (baseAlpha * fade * weight * 255).toInt().coerceIn(0, 255)
-                canvas.drawBitmap(bmp, left.toFloat(), (centerY - bmp.height / 2).toFloat(), spritePaint)
+                blit(bmp.pixels, bmp.width, bmp.height, left, centerY - bmp.height / 2, false, (baseAlpha * fade * weight * 255).toInt().coerceIn(0, 255))
             }
         }
         spritePaint.colorFilter = null
@@ -576,21 +682,21 @@ class PixelScene {
     }
 
     private fun windmill(s: SceneState, x: Int, bottom: Int) {
-        paint.color = lit(s, rgb(150, 150, 156), 0.1f)
+        val tower = lit(s, rgb(150, 150, 156), 0.1f)
         // The tower, wider at the foot.
         for (r in 0 until 22) {
             val half = 1 + (22 - r) / 9
-            canvas.drawRect((x - half).toFloat(), (bottom - 22 + r).toFloat(), (x + half + 1).toFloat(), (bottom - 21 + r).toFloat(), paint)
+            fill(x - half, bottom - 22 + r, x + half + 1, bottom - 21 + r, tower)
         }
         val hubX = x.toFloat() + 0.5f
         val hubY = (bottom - 24).toFloat()
         val angle = s.time * (0.25 + s.cond.wind * 0.045)
-        paint.color = lit(s, rgb(236, 236, 240), 0.08f)
+        val blade = lit(s, rgb(236, 236, 240), 0.08f)
         for (b in 0 until 4) {
             val a = angle + b * Math.PI / 2
             val ex = hubX + (cos(a) * 12).toFloat()
             val ey = hubY + (sin(a) * 12).toFloat()
-            canvas.drawLine(hubX, hubY, ex, ey, paint)
+            line(hubX, hubY, ex, ey, blade)
         }
         fill(x - 1, bottom - 25, x + 2, bottom - 22, lit(s, rgb(90, 90, 100), 0.1f))
     }
@@ -797,7 +903,6 @@ class PixelScene {
         val n = (rain * 340 * particleScale).toInt()
         val slant = s.windDir * min(1f, s.cond.wind / 30f) * 0.55f
         val color = lerp(rgb(110, 124, 156), rgb(190, 206, 232), l.day)
-        paint.color = color
         for (i in 0 until n) {
             val u1 = Noise.unit(i, 11)
             val u2 = Noise.unit(i, 12)
@@ -806,10 +911,8 @@ class PixelScene {
             val len = if (far) 5 else 9
             val y = ((u2 * H + speed * s.time) % (H + 10)).toFloat() - 5f
             val x = ((Noise.unit(i, 13) * (W + 60) + slant * speed * s.time) % (W + 60)).toFloat() - 30f + y * slant * 0.5f
-            paint.alpha = if (far) 140 else 210
-            canvas.drawLine(x, y, x + slant * len, y + len, paint)
+            line(x, y, x + slant * len, y + len, color, if (far) 140 else 210)
         }
-        paint.alpha = 255
         // Splashes on the road.
         val bucket = floor(s.time * 8).toInt()
         for (i in 0 until (rain * 18).toInt()) {
@@ -876,12 +979,12 @@ class PixelScene {
         if (s.flash > 0.6f && e in 0.0..0.15) {
             var x = 30f + Noise.unit(slot, 93) * 260f
             var y = 30f
-            paint.color = rgb(250, 250, 255)
+            val bolt = rgb(250, 250, 255)
             var step = 0
             while (y < ROAD_TOP - 4) {
                 val nx = x + (Noise.unit(slot, 94, step) - 0.5f) * 14f
                 val ny = y + 7f + Noise.unit(slot, 95, step) * 5f
-                canvas.drawLine(x, y, nx, ny, paint)
+                line(x, y, nx, ny, bolt)
                 x = nx; y = ny; step++
             }
         }
@@ -909,7 +1012,7 @@ class PixelScene {
     /** Dithers the picture and limits it to [levels] steps per colour, in place. */
     private fun finish() {
         if (lutLevels != levels || lutDither != dither || lut.isEmpty()) buildLut()
-        bitmap.getPixels(pixels, 0, W, 0, 0, W, H)
+        val pixels = fb
         val table = lut
         for (y in 0 until H) {
             val row = (y and 3) * 4
@@ -930,6 +1033,7 @@ class PixelScene {
     }
 
     companion object {
+        private const val OPAQUE = 0xFF shl 24
         /** How much more cover than a cloud needs makes it fully there (it is faded in between). */
         private const val FADE_RANGE = 0.14f
         const val W = 320
@@ -942,4 +1046,13 @@ class PixelScene {
         const val ROAD_TOP = 154
         const val ROAD_BOTTOM = 168
     }
+}
+
+/** A light and haze for sprites: each colour channel is multiplied by [mul] (out of 255) and then [add] is added. */
+class Tint(val mul: Int, val add: Int)
+
+/** What sprites are drawn with: how opaque, and the light and haze they are given. */
+class SpritePaint {
+    var alpha = 255
+    var colorFilter: Tint? = null
 }

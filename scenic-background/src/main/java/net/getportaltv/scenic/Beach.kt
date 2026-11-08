@@ -426,12 +426,13 @@ private fun PixelScene.drawLighthouse(s: SceneState, night: Float) {
             val reach = side * 110f
             val a = night * 0.28f * abs(side)
             if (a > 0.02f) {
-                paint.color = rgb(255, 240, 170)
-                paint.alpha = (a * 255f).toInt().coerceIn(0, 255)
-                val path = android.graphics.Path()
-                path.moveTo(lx.toFloat(), ly - 1f); path.lineTo(lx + reach, ly - 4f); path.lineTo(lx + reach, ly + 4f); path.lineTo(lx.toFloat(), ly + 1f); path.close()
-                canvas.drawPath(path, paint)
-                paint.alpha = 255
+                // The beam: a long thin wedge, wider at its far end.
+                val lo = if (reach > 0) lx else (lx + reach).toInt()
+                val hi = if (reach > 0) (lx + reach).toInt() else lx
+                for (bx in lo until hi) {
+                    val u = abs(bx - lx) / abs(reach)
+                    fillAlpha(bx, (ly - 1f - 3f * u).toInt(), bx + 1, (ly + 1f + 3f * u).toInt() + 1, rgb(255, 240, 170), a)
+                }
             }
             val flare = Math.pow(abs(sin(angle)).toDouble(), 6.0).toFloat()
             fillAlpha(lx - 3, ly - 3, lx + 4, ly + 3, rgb(255, 244, 190), night * 0.5f * flare)
