@@ -51,15 +51,19 @@ class PlacesTest {
         throw AssertionError("no country to forest boundary in sixty stretches")
     }
 
-    @Test fun placesTakeTurnsWithCountrysideBetween() {
+    @Test fun suburbiaComesRightBeforeAndAfterTheCity() {
         assertEquals(Places.COUNTRYSIDE, Places.placeOf(0))
         assertEquals(Places.FOREST, Places.placeOf(1))
         assertEquals(Places.COUNTRYSIDE, Places.placeOf(2))
-        assertEquals(Places.CITY, Places.placeOf(3))
-        assertEquals(Places.COUNTRYSIDE, Places.placeOf(4))
-        assertEquals(Places.BEACH, Places.placeOf(5))
+        assertEquals(Places.SUBURBIA, Places.placeOf(3))
+        assertEquals(Places.CITY, Places.placeOf(4))
+        assertEquals(Places.SUBURBIA, Places.placeOf(5))
         assertEquals(Places.COUNTRYSIDE, Places.placeOf(6))
-        assertEquals(Places.FOREST, Places.placeOf(7))
+        assertEquals(Places.BEACH, Places.placeOf(7))
+        // ...and then it all comes round again.
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(8))
+        assertEquals(Places.FOREST, Places.placeOf(9))
+        assertEquals(Places.CITY, Places.placeOf(12))
     }
 
     @Test fun cityAndForestNeverMixAndEachReachesFull() {

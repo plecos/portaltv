@@ -248,7 +248,13 @@ internal fun SceneState.hardOnScreen(x: Int): Float =
 private const val SCREEN_PAD = 8
 
 /** The city at screen column [x] (from what [prepareColumns] worked out this frame). */
-internal fun SceneState.cityOnScreen(x: Int): Float = cityCols[x + SCREEN_PAD]
+internal fun SceneState.cityOnScreen(x: Int): Float = cityCols[(x + SCREEN_PAD).coerceIn(0, W + 2 * SCREEN_PAD - 1)]
+
+/** The suburbs at screen column [x]. */
+internal fun SceneState.suburbOnScreen(x: Int): Float = suburbCols[(x + SCREEN_PAD).coerceIn(0, W + 2 * SCREEN_PAD - 1)]
+
+/** Built-up land of any kind at screen column [x] (city, beach or suburbs): no room for farms, fences, ponds or herds. */
+internal fun SceneState.builtOnScreen(x: Int): Float = maxOf(hardOnScreen(x), 0.9f * suburbOnScreen(x))
 
 /** The beach at screen column [x] itself, with none of the bay's reach either side. */
 internal fun SceneState.beachExact(x: Int): Float = beachRaw[x + SCREEN_PAD + BAY]
@@ -256,22 +262,27 @@ internal fun SceneState.beachExact(x: Int): Float = beachRaw[x + SCREEN_PAD + BA
 /** Works out, once a frame, how much city and beach there is at each screen column (the far scenery asks for it many times over). */
 internal fun SceneState.prepareColumns() {
     val c = floor(cam).toInt()
-    if (placeMode != colsMode) { colsMode = placeMode; colsCam = Int.MIN_VALUE; beachRaw.reset(); cityRaw.reset() }
+    if (placeMode != colsMode) { colsMode = placeMode; colsCam = Int.MIN_VALUE; beachRaw.reset(); cityRaw.reset(); suburbRaw.reset() }
     if (c == colsCam) return
     colsCam = c
     // The first world column of each strip: the beach reaches BAY either side of the screen, and SCREEN_PAD more for the spare columns.
     beachRaw.moveTo(c - BAY - SCREEN_PAD)
     cityRaw.moveTo(c - SCREEN_PAD)
+    suburbRaw.moveTo(c - SCREEN_PAD)
     var beach = false
     var city = false
+    var suburb = false
     for (i in 0 until W + 2 * SCREEN_PAD) {
         beachCols[i] = maxOf(beachRaw[i], beachRaw[i + BAY], beachRaw[i + 2 * BAY])
         cityCols[i] = cityRaw[i]
+        suburbCols[i] = suburbRaw[i]
+        if (suburbCols[i] > 0.01f) suburb = true
         if (beachCols[i] > 0.01f) beach = true
         if (cityCols[i] > 0.01f) city = true
     }
     anyBeach = beach
     anyCity = city
+    anySuburb = suburb
 }
 
 /** Whether the sea is on screen at column [x], row [y]: the beach, with the waterline bending away at either end of it. */

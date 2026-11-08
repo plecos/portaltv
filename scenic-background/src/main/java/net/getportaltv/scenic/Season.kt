@@ -23,6 +23,8 @@ class SeasonState {
     var lying = 0f
     /** How much the festive lights are on, 0 to 1: from the start of December to the first week of January, everywhere (the date, not the climate). */
     var festive = 0f
+    /** How much Halloween decoration there is, 0 to 1: the last two weeks of October, until the first of November. */
+    var halloween = 0f
     /** True on Christmas Eve and Christmas Day (the nights in between and after): when a sleigh may cross the sky. */
     var christmas = false
     /** 0 to 1: fireworks strength on 31 December and 1 January, 0.3 through the day, rising to 1 within an hour of midnight (0 on other dates). */
@@ -80,6 +82,7 @@ object Seasons {
      */
     fun update(out: SeasonState, dayOfYear: Float, lat: Double, calendar: Boolean) {
         // Decorations follow the date in the town, so they are the same either side of the equator and in the tropics.
+        out.halloween = smoothstep(283f, 288f, dayOfYear) * (1f - smoothstep(303f, 306f, dayOfYear))
         out.festive = if (dayOfYear >= 300f) smoothstep(334f, 340f, dayOfYear) else 1f - smoothstep(6f, 10f, dayOfYear)
         if (calendar && kotlin.math.abs(lat) < TROPICS) {
             // Near the equator the year does not show in the trees and fields.

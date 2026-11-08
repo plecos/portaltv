@@ -16,21 +16,24 @@ object Places {
     const val FOREST = "Forest"
     const val CITY = "City"
     const val BEACH = "Beach"
+    const val SUBURBIA = "Suburbia"
 
     /** The choices in settings, the first being the default. */
-    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, CITY, BEACH)
+    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, SUBURBIA, CITY, BEACH)
 
-    /** The places the journey passes through between stretches of countryside, in turn. */
-    private val SPECIALS = listOf(FOREST, CITY, BEACH)
+    /**
+     * The places the journey passes through, stretch by stretch, over and over. Suburbia comes right before and right after the
+     * city, with no countryside between, so the town thickens into the city and thins out again.
+     */
+    private val SEQUENCE = listOf(COUNTRYSIDE, FOREST, COUNTRYSIDE, SUBURBIA, CITY, SUBURBIA, COUNTRYSIDE, BEACH)
 
     /** How far one stretch of the journey goes before the next place, in pixels of travel (about two and a half minutes). */
     const val STRETCH = 4500.0
     /** How far the change from one place to the next takes (about a minute), centred on the boundary between them. */
     const val BLEND = 1500.0
 
-    /** Which place the journey is in during [stretch]: countryside, then each of the others in turn with countryside between. */
-    fun placeOf(stretch: Int): String =
-        if (stretch <= 0 || stretch % 2 == 0) COUNTRYSIDE else SPECIALS[((stretch - 1) / 2) % SPECIALS.size]
+    /** Which place the journey is in during [stretch]. */
+    fun placeOf(stretch: Int): String = if (stretch <= 0) COUNTRYSIDE else SEQUENCE[stretch % SEQUENCE.size]
 
     /** How much of [place] there is at [journey] pixels along the road, for the [mode] chosen: 0 to 1. */
     fun amount(place: String, journey: Double, mode: String): Float = when (mode) {
@@ -42,6 +45,7 @@ object Places {
     fun forest(journey: Double, mode: String): Float = amount(FOREST, journey, mode)
     fun city(journey: Double, mode: String): Float = amount(CITY, journey, mode)
     fun beach(journey: Double, mode: String): Float = amount(BEACH, journey, mode)
+    fun suburbia(journey: Double, mode: String): Float = amount(SUBURBIA, journey, mode)
 
     /**
      * How tall the mountains are at [journey] (a position in the range's own world: its x divided by how fast it moves), from 0 (none:
@@ -84,7 +88,12 @@ internal fun SceneState.beachAt(x: Double, factor: Double): Float = Places.beach
 /** How much beach there is where the journey is now. */
 internal fun SceneState.beachNow(): Float = Places.beach(cam, placeMode)
 
-/** How much of the land is built or sand rather than wild country (city or beach): the farms, fences, ponds and wildlife give way to it. */
-internal fun SceneState.hardAt(x: Double, factor: Double): Float = maxOf(cityAt(x, factor), beachAt(x, factor))
+/** The same for suburbia. */
+internal fun SceneState.suburbAt(x: Double, factor: Double): Float = Places.suburbia(x / factor, placeMode)
 
-internal fun SceneState.hardNow(): Float = maxOf(cityNow(), beachNow())
+internal fun SceneState.suburbNow(): Float = Places.suburbia(cam, placeMode)
+
+/** How much of the land is built or sand rather than wild country (city, beach or suburbia): the farms, fences, ponds and wildlife give way to it. */
+internal fun SceneState.hardAt(x: Double, factor: Double): Float = maxOf(cityAt(x, factor), beachAt(x, factor), 0.9f * suburbAt(x, factor))
+
+internal fun SceneState.hardNow(): Float = maxOf(cityNow(), beachNow(), 0.9f * suburbNow())

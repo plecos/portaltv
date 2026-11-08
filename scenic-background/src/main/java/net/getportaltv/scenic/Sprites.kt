@@ -379,6 +379,16 @@ object Sprites {
         )
     }
 
+    /** A school bus, 32 wide: yellow with a black stripe, windows along the side and red lights at the corners. */
+    fun schoolBus(): Sprite {
+        val w = 32
+        val windows = "y" + "wwwy".repeat(7) + "yyy"
+        return Sprite(
+            listOf("r" + "y".repeat(w - 2) + "r", windows, windows, "y".repeat(w), "y" + "K".repeat(w - 2) + "y", "y".repeat(w), "y".repeat(w), ".kkkk" + ".".repeat(w - 10) + ".kkkk", ".kkkk" + ".".repeat(w - 10) + ".kkkk"),
+            CAR + mapOf('y' to rgb(250, 190, 30), 'r' to rgb(230, 50, 40), 'K' to rgb(30, 30, 36))
+        )
+    }
+
     fun truck(body: Int): Sprite = Sprite(
         listOf(
             "wwwwwwwwwwwwwwwwwwwww..",
