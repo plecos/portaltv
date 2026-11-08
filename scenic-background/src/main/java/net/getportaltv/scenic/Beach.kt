@@ -615,7 +615,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             }
             r < 0.82f -> if (open) {
                 val x = left + 14 + (Noise.unit(i, 893) * 60).toInt()
-                if (clear(x)) sprite(BeachSprites.castle, x, baseY + 3 + (Noise.unit(i, 894) * 4).toInt())
+                if (clear(x)) sprite(BeachSprites.castle, x, baseY - (Noise.unit(i, 894) * 4).toInt())
             }
         }
         // Swimmers: a head and an arm showing above the water, now and then.
