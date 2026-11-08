@@ -22,6 +22,7 @@ import kotlin.math.sin
 private const val SEA_TOP = 120
 private const val SHORE = 141
 private val BOARD_TOP = ROAD_TOP - 5
+private const val EDGE_SLANT = 6
 
 // ---------- the pictures ----------
 
@@ -368,13 +369,26 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
         val pulse = 0.55f + 0.35f * sin(x * 0.07 - t * 1.1).toFloat()
         fillAlpha(x, shore - 1 - (if (cold > 0.3f && pulse > 0.75f) 1 else 0), x + 1, shore + 1, foam, pulse)
         fill(x, shore + 1, x + 1, shore + 3, wet)
-        fill(x, shore + 3, x + 1, BOARD_TOP, sand)
-        for (yy in shore + 3 until BOARD_TOP) if (Noise.unit(x + cam, yy, 861) < 0.07f) fill(x, yy, x + 1, yy + 1, speck)
-        // The boardwalk beside the road, with a low rail along the sand side.
-        fill(x, BOARD_TOP, x + 1, ROAD_TOP, wood)
-        if (Math.floorMod(x + cam, 7) == 0) fill(x, BOARD_TOP, x + 1, ROAD_TOP, seam)
-        fillAlpha(x, BOARD_TOP - 2, x + 1, BOARD_TOP - 1, rail, 0.9f)
-        if (Math.floorMod(x + cam, 9) < 1) fillAlpha(x, BOARD_TOP - 3, x + 1, BOARD_TOP, rail, 0.9f)
+        // Nearer the viewer the sand and boardwalk stop a few columns sooner than they do by the water, so each end of the beach
+        // slants away into the distance instead of being cut off square.
+        val inside = amounts[x + BAY - EDGE_SLANT] >= 0.5f && amounts[x + BAY + EDGE_SLANT] >= 0.5f
+        val rowsDown = ROAD_TOP - (shore + 3)
+        var y0 = shore + 3
+        while (y0 < ROAD_TOP) {
+            val k = if (inside) 0 else (y0 - (shore + 3)) * EDGE_SLANT / rowsDown
+            if (k == 0 || (amounts[x + BAY - k] >= 0.5f && amounts[x + BAY + k] >= 0.5f)) {
+                if (y0 < BOARD_TOP) {
+                    fill(x, y0, x + 1, y0 + 1, if (Noise.unit(x + cam, y0, 861) < 0.07f) speck else sand)
+                } else {
+                    fill(x, y0, x + 1, y0 + 1, if (Math.floorMod(x + cam, 7) == 0) seam else wood)
+                    if (y0 == BOARD_TOP) {
+                        fillAlpha(x, BOARD_TOP - 2, x + 1, BOARD_TOP - 1, rail, 0.9f)
+                        if (Math.floorMod(x + cam, 9) < 1) fillAlpha(x, BOARD_TOP - 3, x + 1, BOARD_TOP, rail, 0.9f)
+                    }
+                }
+            }
+            y0++
+        }
     }
     // The beach curving away along the waterline: a strip of sand (with a line of foam against the water) beside the sea
     // wherever the bay's edge is, so each end of the beach runs off into the distance as a curve.
