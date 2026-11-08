@@ -5,6 +5,7 @@ import net.getportaltv.scenic.Colors.rgb
 import net.getportaltv.scenic.Colors.smoothstep
 import net.getportaltv.scenic.PixelScene.Companion.FIELD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.H
+import net.getportaltv.scenic.PixelScene.Companion.ROAD_BOTTOM
 import net.getportaltv.scenic.PixelScene.Companion.ROAD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.W
 import kotlin.math.floor
@@ -15,30 +16,39 @@ import kotlin.math.sin
 private val bigFirs by lazy { listOf(Sprites.fir(8), Sprites.fir(10), Sprites.fir(12)) }
 private val bigBroads by lazy { listOf(Sprites.broadleaf(10, 4), Sprites.broadleaf(12, 5), Sprites.broadleaf(14, 6)).map { SeasonalTree(it) } }
 
-private val frontFirs by lazy { listOf(Sprites.fir(9), Sprites.fir(11)) }
-private val frontBroads by lazy { listOf(Sprites.broadleaf(12, 7), Sprites.broadleaf(14, 8)).map { SeasonalTree(it) } }
+private val frontFirs by lazy { listOf(Sprites.fir(9), Sprites.fir(11), Sprites.fir(13)) }
+private val frontBroads by lazy { listOf(Sprites.broadleaf(12, 7), Sprites.broadleaf(14, 8), Sprites.broadleaf(17, 9)).map { SeasonalTree(it) } }
+private val midFirs by lazy { listOf(Sprites.fir(6), Sprites.fir(8)) }
+private val midBroads by lazy { listOf(Sprites.broadleaf(8, 10), Sprites.broadleaf(10, 11)).map { SeasonalTree(it) } }
 
-/** Big trees on the near side of the road, in front of it and the traffic, now and then, so the road runs through the wood. */
+/**
+ * Trees on the near side of the road, in front of it and the traffic, so the road runs through the wood: a row of smaller ones
+ * close to the road, and in front of them big ones whose crowns hang low over the lanes.
+ */
 internal fun PixelScene.drawFrontTrees(s: SceneState) {
-    val factor = 1.3
-    val offset = floor(s.cam * factor)
-    val cell = 42
-    val first = floor(offset / cell).toInt() - 2
     spritePaint.colorFilter = filter(s, 0f)
-    for (i in first..first + W / cell + 5) {
-        val worldX = i * cell + (Noise.unit(i, 640) * 40).toInt()
-        val f = s.forestAt(worldX.toDouble(), factor)
-        if (f < 0.5f || Noise.unit(i, 641) > f * 0.8f) continue
-        val x = (worldX - offset).toInt()
-        if (s.riverCovers(x, H - 3, 16)) continue
-        val sway = (sin(s.time * 1.2 + i) * minOf(1f, s.cond.wind / 30f)).toFloat().let { Math.round(it) }
-        val base = H - 1 - (Noise.unit(i, 642) * 5).toInt()
-        if (Noise.unit(i, 643) < 0.6f) {
-            val tree = frontFirs[(Noise.unit(i, 644) * frontFirs.size).toInt().coerceIn(0, frontFirs.size - 1)]
-            sprite(tree, x - tree.width / 2 + sway, base)
-        } else {
-            val tree = frontBroads[(Noise.unit(i, 644) * frontBroads.size).toInt().coerceIn(0, frontBroads.size - 1)].at(s.season, i * 13)
-            sprite(tree, x - tree.width / 2 + sway, base)
+    for (row in 0..1) {
+        val factor = if (row == 0) 1.15 else 1.3
+        val offset = floor(s.cam * factor)
+        val cell = if (row == 0) 30 else 42
+        val first = floor(offset / cell).toInt() - 2
+        for (i in first..first + W / cell + 5) {
+            val worldX = i * cell + (Noise.unit(i, 640 + row * 10) * cell * 0.9f).toInt()
+            val f = s.forestAt(worldX.toDouble(), factor)
+            if (f < 0.5f || Noise.unit(i, 641 + row * 10) > f * (if (row == 0) 0.65f else 0.8f)) continue
+            val x = (worldX - offset).toInt()
+            if (s.riverCovers(x, H - 3, 16)) continue
+            val sway = (sin(s.time * 1.2 + i + row) * minOf(1f, s.cond.wind / 30f)).toFloat().let { Math.round(it) }
+            val base = if (row == 0) ROAD_BOTTOM + 5 + (Noise.unit(i, 642) * 4).toInt() else H - 1 - (Noise.unit(i, 642) * 5).toInt()
+            val fir = Noise.unit(i, 643 + row * 10) < 0.6f
+            val sprite = if (row == 0) {
+                if (fir) midFirs[(Noise.unit(i, 644) * midFirs.size).toInt().coerceIn(0, midFirs.size - 1)]
+                else midBroads[(Noise.unit(i, 644) * midBroads.size).toInt().coerceIn(0, midBroads.size - 1)].at(s.season, i * 17)
+            } else {
+                if (fir) frontFirs[(Noise.unit(i, 654) * frontFirs.size).toInt().coerceIn(0, frontFirs.size - 1)]
+                else frontBroads[(Noise.unit(i, 654) * frontBroads.size).toInt().coerceIn(0, frontBroads.size - 1)].at(s.season, i * 13)
+            }
+            sprite(sprite, x - sprite.width / 2 + sway, base)
         }
     }
     spritePaint.colorFilter = null
