@@ -208,6 +208,35 @@ private fun SceneState.glitterX(): Pair<Float, Float>? {
 
 private fun smoothstep(a: Float, b: Float, x: Float): Float = Colors.smoothstep(a, b, x)
 
+/**
+ * How far out the sea reaches at the horizon beyond where it reaches at the shore, in pixels. The sea is a bay: at each end of the
+ * beach the waterline curves away into the distance, so the sea narrows to nothing at the horizon rather than stopping with an edge.
+ */
+private const val BAY = 150
+
+/** How far the waterline is pushed out on row [y] (SEA_TOP at the horizon, the shore at the front): a curve that runs off into the distance. */
+private fun bayShift(y: Int): Int {
+    val u = ((y - SEA_TOP) / (SHORE - SEA_TOP).toFloat()).coerceIn(0f, 1f)
+    return (BAY * (1f - u) * (1f - u)).toInt()
+}
+
+/**
+ * How much beach is on screen at column [x]: the beach where the journey is at that column, or within the bay's reach either side
+ * of it. Far layers (mountains, hills) scroll slower, so asking them for the beach at their own place on the road put the dunes and the
+ * missing mountains somewhere other than where the sea is; they ask for the screen instead.
+ */
+internal fun SceneState.beachOnScreen(x: Int): Float {
+    val c = floor(cam).toInt()
+    return maxOf(beachAt((c + x - BAY).toDouble(), 1.0), beachAt((c + x).toDouble(), 1.0), beachAt((c + x + BAY).toDouble(), 1.0))
+}
+
+/** Whether the sea is on screen at column [x], row [y]: the beach, with the waterline bending away at either end of it. */
+private fun SceneState.seaAt(x: Int, y: Int): Boolean {
+    val c = floor(cam).toInt()
+    val sh = bayShift(y)
+    return maxOf(beachAt((c + x - sh).toDouble(), 1.0), beachAt((c + x + sh).toDouble(), 1.0)) >= 0.5f
+}
+
 /** How much the beach has shut down for the cold, 0 in the warm months (and always in the tropics) to 1 in deep winter. */
 private fun SceneState.offSeason(): Float = smoothstep(0.35f, 0.9f, season.winter)
 
@@ -230,26 +259,34 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
     val seam = solid(s, rgb(110, 80, 54), 0.0f)
     val rail = solid(s, rgb(236, 232, 224), 0.0f)
     val glitter = s.glitterX()
+    val t = s.time
+    // How much beach there is at every column, and BAY columns either side, found once so the curving waterline is cheap.
+    val amounts = FloatArray(W + 2 * BAY) { s.beachAt((cam - BAY + it).toDouble(), 1.0) }
+    fun seaOn(x: Int, y: Int): Boolean {
+        val sh = bayShift(y)
+        return maxOf(amounts[x + BAY - sh], amounts[x + BAY + sh]) >= 0.5f
+    }
+    val shores = IntArray(W) { x -> SHORE + (sin(x * 0.045 + t * 0.6) * 1.5 + sin(x * 0.11 - t * 0.45) * 0.7).toInt() }
     for (x in 0 until W) {
-        val b = s.beachAt((x + cam).toDouble(), 1.0)
-        if (b <= 0.01f) continue
-        val t = s.time
-        val shore = SHORE + (sin(x * 0.045 + t * 0.6) * 1.5 + sin(x * 0.11 - t * 0.45) * 0.7).toInt()
-        // The sea in bands, from the haze at the horizon to the clear water at the shore.
+        val shore = shores[x]
+        // The sea in bands, from the haze at the horizon to the clear water at the shore, only where the bay reaches this column.
         var y = SEA_TOP
-        var k = 0
         while (y < shore) {
-            val band = lerp(if (k == 0) horizon else far, near, (k / 5f).coerceAtMost(1f))
-            fillAlpha(x, y, x + 1, min(y + 4, shore), if (k == 0) lerp(horizon, far, 0.35f) else band, b)
-            y += 4
-            k++
+            val k = (y - SEA_TOP) / 4
+            if (!seaOn(x, y)) { y++; continue }
+            val bandEnd = min(SEA_TOP + (k + 1) * 4, shore)
+            var y1 = y
+            while (y1 < bandEnd && seaOn(x, y1)) y1++
+            fill(x, y, x + 1, y1, if (k == 0) lerp(horizon, far, 0.35f) else lerp(far, near, (k / 5f).coerceAtMost(1f)))
+            y = y1
         }
         // Waves: lines of lighter water that run along the sea, more and brighter in wind.
         for (r in 0 until 6) {
             val wy = SEA_TOP + 4 + r * 3
             if (wy >= shore - 1) break
+            if (!seaOn(x, wy)) continue
             val run = sin((x + t * (6.0 + r * 2.0) * (if (r % 2 == 0) 1 else -1)) * 0.21 + r * 2.0)
-            if (run > 0.82f - wind * 0.25f - cold * 0.2f) fillAlpha(x, wy, x + 1, wy + 1, lerp(near, foam, 0.55f), b * (0.35f + 0.4f * wind + 0.2f * cold))
+            if (run > 0.82f - wind * 0.25f - cold * 0.2f) fillAlpha(x, wy, x + 1, wy + 1, lerp(near, foam, 0.55f), 0.35f + 0.4f * wind + 0.2f * cold)
         }
         // The glitter of the sun or the moon on the water.
         if (glitter != null) {
@@ -257,32 +294,48 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
             val spread = 3f + (shore - SEA_TOP) * 0.25f
             if (abs(x - gx) < spread) {
                 for (r in 0 until shore - SEA_TOP step 2) {
+                    if (!seaOn(x, SEA_TOP + r)) continue
                     val on = Noise.unit(x, r + floor(t * 2.5).toInt(), 862) < 0.22f * (1f - abs(x - gx) / spread)
-                    if (on) fillAlpha(x, SEA_TOP + r, x + 1, SEA_TOP + r + 1, rgb(255, 252, 230), b * glitter.second * 0.8f)
+                    if (on) fillAlpha(x, SEA_TOP + r, x + 1, SEA_TOP + r + 1, rgb(255, 252, 230), glitter.second * 0.8f)
                 }
             }
         }
+        // The sand and the boardwalk run where the beach itself does (the waterline bends away only out on the water).
+        if (amounts[x + BAY] < 0.5f) continue
         // Foam along the shore and wet sand behind it.
         val pulse = 0.55f + 0.35f * sin(x * 0.07 - t * 1.1).toFloat()
-        fillAlpha(x, shore - 1 - (if (cold > 0.3f && pulse > 0.75f) 1 else 0), x + 1, shore + 1, foam, b * pulse)
-        fillAlpha(x, shore + 1, x + 1, shore + 3, wet, b)
-        fillAlpha(x, shore + 3, x + 1, BOARD_TOP, sand, b)
-        for (yy in shore + 3 until BOARD_TOP) if (Noise.unit(x + cam, yy, 861) < 0.07f) fillAlpha(x, yy, x + 1, yy + 1, speck, b * 0.9f)
+        fillAlpha(x, shore - 1 - (if (cold > 0.3f && pulse > 0.75f) 1 else 0), x + 1, shore + 1, foam, pulse)
+        fill(x, shore + 1, x + 1, shore + 3, wet)
+        fill(x, shore + 3, x + 1, BOARD_TOP, sand)
+        for (yy in shore + 3 until BOARD_TOP) if (Noise.unit(x + cam, yy, 861) < 0.07f) fill(x, yy, x + 1, yy + 1, speck)
         // The boardwalk beside the road, with a low rail along the sand side.
-        fillAlpha(x, BOARD_TOP, x + 1, ROAD_TOP, wood, b)
-        if (Math.floorMod(x + cam, 7) == 0) fillAlpha(x, BOARD_TOP, x + 1, ROAD_TOP, seam, b)
-        fillAlpha(x, BOARD_TOP - 2, x + 1, BOARD_TOP - 1, rail, b * 0.9f)
-        if (Math.floorMod(x + cam, 9) < 1) fillAlpha(x, BOARD_TOP - 3, x + 1, BOARD_TOP, rail, b * 0.9f)
+        fill(x, BOARD_TOP, x + 1, ROAD_TOP, wood)
+        if (Math.floorMod(x + cam, 7) == 0) fill(x, BOARD_TOP, x + 1, ROAD_TOP, seam)
+        fillAlpha(x, BOARD_TOP - 2, x + 1, BOARD_TOP - 1, rail, 0.9f)
+        if (Math.floorMod(x + cam, 9) < 1) fillAlpha(x, BOARD_TOP - 3, x + 1, BOARD_TOP, rail, 0.9f)
+    }
+    // The beach curving away along the waterline: a strip of sand (with a line of foam against the water) beside the sea
+    // wherever the bay's edge is, so each end of the beach runs off into the distance as a curve.
+    for (y in SEA_TOP until SHORE) {
+        val on = BooleanArray(W + 16) { i -> val x = i - 8; x in 0 until W && y < shores[x] && seaOn(x, y) }
+        val width = 2 + (y - SEA_TOP) / 6
+        for (x in 0 until W) {
+            if (on[x + 8]) continue
+            var d = 0
+            for (k in 1..width) { if (on[x + 8 - k] || on[x + 8 + k]) { d = k; break } }
+            if (d == 0) continue
+            fill(x, y, x + 1, y + 1, if (d == 1) foam else if (d == 2) wet else sand)
+        }
     }
 }
 
 /** Boats and ships out on the sea, and gulls along the shore. */
 internal fun PixelScene.drawSeaLife(s: SceneState) {
-    val beach = s.beachNow()
-    if (beach < 0.05f) return
+    // Out on the sea only (each boat checks the sea is under it), so nothing sails over the land at either end of the beach.
+    if (s.beachAt(s.cam - BAY, 1.0) < 0.5f && s.beachAt(s.cam + W / 2.0, 1.0) < 0.5f && s.beachAt(s.cam + W + BAY, 1.0) < 0.5f) return
     val travelV = if (s.travelling) s.speed else 0f
     spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
-    spritePaint.alpha = (beach * 255f).toInt().coerceIn(0, 255)
+    spritePaint.alpha = 255
     // A cargo ship at the horizon, very slowly.
     for (ev in LifeSchedule.events(s.time, 200.0, 260.0, 0.6f, 801, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
@@ -290,6 +343,7 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         val age = (s.time - ev.spawn).toFloat()
         val x = if (v > 0) -26f + v * age else W + 26f + v * age
         if (x < -26 || x > W + 26) continue
+        if (!s.seaAt(x.toInt() + 11, SEA_TOP + 4)) continue
         sprite(BeachSprites.ship, x.toInt(), SEA_TOP + 4, flip = dir < 0)
     }
     // A cruise ship now and then, a little nearer than the cargo ships and bigger, lit up at night.
@@ -302,6 +356,7 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         val x = if (v > 0) -48f + v * age else W + 48f + v * age
         if (x < -48 || x > W + 48) continue
         val bob = (sin(age * 0.6) * 0.6).toInt()
+        if (!s.seaAt(x.toInt() + 23, SEA_TOP + 13)) continue
         sprite(BeachSprites.cruise, x.toInt(), SEA_TOP + 13 + bob, flip = dir < 0)
         if (night > 0.15f) {
             spritePaint.colorFilter = null
@@ -327,6 +382,7 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         val x = if (v > 0) -12f + v * age else W + 12f + v * age
         if (x < -12 || x > W + 12) continue
         val bob = (sin(age * 1.2) * 1.0).toInt()
+        if (!s.seaAt(x.toInt() + 6, SEA_TOP + 14)) continue
         sprite(BeachSprites.sailboat, x.toInt(), SEA_TOP + 12 + (ev.unit(2) * 8).toInt() + bob, flip = dir < 0)
     }
     // Gulls gliding along the shore.
@@ -354,9 +410,9 @@ private fun PixelScene.drawLighthouse(s: SceneState, night: Float) {
     for (i in first..first + W / cell + 2) {
         if (Noise.unit(i, 840) > 0.3f) continue
         val wx = i * cell + 120 + (Noise.unit(i, 841) * 600).toInt()
-        if (s.beachAt(wx.toDouble(), factor) < 0.9f) continue
         val x = wx - offset
         if (x < -20 || x > W + 20) continue
+        if (!s.seaAt(x - 6, SEA_TOP + 6) || !s.seaAt(x + 14, SEA_TOP + 6)) continue
         sprite(BeachSprites.lighthouse, x, SEA_TOP + 5)
         if (night > 0.2f) {
             // The beam sweeps round: seen edge on it stretches out to the side, and when it points at us the lamp flares.
@@ -440,8 +496,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
     spritePaint.colorFilter = filter(s, 0.05f + s.look.haze * 0.3f)
     for (i in first..first + W / CELL + 4) {
         val left = i * CELL - offset
-        val amount = s.beachAt((i * CELL + CELL / 2).toDouble(), NEAR_FACTOR)
-        if (amount < 0.75f) continue
+        if (s.beachAt(s.cam + left + CELL / 2.0, 1.0) < 0.75f) continue
         val r = Noise.unit(i, 880)
         val baseY = SHORE + 8
         fun clear(x: Int) = piers.none { abs(x - it - 4) < 16 }
@@ -525,9 +580,8 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
     val firstPalm = Math.floorDiv(palmOffset, palmCell) - 2
     for (i in firstPalm..firstPalm + W / palmCell + 4) {
         val wx = i * palmCell + (Noise.unit(i, 900) * 30).toInt()
-        val amount = s.beachAt(wx.toDouble(), palmFactor)
-        if (amount < 0.75f || Noise.unit(i, 901) > 0.45f) continue
         val x = wx - palmOffset
+        if (s.beachAt(s.cam + x, 1.0) < 0.75f || Noise.unit(i, 901) > 0.45f) continue
         if (piers.any { abs(x - it - 4) < 18 }) continue
         val sway = (sin(t * 1.4 + i) * (0.4f + wind * 1.4f)).toInt()
         sprite(BeachSprites.palms[(Noise.unit(i, 902) * 2).toInt().coerceIn(0, 1)], x - 9 + sway, BOARD_TOP + 3)
@@ -542,10 +596,9 @@ internal fun PixelScene.drawBeachRoad(s: SceneState) {
     val speck = lit(s, rgb(186, 164, 120), 0.0f)
     val cam = floor(s.cam).toInt()
     for (x in 0 until W) {
-        val b = s.beachAt((x + cam).toDouble(), 1.0)
-        if (b <= 0.01f) continue
-        fillAlpha(x, ROAD_BOTTOM + 2, x + 1, H, sand, b)
-        fillAlpha(x, ROAD_BOTTOM + 2, x + 1, ROAD_BOTTOM + 3, edge, b)
-        for (y in ROAD_BOTTOM + 4 until H) if (Noise.unit(x + cam, y, 903) < 0.08f) fillAlpha(x, y, x + 1, y + 1, speck, b)
+        if (s.beachAt((x + cam).toDouble(), 1.0) < 0.5f) continue
+        fill(x, ROAD_BOTTOM + 2, x + 1, H, sand)
+        fill(x, ROAD_BOTTOM + 2, x + 1, ROAD_BOTTOM + 3, edge)
+        for (y in ROAD_BOTTOM + 4 until H) if (Noise.unit(x + cam, y, 903) < 0.08f) fill(x, y, x + 1, y + 1, speck)
     }
 }
