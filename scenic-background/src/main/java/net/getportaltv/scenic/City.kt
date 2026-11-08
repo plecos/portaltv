@@ -306,7 +306,7 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
     val post = lit(s, rgb(58, 62, 72), 0.0f)
     for (i in first..first + W / spacing + 2) {
         val wx = i * spacing + 30
-        val amount = s.cityAt(wx.toDouble(), 1.0)
+        val amount = s.hardAt(wx.toDouble(), 1.0)
         if (amount <= 0.05f) continue
         val h = (22 * smoothstep(0.1f, 0.9f, amount)).toInt()
         if (h < 3) continue

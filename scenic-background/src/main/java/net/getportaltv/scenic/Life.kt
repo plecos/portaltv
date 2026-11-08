@@ -117,7 +117,7 @@ internal fun PixelScene.drawPonds(s: SceneState) {
     val first = floor(offset / chunk).toInt() - 1
     val l = s.look
     for (i in first..first + W / chunk + 2) {
-        if (Noise.unit(i, 140) > 0.30f || s.cityAt(i * chunk + chunk / 2.0, 0.5) > 0.2f) continue
+        if (Noise.unit(i, 140) > 0.30f || s.hardAt(i * chunk + chunk / 2.0, 0.5) > 0.2f) continue
         val left = (i * chunk - offset).toInt()
         val cx = left + 30 + (Noise.unit(i, 141) * 100).toInt()
         val halfW = 20 + (Noise.unit(i, 142) * 8).toInt()
@@ -162,7 +162,7 @@ internal fun PixelScene.drawFieldAnimals(s: SceneState) {
     for (i in first..first + W / chunk + 2) {
         val left = (i * chunk - offset).toInt()
         val forest = s.forestAt(i * chunk + chunk / 2.0, 0.5)
-        if (s.cityAt(i * chunk + chunk / 2.0, 0.5) > 0.2f) continue
+        if (s.hardAt(i * chunk + chunk / 2.0, 0.5) > 0.2f) continue
         if (Noise.unit(i, 150) < 0.24f + forest * 0.4f) {
             val n = 1 + (Noise.unit(i, 151) * 3).toInt()
             val dx = left + 10 + (Noise.unit(i, 152) * 120).toInt()
@@ -227,7 +227,7 @@ internal fun PixelScene.drawRailway(s: SceneState) {
     for (x in 0..W) {
         // In the city the line is a subway: it only comes up into the daylight in the parks.
         val park = x < W && s.inPark(x)
-        val t = if (park) 1f else if (x < W) trackAt(x + offset) * (1f - s.cityAt(x + offset, 0.3)) else 0f
+        val t = if (park) 1f else if (x < W) trackAt(x + offset) * (1f - s.hardAt(x + offset, 0.3)) else 0f
         val full = t >= 0.98f
         if (full && runStart < 0) runStart = x
         if (!full && runStart >= 0) { onTrack.addRect(runStart.toFloat(), 0f, x.toFloat(), H.toFloat(), Path.Direction.CW); runStart = -1; any = true }
@@ -353,7 +353,7 @@ internal fun PixelScene.drawSkyLife(s: SceneState) {
 
 /** Butterflies over the field on a warm, calm day. */
 internal fun PixelScene.drawButterflies(s: SceneState) {
-    if (s.cityNow() > 0.5f || s.day() < 0.6f || s.cond.rain > 0.1f || s.cond.snow > 0.05f || s.cond.tempC < 9f || s.cond.wind > 24f || s.cond.fog > 0.5f) return
+    if (s.hardNow() > 0.5f || s.day() < 0.6f || s.cond.rain > 0.1f || s.cond.snow > 0.05f || s.cond.tempC < 9f || s.cond.wind > 24f || s.cond.fog > 0.5f) return
     val offset = s.cam * 0.5
     val chunk = 170
     val first = floor(offset / chunk).toInt() - 1
@@ -372,7 +372,7 @@ internal fun PixelScene.drawButterflies(s: SceneState) {
 
 /** Fireflies over the field on a warm night. */
 internal fun PixelScene.drawFireflies(s: SceneState) {
-    if (s.cityNow() > 0.5f || s.day() > 0.25f || s.cond.rain > 0.1f || s.cond.snow > 0.05f || s.cond.tempC < 6f || s.cond.wind > 26f) return
+    if (s.hardNow() > 0.5f || s.day() > 0.25f || s.cond.rain > 0.1f || s.cond.snow > 0.05f || s.cond.tempC < 6f || s.cond.wind > 26f) return
     val offset = s.cam * 0.5
     val chunk = 170
     val first = floor(offset / chunk).toInt() - 1

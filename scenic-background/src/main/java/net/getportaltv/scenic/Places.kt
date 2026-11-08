@@ -15,12 +15,13 @@ object Places {
     const val COUNTRYSIDE = "Countryside"
     const val FOREST = "Forest"
     const val CITY = "City"
+    const val BEACH = "Beach"
 
     /** The choices in settings, the first being the default. */
-    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, CITY)
+    val CHOICES = listOf(JOURNEY, COUNTRYSIDE, FOREST, CITY, BEACH)
 
     /** The places the journey passes through between stretches of countryside, in turn. */
-    private val SPECIALS = listOf(FOREST, CITY)
+    private val SPECIALS = listOf(FOREST, CITY, BEACH)
 
     /** How far one stretch of the journey goes before the next place, in pixels of travel (about two and a half minutes). */
     const val STRETCH = 4500.0
@@ -40,6 +41,7 @@ object Places {
 
     fun forest(journey: Double, mode: String): Float = amount(FOREST, journey, mode)
     fun city(journey: Double, mode: String): Float = amount(CITY, journey, mode)
+    fun beach(journey: Double, mode: String): Float = amount(BEACH, journey, mode)
 
     /**
      * How tall the mountains are at [journey] (a position in the range's own world: its x divided by how fast it moves), from 0 (none:
@@ -75,3 +77,14 @@ internal fun SceneState.cityAt(x: Double, factor: Double): Float = Places.city(x
 
 /** How much city there is where the journey is now (for things that cannot be placed by where they are). */
 internal fun SceneState.cityNow(): Float = Places.city(cam, placeMode)
+
+/** The same for the beach. */
+internal fun SceneState.beachAt(x: Double, factor: Double): Float = Places.beach(x / factor, placeMode)
+
+/** How much beach there is where the journey is now. */
+internal fun SceneState.beachNow(): Float = Places.beach(cam, placeMode)
+
+/** How much of the land is built or sand rather than wild country (city or beach): the farms, fences, ponds and wildlife give way to it. */
+internal fun SceneState.hardAt(x: Double, factor: Double): Float = maxOf(cityAt(x, factor), beachAt(x, factor))
+
+internal fun SceneState.hardNow(): Float = maxOf(cityNow(), beachNow())

@@ -69,6 +69,8 @@ class PixelScene {
         drawSkyline(s)
         drawField(s)
         drawCityGround(s)
+        drawBeachGround(s)
+        drawSeaLife(s)
         drawRiverBehind(s)
         drawRailway(s)
         drawPonds(s)
@@ -76,6 +78,7 @@ class PixelScene {
         drawFarm(s, cam)
         drawCityBlocks(s)
         drawStreetLamps(s)
+        drawBeachFront(s)
         drawSubwayEntrances(s)
         drawRoadsideTrees(s)
         drawForestMist(s)
@@ -83,6 +86,7 @@ class PixelScene {
         drawFence(s, cam)
         drawRoad(s, cam)
         drawCityRoad(s)
+        drawBeachRoad(s)
         drawRiverFront(s)
         drawTraffic(s)
         drawBridge(s)
@@ -332,7 +336,7 @@ class PixelScene {
             val x = i - 4
             val m = Noise.mountain((x + offset) * freq, seed)
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - s.cityAt((x + offset).toDouble(), factor))
+            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - maxOf(s.cityAt((x + offset).toDouble(), factor), 0.85f * s.beachAt((x + offset).toDouble(), factor)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
@@ -357,6 +361,7 @@ class PixelScene {
         val forestColor = Colors.mul(color, 0.6f, 0.76f, 0.72f)
         val forestBody = lit(s, forestColor, a)
         val cityHill = lit(s, rgb(116, 122, 134), a)
+        val duneHill = lit(s, rgb(208, 188, 142), a)
         val forestCrest = lit(s, Colors.mul(forestColor, 1.1f, 1.12f, 1.08f), a)
         // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
         val offset = floor(cam * factor).toFloat()
@@ -365,16 +370,19 @@ class PixelScene {
             val f = s.forestAt((x + offset).toDouble(), factor.toDouble())
             // Toward the city the hills flatten and go grey, hidden behind the towers.
             val c = s.cityAt((x + offset).toDouble(), factor.toDouble())
-            val top = (base - h * amp * (1f - 0.85f * c)).toInt()
+            // Toward the sea they flatten to low dunes.
+            val b = s.beachAt((x + offset).toDouble(), factor.toDouble())
+            val top = (base - h * amp * (1f - 0.85f * maxOf(c, b))).toInt()
             var bodyColor = if (f > 0f) lerp(body, forestBody, f) else body
             var crestColor = if (f > 0f) lerp(crest, forestCrest, f) else crest
             if (c > 0f) { bodyColor = lerp(bodyColor, cityHill, c); crestColor = lerp(crestColor, cityHill, c) }
+            if (b > 0f) { bodyColor = lerp(bodyColor, duneHill, b); crestColor = lerp(crestColor, duneHill, b) }
             fill(x, top, x + 1, H, bodyColor)
             fill(x, top, x + 1, top + 1, crestColor)
         }
         // Fields on the slopes: a darker band, so the hills read as farmland.
         if (airTop < 0.5f) for (x in 0 until W step 2) {
-            if (s.forestAt((x + offset).toDouble(), factor.toDouble()) > 0.5f || s.cityAt((x + offset).toDouble(), factor.toDouble()) > 0.2f) continue
+            if (s.forestAt((x + offset).toDouble(), factor.toDouble()) > 0.5f || s.hardAt((x + offset).toDouble(), factor.toDouble()) > 0.2f) continue
             val h = Noise.ridge((x + offset) * freq, seed, 3)
             val top = (base - h * amp).toInt() + 4
             if (Noise.unit(Math.floorDiv((x + offset).toInt(), 24), seed, 5) < 0.4f) fillAlpha(x, top, x + 2, top + 5, lit(s, Colors.mul(color, 0.82f, 0.9f, 0.78f), a), 0.55f)
@@ -396,7 +404,7 @@ class PixelScene {
             val f = s.forestAt(worldX.toDouble(), factor.toDouble())
             if (extra == 1 && Noise.unit(i, seed, 74) > f * 0.9f) continue
             if (Noise.unit(i, seed, 71 + extra * 40) > 0.55f + 0.4f * f) continue
-            if (Noise.unit(i, seed, 76 + extra) < s.cityAt(worldX.toDouble(), factor.toDouble()) * 1.2f) continue
+            if (Noise.unit(i, seed, 76 + extra) < s.hardAt(worldX.toDouble(), factor.toDouble()) * 1.2f) continue
             val x = (worldX - offset).toInt()
             val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
             val y = (base - h * amp).toInt() + 3
@@ -445,7 +453,7 @@ class PixelScene {
             val open = openCountry(Math.floorDiv(i, 6), 90)
             // How much of this stretch is forest: it brings more trees, and takes the farms away.
             val forest = s.forestAt(i * chunk + chunk / 2.0, factor)
-            val city = s.cityAt(i * chunk + chunk / 2.0, factor)
+            val city = s.hardAt(i * chunk + chunk / 2.0, factor)
             // Trees: 3 to 6 a chunk, at their own depths (fewer in open country), and in forest up to eleven more, each there once the forest is thick enough for it.
             // A log cabin in a clearing, very rarely, deep in the forest.
             val cabin = forest > 0.6f && Noise.unit(i, 700) < 0.08f
@@ -557,7 +565,7 @@ class PixelScene {
         val y = ROAD_TOP - 1
         val first = floor(offset / 160).toInt() - 1
         for (i in first..first + W / 160 + 2) {
-            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f || s.cityAt(i * 160 + 80.0, 1.0) > 0.2f) continue
+            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f || s.hardAt(i * 160 + 80.0, 1.0) > 0.2f) continue
             val x0 = (i * 160 - offset).toInt()
             val len = 90 + (Noise.unit(i, 81) * 60).toInt()
             fill(x0, y - 4, x0 + len, y - 3, rail)
@@ -715,7 +723,7 @@ class PixelScene {
         val firstTuft = floor(tuftOffset / 13).toInt() - 1
         for (i in firstTuft..firstTuft + W / 13 + 2) {
             val x = (i * 13 + Noise.unit(i, 90) * 9 - tuftOffset).toInt()
-            if (s.riverCovers(x, H - 3, 2) || s.cityAt(i * 13.0 + 6.0, 2.0) > 0.3f) continue
+            if (s.riverCovers(x, H - 3, 2) || s.hardAt(i * 13.0 + 6.0, 2.0) > 0.3f) continue
             val h = 2 + (Noise.unit(i, 91) * 4).toInt()
             val sway = (sin(s.time * 2.0 + i) * min(1f, s.cond.wind / 25f)).roundToInt()
             fill(x + sway, H - h - 1, x + 1 + sway, H - 1, grassDark)

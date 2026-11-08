@@ -57,7 +57,9 @@ class PlacesTest {
         assertEquals(Places.COUNTRYSIDE, Places.placeOf(2))
         assertEquals(Places.CITY, Places.placeOf(3))
         assertEquals(Places.COUNTRYSIDE, Places.placeOf(4))
-        assertEquals(Places.FOREST, Places.placeOf(5))
+        assertEquals(Places.BEACH, Places.placeOf(5))
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(6))
+        assertEquals(Places.FOREST, Places.placeOf(7))
     }
 
     @Test fun cityAndForestNeverMixAndEachReachesFull() {
@@ -66,7 +68,8 @@ class PlacesTest {
         while (j < Places.STRETCH * 12) {
             val f = Places.forest(j, Places.JOURNEY)
             val c = Places.city(j, Places.JOURNEY)
-            assertTrue("f $f c $c", f + c <= 1.0001f)
+            val b = Places.beach(j, Places.JOURNEY)
+            assertTrue("f $f c $c b $b", f + c + b <= 1.0001f)
             if (c > 0.99f) sawCity = true
             j += 25.0
         }
