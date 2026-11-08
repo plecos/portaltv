@@ -502,7 +502,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             val dir = if (Noise.unit(i, 907) < 0.5f) 1 else -1
             val phase = ((t * 5.0 + Noise.unit(i, 908) * span) % span).toInt()
             val wx = left + 4 + (if (dir > 0) phase else span - phase)
-            val wy = baseY + 4 + (Noise.unit(i, 909) * 6).toInt()
+            val wy = BOARD_TOP - 1 - (Noise.unit(i, 909) * 3).toInt()
             val step = (t * 4.0).toInt() % 2
             val person = personSprite((Noise.unit(i, 910) * 6).toInt().coerceIn(0, 5), People.skinIndex(Noise.unit(i, 919)), People.hairIndex(Noise.unit(i, 920)), step)
             sprite(person, wx, wy)
