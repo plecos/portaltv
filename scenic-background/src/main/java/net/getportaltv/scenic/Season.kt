@@ -52,16 +52,18 @@ object Seasons {
     private class Key(val day: Float, val a: Int, val b: Int, val r: Float, val g: Float, val bl: Float)
 
     private val keys = listOf(
-        Key(1f, rgb(122, 132, 94), rgb(110, 120, 86), 0.96f, 0.94f, 0.90f),
-        Key(75f, rgb(122, 132, 94), rgb(110, 120, 86), 0.97f, 0.96f, 0.92f),
-        Key(100f, rgb(100, 172, 76), rgb(86, 156, 66), 1.04f, 1.08f, 0.96f),
+        Key(1f, rgb(168, 174, 166), rgb(150, 158, 152), 0.88f, 0.92f, 1.00f),
+        Key(60f, rgb(160, 166, 150), rgb(144, 150, 138), 0.90f, 0.93f, 0.98f),
+        Key(90f, rgb(124, 140, 92), rgb(112, 128, 84), 1.00f, 1.04f, 0.94f),
+        Key(110f, rgb(104, 184, 76), rgb(88, 166, 64), 1.08f, 1.18f, 0.94f),
         Key(150f, rgb(90, 160, 66), rgb(78, 144, 58), 1.00f, 1.00f, 1.00f),
         Key(200f, rgb(150, 166, 64), rgb(190, 170, 70), 1.02f, 1.00f, 0.94f),
         Key(235f, rgb(190, 170, 72), rgb(214, 184, 80), 1.06f, 1.00f, 0.86f),
-        Key(262f, rgb(176, 158, 98), rgb(150, 128, 84), 1.10f, 0.98f, 0.78f),
-        Key(290f, rgb(128, 100, 70), rgb(108, 82, 58), 1.20f, 0.94f, 0.68f),
-        Key(320f, rgb(122, 118, 86), rgb(108, 104, 78), 1.04f, 0.92f, 0.82f),
-        Key(366f, rgb(122, 132, 94), rgb(110, 120, 86), 0.96f, 0.94f, 0.90f)
+        Key(262f, rgb(182, 160, 96), rgb(150, 126, 80), 1.16f, 0.96f, 0.70f),
+        Key(290f, rgb(132, 98, 66), rgb(110, 80, 54), 1.32f, 0.90f, 0.58f),
+        Key(320f, rgb(138, 126, 96), rgb(120, 110, 82), 1.10f, 0.92f, 0.78f),
+        Key(345f, rgb(160, 164, 154), rgb(144, 148, 140), 0.94f, 0.92f, 0.94f),
+        Key(366f, rgb(168, 174, 166), rgb(150, 158, 152), 0.88f, 0.92f, 1.00f)
     )
 
     /**
@@ -94,6 +96,14 @@ object Seasons {
         out.hillR = a.r + (b.r - a.r) * t
         out.hillG = a.g + (b.g - a.g) * t
         out.hillB = a.bl + (b.bl - a.bl) * t
+    }
+
+    /** The name of the season [day] of the year falls in (northern hemisphere, as the preview shows it). */
+    fun nameFor(day: Float): String = when {
+        day < 80f || day >= 356f -> WINTER
+        day < 172f -> SPRING
+        day < 266f -> SUMMER
+        else -> AUTUMN
     }
 
     /** Closer to the equator than this the seasons do not change the look of the land. */

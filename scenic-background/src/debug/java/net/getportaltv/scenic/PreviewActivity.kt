@@ -36,7 +36,11 @@ class PreviewActivity : Activity() {
                     config.copy(hour = next - 24f, weather = names[(names.indexOf(config.weather) + 1) % names.size])
                 } else config.copy(hour = next - 24f)
             }
-            readout.text = "%s  %d:%02d  %s%s".format(config.weather, config.hour.toInt(), ((config.hour - config.hour.toInt()) * 60).toInt(),
+            val day = if (config.yearDay > 0f) config.yearDay else if (config.season == Seasons.CALENDAR) java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR).toFloat() else Seasons.dayFor(config.season)
+            val date = java.util.Calendar.getInstance().apply { set(java.util.Calendar.DAY_OF_YEAR, day.toInt().coerceIn(1, 365)) }
+            val tree = Seasons.nameFor(day)
+            readout.text = "%s, %s %d   %s  %d:%02d  %s%s".format(tree, java.text.DateFormatSymbols().shortMonths[date.get(java.util.Calendar.MONTH)], date.get(java.util.Calendar.DAY_OF_MONTH),
+                config.weather, config.hour.toInt(), ((config.hour - config.hour.toInt()) * 60).toInt(),
                 if (config.scroll) "moving" else "still", if (lapse) "  time-lapse" else "")
             readout.postDelayed(this, 100)
         }
