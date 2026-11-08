@@ -243,8 +243,8 @@ moon and weather (it uses the `weather` capability), with its own settings page 
 
 What Portal does with it:
 - Your picture sits behind everything on the home screen, under the same dark layer Portal puts over its own backgrounds, so
-  text stays readable. It can't take the remote or a touch. It is asked for at most 1920 by 1080 and 30 frames a second; the
-  frame rate is a request (Portal can't count your frames), so draw sparingly.
+  text stays readable. It can't take the remote or a touch. It is asked for at most 1920 by 1080, and `max_fps` is the most frames a second Portal allows (120). Pick your own rate (30 is
+  plenty for most pictures, and Scenic Travel lets the person choose 15 to 120 in its settings); Portal can't count your frames, so draw sparingly.
 - Until your first picture arrives the screen shows Portal's own gradient, so it is never blank.
 - If you don't answer within 5 seconds, your process stops, you are no longer allowed, or you are signed by someone else now,
   Portal goes back to its own gradient and keeps the choice, trying you again the next time the home screen opens.

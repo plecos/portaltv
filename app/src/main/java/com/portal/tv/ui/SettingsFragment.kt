@@ -931,6 +931,29 @@ class SettingsFragment : Fragment() {
             { ScreensaverSettings.setNight(context, it) }
         )
 
+        // The time and weather over the screen saver: moving round the screen, in a corner (a new one each minute), or not at all;
+        // and the weather under the time can be left off.
+        fun refreshWeatherRow() {
+            view.findViewById<View>(R.id.screensaver_weather_row).visibility =
+                if (ScreensaverSettings.clockMode(context) == ScreensaverSettings.CLOCK_OFF) View.GONE else View.VISIBLE
+        }
+        choices(
+            R.id.screensaver_clock_row,
+            listOf(
+                "Moving" to ScreensaverSettings.CLOCK_BOUNCE,
+                "Corners" to ScreensaverSettings.CLOCK_CORNERS,
+                "Off" to ScreensaverSettings.CLOCK_OFF
+            ),
+            { ScreensaverSettings.clockMode(context) },
+            { ScreensaverSettings.setClockMode(context, it); refreshWeatherRow() }
+        )
+        choices(
+            R.id.screensaver_weather_row,
+            listOf("Show weather" to true, "No weather" to false),
+            { ScreensaverSettings.showWeather(context) },
+            { ScreensaverSettings.setShowWeather(context, it) }
+        )
+        refreshWeatherRow()
         choices(
             R.id.screensaver_sound_row,
             com.portal.tv.settings.VideoSound.levels,

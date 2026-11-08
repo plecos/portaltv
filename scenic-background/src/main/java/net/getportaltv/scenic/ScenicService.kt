@@ -47,7 +47,8 @@ class ScenicService : Service() {
         val width = data.getInt("width", 1920)
         val height = data.getInt("height", 1080)
         val token = data.getBinder("host_token") ?: return
-        val fps = data.getInt("max_fps", 30).coerceIn(1, 30)
+        // The most Portal allows; the rate itself is the one chosen in this extension's settings, and is read again as it changes.
+        val allowed = data.getInt("max_fps", 30).coerceIn(1, 120)
         val display = getSystemService(DisplayManager::class.java).getDisplay(data.getInt("display_id", 0)) ?: return
         val context = createDisplayContext(display)
         val viewHost = SurfaceControlViewHost(context, display, token)
@@ -56,7 +57,7 @@ class ScenicService : Service() {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> config = Settings.load(this) }
         prefs.registerOnSharedPreferenceChangeListener(listener)
         listenerKept = listener
-        viewHost.setView(ScenicView(context, fps, { config }, PortalWeather(this)), width, height)
+        viewHost.setView(ScenicView(context, { minOf(config.fps, allowed) }, { config }, PortalWeather(this)), width, height)
         host = viewHost
         runCatching {
             msg.replyTo?.send(Message.obtain(null, MSG_READY).apply { this.data = Bundle().apply { putParcelable("surface_package", viewHost.surfacePackage) } })

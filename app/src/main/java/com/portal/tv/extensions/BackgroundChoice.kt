@@ -22,8 +22,8 @@ object BackgroundProtocol {
     /** Largest picture Portal asks for, in pixels, whatever the screen is. */
     const val MAX_WIDTH = 1920
     const val MAX_HEIGHT = 1080
-    /** How fast Portal asks the extension to draw at most. It is a request: Portal can't count an extension's frames. */
-    const val MAX_FPS = 30
+    /** The most frames a second Portal allows an extension to aim for (an extension picks its own rate, usually 30 or less). It is a request: Portal can't count an extension's frames. */
+    const val MAX_FPS = 120
     /** How long Portal waits for an extension to be ready before it gives up and shows its own background. */
     const val READY_TIMEOUT_MS = 5_000L
 }

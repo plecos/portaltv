@@ -24,6 +24,8 @@ data class Config(
     val startCam: Double = 0.0,
     /** For the preview only: how many times faster than usual the journey goes. */
     val speed: Float = 1f,
+    /** How many frames a second to aim for (one of [Settings.FRAME_RATES]); the picture drops lower if the TV can't keep up. */
+    val fps: Int = 30,
     /** Follow the calendar, or always show one season. */
     val season: String = Seasons.CALENDAR,
     /** For the preview only: the day of the year to show (1 to 366), or 0 for the real one. */
@@ -34,6 +36,8 @@ object Settings {
     val ENVIRONMENTS = Places.CHOICES
     val STYLES = listOf("8-bit")
     val SEASONS = Seasons.CHOICES
+    /** The frame rates offered in settings. */
+    val FRAME_RATES = listOf(15, 30, 60, 90, 120)
 
     private const val FILE = "scenic"
 
@@ -50,7 +54,8 @@ object Settings {
             scroll = p.getBoolean("scroll", d.scroll),
             environment = p.getString("environment", d.environment)?.takeIf { it in ENVIRONMENTS } ?: d.environment,
             style = p.getString("style", d.style)?.takeIf { it in STYLES } ?: d.style,
-            season = p.getString("season", d.season)?.takeIf { it in SEASONS } ?: d.season
+            season = p.getString("season", d.season)?.takeIf { it in SEASONS } ?: d.season,
+            fps = p.getInt("fps", d.fps).takeIf { it in FRAME_RATES } ?: d.fps
         )
     }
 }

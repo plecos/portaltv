@@ -103,6 +103,15 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     private var speedY = 0f
     private var placed = false
     private var lastFrameNanos = 0L
+    /** How the time shows ([ScreensaverSettings.CLOCK_BOUNCE] and so on), read each time the screen saver starts. */
+    private var clockMode = ScreensaverSettings.CLOCK_BOUNCE
+    private var cornerIndex = -1
+    private val drift = object : Runnable {
+        override fun run() {
+            moveClock()
+            ui.postDelayed(this, DRIFT_MS)
+        }
+    }
     private val bounce = object : Runnable {
         override fun run() {
             stepBounce()
@@ -136,11 +145,11 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         buildPlaylist()
         if (shader != null) ui.postDelayed({ if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }, 300)
         showGreeting()
+        applyClockMode()
         tick.run()
         ui.postDelayed(minuteTick, MINUTE_MS)
-        postOnAnimation(bounce)
         applyNight()
-        refreshWeatherLoop()
+        if (clockMode != ScreensaverSettings.CLOCK_OFF && ScreensaverSettings.showWeather(context)) refreshWeatherLoop()
 
         textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
@@ -374,8 +383,9 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         if (black == blackout) { applyVolume(); return }
         blackout = black
         applyVolume()
-        clockBlock.visibility = if (black) View.INVISIBLE else View.VISIBLE
-        if (black) removeCallbacks(bounce) else { lastFrameNanos = 0L; postOnAnimation(bounce) }
+        clockBlock.visibility = if (black || clockMode == ScreensaverSettings.CLOCK_OFF) View.INVISIBLE else View.VISIBLE
+        removeCallbacks(bounce)
+        if (!black && clockMode == ScreensaverSettings.CLOCK_BOUNCE) { lastFrameNanos = 0L; postOnAnimation(bounce) }
         if (black) {
             fade.alpha = 1f
             stopPlaylist()
@@ -427,6 +437,53 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         clockBlock.translationY = bounceY
     }
 
+    /** Reads how the time should show and sets it up: moving round the screen, in a corner, or hidden altogether. */
+    private fun applyClockMode() {
+        clockMode = ScreensaverSettings.clockMode(context)
+        removeCallbacks(bounce)
+        ui.removeCallbacks(drift)
+        weatherRow.visibility = View.GONE
+        when (clockMode) {
+            ScreensaverSettings.CLOCK_OFF -> {
+                clockBlock.visibility = View.GONE
+                greetingText.visibility = View.GONE
+            }
+            ScreensaverSettings.CLOCK_CORNERS -> {
+                clockBlock.translationX = 0f
+                clockBlock.translationY = 0f
+                moveClock(animate = false)
+                ui.postDelayed(drift, DRIFT_MS)
+            }
+            else -> postOnAnimation(bounce)
+        }
+    }
+
+    /** Moves the clock to a different corner, fading out and back in. */
+    private fun moveClock(animate: Boolean = true) {
+        val gravities = listOf(
+            Gravity.TOP or Gravity.START, Gravity.TOP or Gravity.END,
+            Gravity.BOTTOM or Gravity.START, Gravity.BOTTOM or Gravity.END
+        )
+        var next: Int
+        do { next = gravities.indices.random() } while (next == cornerIndex && gravities.size > 1)
+        val apply = {
+            cornerIndex = next
+            clockBlock.layoutParams = (clockBlock.layoutParams as LayoutParams).apply {
+                gravity = gravities[next]
+                setMargins(dp(72), dp(56), dp(72), dp(56))
+            }
+            clockBlock.requestLayout()
+        }
+        if (!animate || cornerIndex == -1) {
+            apply()
+            return
+        }
+        clockBlock.animate().alpha(0f).setDuration(CLOCK_FADE_MS).withEndAction {
+            apply()
+            clockBlock.animate().alpha(1f).setDuration(CLOCK_FADE_MS).start()
+        }.start()
+    }
+
     private fun refreshWeatherLoop() {
         scope?.launch {
             while (true) {
@@ -443,7 +500,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         weatherIcon.removeAllViews()
         weatherIcon.addView(WeatherIcons.layered(context, 44, r.code, r.isDay))
         weatherText.text = "$temp  ·  ${WeatherIcons.describe(r.code)}"
-        weatherRow.visibility = View.VISIBLE
+        weatherRow.visibility = if (ScreensaverSettings.showWeather(context)) View.VISIBLE else View.GONE
     }
 
     private fun showGreeting() {
@@ -477,6 +534,9 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         const val MINUTE_MS = 60_000L
         /** How fast the clock moves sideways, in dp a second; up and down it is 70% of that, so it doesn't just trace the diagonal. */
         const val PACE_DP = 70
+        /** How long the clock stays in one corner before stepping to another, and how long it takes to fade out and in. */
+        const val DRIFT_MS = 60_000L
+        const val CLOCK_FADE_MS = 600L
         const val WEATHER_REFRESH_MS = 15 * 60 * 1000L
         const val NIGHT_DIM_ALPHA = 0.55f
     }
