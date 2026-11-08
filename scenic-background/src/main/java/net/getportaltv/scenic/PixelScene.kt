@@ -98,6 +98,7 @@ class PixelScene {
         phase("drawRiverBehind") { drawRiverBehind(s) }
         phase("drawRailway") { drawRailway(s) }
         phase("drawPonds") { drawPonds(s) }
+        phase("drawFieldSeason") { drawFieldSeason(s) }
         phase("drawFieldAnimals") { drawFieldAnimals(s) }
         phase("drawFarm") { drawFarm(s, cam) }
         phase("drawSuburbBlocks") { drawSuburbBlocks(s) }
@@ -121,10 +122,12 @@ class PixelScene {
         phase("drawBridge") { drawBridge(s) }
         phase("drawWalkers") { drawWalkers(s) }
         phase("drawBirds") { drawBirds(s) }
+        phase("drawMigration") { drawMigration(s) }
         phase("drawBats") { drawBats(s) }
         phase("drawFireflies") { drawFireflies(s) }
         phase("drawFrontTrees") { drawFrontTrees(s) }
         phase("drawForeground") { drawForeground(s, cam) }
+        phase("drawFallingLeaves") { drawFallingLeaves(s) }
         phase("drawRain") { drawRain(s) }
         phase("drawSnow") { drawSnow(s) }
         phase("drawFog") { drawFog(s) }
