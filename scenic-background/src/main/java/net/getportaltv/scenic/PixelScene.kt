@@ -812,7 +812,7 @@ class PixelScene {
         // of each, the oncoming lane gets more cars in proportion (in steps, so the traffic does not reshuffle as the speed changes).
         val ourMean = (0..4).map { kotlin.math.max(kotlin.math.abs(14f + 46f * it / 4f - travelV), MIN_SCREEN_SPEED) }.average().toFloat()
         val ratio = Math.round(((55f + travelV) / ourMean).coerceIn(1f, 2f) * 2f) / 2f
-        for (stream in 0..1) for (pass in 0..1) {
+        for (pass in 0..1) for (stream in 0..1) {
           val ourLane = pass == 1
           val laneSlot = if (ourLane) period else period / ratio
           val laneNow = floor(s.time / laneSlot).toInt()
