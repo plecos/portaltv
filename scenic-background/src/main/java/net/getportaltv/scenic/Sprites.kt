@@ -383,6 +383,36 @@ object Sprites {
         ), CAR + mapOf('c' to rgb(240, 240, 244), 'C' to rgb(40, 52, 96), 'L' to rgb(60, 60, 70))
     )
 
+    private val EMERGENCY = CAR + mapOf('r' to rgb(206, 38, 38), 'R' to rgb(206, 38, 38), 'c' to rgb(244, 244, 246), 'Y' to rgb(240, 212, 70), 'L' to rgb(176, 176, 184))
+
+    /** An ambulance, 18 wide: a white box with a red stripe and a cab at the front; the lights on the cab roof are drawn on top. */
+    fun ambulance(): Sprite = Sprite(
+        listOf(
+            ".".repeat(18),
+            "c".repeat(12) + "wwww" + "..",
+            "c".repeat(12) + "wwww" + "cc",
+            "c".repeat(18),
+            "c" + "R".repeat(16) + "c",
+            "c".repeat(18),
+            ".kkk" + ".".repeat(8) + "kkk" + "...",
+            ".kkk" + ".".repeat(8) + "kkk" + "..."
+        ), EMERGENCY
+    )
+
+    /** A fire engine, 26 wide: red with a ladder along the top, a yellow stripe and the cab at the front. */
+    fun fireEngine(): Sprite = Sprite(
+        listOf(
+            ".." + "L".repeat(14) + ".".repeat(10),
+            "." + "r".repeat(15) + ".." + "r".repeat(6) + "..",
+            "r".repeat(20) + "wwww" + "rr",
+            "r".repeat(26),
+            "r" + "Y".repeat(24) + "r",
+            "r".repeat(26),
+            ".kkk" + ".".repeat(5) + "kkk" + ".".repeat(8) + "kkk" + "...",
+            ".kkk" + ".".repeat(5) + "kkk" + ".".repeat(8) + "kkk" + "..."
+        ), EMERGENCY
+    )
+
     /** A city bus, 30 wide: a row of windows along the side. */
     fun bus(body: Int): Sprite {
         val w = 30
