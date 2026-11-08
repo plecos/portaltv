@@ -71,6 +71,7 @@ class PixelScene {
         scene = s
         val l = s.look
         val cam = s.cam
+        s.prepareColumns()
         phase("findBridgesParks") { s.bridges = s.findBridges(); s.parks = s.findParks() }
         phase("drawSky") { drawSky(s) }
         phase("drawStars") { drawStars(s) }
@@ -159,6 +160,12 @@ class PixelScene {
         if (xa >= xb || ya >= yb) return
         val c = color or OPAQUE
         val clip = clipCols
+        if (xb - xa == 1 && (clip == null || clip[xa])) {
+            // A single column (the hills and mountains are drawn so): step down it without a call for each row.
+            var i = ya * W + xa
+            for (y in ya until yb) { fb[i] = c; i += W }
+            return
+        }
         for (y in ya until yb) {
             var i = y * W + xa
             if (clip == null) {
@@ -224,14 +231,30 @@ class PixelScene {
         if (rx <= 0f || ry <= 0f) return
         val ya = floor(top).toInt().coerceAtLeast(0)
         val yb = kotlin.math.ceil(bottom).toInt().coerceAtMost(H - 1)
+        val sr = (color shr 16) and 0xFF
+        val sg = (color shr 8) and 0xFF
+        val sb = color and 0xFF
+        val ia = 255 - a
+        val clip = clipCols
         for (y in ya..yb) {
             val dy = (y + 0.5f - cy) / ry
             val rest = 1f - dy * dy
             if (rest < 0f) continue
             val half = rx * sqrt(rest)
-            val xa = kotlin.math.ceil(cx - half - 0.5f).toInt()
-            val xb = floor(cx + half - 0.5f).toInt()
-            for (x in xa..xb) dot(x, y, color, a)
+            val xa = kotlin.math.ceil(cx - half - 0.5f).toInt().coerceAtLeast(0)
+            val xb = floor(cx + half - 0.5f).toInt().coerceAtMost(W - 1)
+            var i = y * W + xa
+            for (x in xa..xb) {
+                if (clip == null || clip[x]) {
+                    if (a >= 255) fb[i] = color or OPAQUE
+                    else {
+                        val d = fb[i]
+                        fb[i] = OPAQUE or (((sr * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
+                            (((sg * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or ((sb * a + (d and 0xFF) * ia + 127) / 255)
+                    }
+                }
+                i++
+            }
         }
     }
 
@@ -451,6 +474,11 @@ class PixelScene {
 
     private val tops = IntArray(W + 8)
 
+    private val strips = HashMap<String, Strip>()
+
+    /** The strip kept under [name] for the [mode] of place chosen, made with [compute] the first time. */
+    private fun strip(name: String, mode: String, compute: (Int) -> Float): Strip = strips.getOrPut("$name/$mode") { Strip(W + 8, compute) }
+
     private fun drawMountains(s: SceneState, cam: Double) {
         mountainRange(s, cam, factor = 0.045, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLineBase = 0.72f)
         // Now and then a low cloud drifts in front of the far mountains (and behind the near ones).
@@ -470,11 +498,16 @@ class PixelScene {
         // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
         val offset = floor(cam * factor).toFloat()
         val heights = FloatArray(W + 8)
-        for (i in 0 until W + 8) {
-            val x = i - 4
-            val m = Noise.mountain((x + offset) * freq, seed)
+        // What does not change as the picture slides along (the peaks, and how much range there is here) is kept from the last frame.
+        val shape = strip("m$seed", s.placeMode) { wx ->
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - maxOf(s.cityAt((x + offset).toDouble(), factor), s.beachOnScreen(x)))
+            ((Noise.mountain(wx * freq, seed) - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt(wx.toDouble(), factor)
+        }
+        val city = strip("mc$seed", s.placeMode) { wx -> s.cityAt(wx.toDouble(), factor) }
+        shape.moveTo(offset.toInt() - 4)
+        city.moveTo(offset.toInt() - 4)
+        for (i in 0 until W + 8) {
+            heights[i] = shape[i] * (1f - maxOf(city[i], s.beachOnScreen(i - 4)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
@@ -505,11 +538,15 @@ class PixelScene {
         val forestCrest = lit(s, Colors.mul(forestColor, 1.1f, 1.12f, 1.08f), a)
         // Whole pixels, so the land is sampled at the same places every frame and only slides, instead of shimmering.
         val offset = floor(cam * factor).toFloat()
+        val ridge = strip("hr$seed", s.placeMode) { wx -> Noise.ridge(wx * freq, seed, 3) }
+        val forest = strip("hf$seed", s.placeMode) { wx -> s.forestAt(wx.toDouble(), factor.toDouble()) }
+        val cityShare = strip("hc$seed", s.placeMode) { wx -> s.cityAt(wx.toDouble(), factor.toDouble()) }
+        ridge.moveTo(offset.toInt() - 4); forest.moveTo(offset.toInt() - 4); cityShare.moveTo(offset.toInt() - 4)
         for (x in 0 until W) {
-            val h = Noise.ridge((x + offset) * freq, seed, 3)
-            val f = s.forestAt((x + offset).toDouble(), factor.toDouble())
+            val h = ridge[x + 4]
+            val f = forest[x + 4]
             // Toward the city the hills flatten and go grey, hidden behind the towers.
-            val c = s.cityAt((x + offset).toDouble(), factor.toDouble())
+            val c = cityShare[x + 4]
             // Toward the sea they flatten to low dunes.
             val b = s.beachOnScreen(x)
             val top = (base - h * amp * (1f - 0.85f * maxOf(c, b))).toInt()

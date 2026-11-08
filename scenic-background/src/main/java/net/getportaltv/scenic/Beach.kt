@@ -226,12 +226,32 @@ private fun bayShift(y: Int): Int {
  * missing mountains somewhere other than where the sea is; they ask for the screen instead.
  */
 internal fun SceneState.beachOnScreen(x: Int): Float {
+    if (x >= -SCREEN_PAD && x < W + SCREEN_PAD) return beachCols[x + SCREEN_PAD]
     val c = floor(cam).toInt()
     return maxOf(beachAt((c + x - BAY).toDouble(), 1.0), beachAt((c + x).toDouble(), 1.0), beachAt((c + x + BAY).toDouble(), 1.0))
 }
 
 /** How much of the land is built or sand (city or beach) at screen column [x]: where there is no room for wild country (trees, fences, farms). */
-internal fun SceneState.hardOnScreen(x: Int): Float = maxOf(cityAt((floor(cam).toInt() + x).toDouble(), 1.0), beachOnScreen(x))
+internal fun SceneState.hardOnScreen(x: Int): Float =
+    if (x >= -SCREEN_PAD && x < W + SCREEN_PAD) maxOf(cityCols[x + SCREEN_PAD], beachCols[x + SCREEN_PAD])
+    else maxOf(cityAt((floor(cam).toInt() + x).toDouble(), 1.0), beachOnScreen(x))
+
+private const val SCREEN_PAD = 8
+
+/** Works out, once a frame, how much city and beach there is at each screen column (the far scenery asks for it many times over). */
+internal fun SceneState.prepareColumns() {
+    val c = floor(cam).toInt()
+    if (placeMode != colsMode) { colsMode = placeMode; colsCam = Int.MIN_VALUE; beachRaw.reset(); cityRaw.reset() }
+    if (c == colsCam) return
+    colsCam = c
+    // The first world column of each strip: the beach reaches BAY either side of the screen, and SCREEN_PAD more for the spare columns.
+    beachRaw.moveTo(c - BAY - SCREEN_PAD)
+    cityRaw.moveTo(c - SCREEN_PAD)
+    for (i in 0 until W + 2 * SCREEN_PAD) {
+        beachCols[i] = maxOf(beachRaw[i], beachRaw[i + BAY], beachRaw[i + 2 * BAY])
+        cityCols[i] = cityRaw[i]
+    }
+}
 
 /** Whether the sea is on screen at column [x], row [y]: the beach, with the waterline bending away at either end of it. */
 private fun SceneState.seaAt(x: Int, y: Int): Boolean {
@@ -264,11 +284,17 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
     val glitter = s.glitterX()
     val t = s.time
     // How much beach there is at every column, and BAY columns either side, found once so the curving waterline is cheap.
-    val amounts = FloatArray(W + 2 * BAY) { s.beachAt((cam - BAY + it).toDouble(), 1.0) }
-    fun seaOn(x: Int, y: Int): Boolean {
-        val sh = bayShift(y)
-        return maxOf(amounts[x + BAY - sh], amounts[x + BAY + sh]) >= 0.5f
+    val raw = s.beachRaw
+    // (The strip starts SCREEN_PAD columns before the first column of the amounts.)
+    val amounts = FloatArray(W + 2 * BAY) { raw[it + SCREEN_PAD] }
+    // Where the sea is, row by row (rows SEA_TOP up to the shore), worked out once: the bay curves, so each row reaches a different distance.
+    val rows = SHORE + 4 - SEA_TOP
+    val mask = BooleanArray(rows * W)
+    for (r in 0 until rows) {
+        val sh = bayShift(SEA_TOP + r)
+        for (x in 0 until W) mask[r * W + x] = maxOf(amounts[x + BAY - sh], amounts[x + BAY + sh]) >= 0.5f
     }
+    fun seaOn(x: Int, y: Int): Boolean { val r = y - SEA_TOP; return r in 0 until rows && mask[r * W + x] }
     val shores = IntArray(W) { x -> SHORE + (sin(x * 0.045 + t * 0.6) * 1.5 + sin(x * 0.11 - t * 0.45) * 0.7).toInt() }
     for (x in 0 until W) {
         val shore = shores[x]
@@ -319,8 +345,9 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
     }
     // The beach curving away along the waterline: a strip of sand (with a line of foam against the water) beside the sea
     // wherever the bay's edge is, so each end of the beach runs off into the distance as a curve.
+    val on = BooleanArray(W + 16)
     for (y in SEA_TOP until SHORE) {
-        val on = BooleanArray(W + 16) { i -> val x = i - 8; x in 0 until W && y < shores[x] && seaOn(x, y) }
+        for (i in on.indices) { val x = i - 8; on[i] = x in 0 until W && y < shores[x] && seaOn(x, y) }
         val width = 2 + (y - SEA_TOP) / 6
         for (x in 0 until W) {
             if (on[x + 8]) continue
