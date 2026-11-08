@@ -18,7 +18,7 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
   in storms.
 - **Looks like an old computer.** The scene is drawn at 320 by 180 pixels, dithered and limited to a small palette, then scaled
   up whole, so every pixel is a clean square on the TV. Only one style so far; more can be added as other renderers.
-- **Looks after a slow TV.** It aims for the frame rate chosen in its settings (15, 30, 60, 90 or 120; 30 by default) and steps down through 60, 30, 20, 15 and 10 (and drops the dithering and some
+- **Looks after a slow TV.** It aims for the frame rate chosen in its settings (15, 30, 60, 90 or 120; 60 by default) and steps down through 60, 30, 20, 15 and 10 (and drops the dithering and some
   of the rain) if drawing is taking too long.
 
 ## Places

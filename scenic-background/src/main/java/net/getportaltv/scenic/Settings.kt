@@ -25,7 +25,7 @@ data class Config(
     /** For the preview only: how many times faster than usual the journey goes. */
     val speed: Float = 1f,
     /** How many frames a second to aim for (one of [Settings.FRAME_RATES]); the picture drops lower if the TV can't keep up. */
-    val fps: Int = 30,
+    val fps: Int = 60,
     /** Follow the calendar, or always show one season. */
     val season: String = Seasons.CALENDAR,
     /** For the preview only: the day of the year to show (1 to 366), or 0 for the real one. */
