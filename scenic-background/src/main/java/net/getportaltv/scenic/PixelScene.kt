@@ -604,7 +604,7 @@ class PixelScene {
     }
 
     private fun drawTraffic(s: SceneState) {
-        val travelV = if (s.travelling) Director.SPEED else 0f
+        val travelV = if (s.travelling) s.speed else 0f
         spritePaint.colorFilter = filter(s, 0.0f)
         val period = 3.5
         val slot = floor(s.time / period).toInt()

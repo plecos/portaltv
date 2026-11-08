@@ -21,7 +21,9 @@ data class Config(
     val boost: Boolean = false,
     /** For the preview only: the animation clock to start at, in seconds (0 for the usual start). */
     val startTime: Double = 0.0,
-    val startCam: Double = 0.0
+    val startCam: Double = 0.0,
+    /** For the preview only: how many times faster than usual the journey goes. */
+    val speed: Float = 1f
 )
 
 object Settings {

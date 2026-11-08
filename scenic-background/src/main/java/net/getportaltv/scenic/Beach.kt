@@ -227,7 +227,7 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
 internal fun PixelScene.drawSeaLife(s: SceneState) {
     val beach = s.beachNow()
     if (beach < 0.05f) return
-    val travelV = if (s.travelling) Director.SPEED else 0f
+    val travelV = if (s.travelling) s.speed else 0f
     spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
     spritePaint.alpha = (beach * 255f).toInt().coerceIn(0, 255)
     // A cargo ship at the horizon, very slowly.

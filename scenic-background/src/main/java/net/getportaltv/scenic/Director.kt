@@ -23,6 +23,8 @@ class SceneState {
     /** Which way the wind blows on screen: -1 left, +1 right (0 when still). */
     var windDir = 1f
     var travelling = true
+    /** How fast the journey goes now, in pixels a second of the nearest layer. */
+    var speed = 30f
     /** Which place the journey is in: see [Places]. */
     var placeMode = Places.JOURNEY
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */
@@ -62,7 +64,8 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         s.travelling = c.scroll
         s.boost = c.boost
         s.placeMode = c.environment
-        if (c.scroll) s.cam += SPEED * dtSeconds
+        s.speed = SPEED * c.speed
+        if (c.scroll) s.cam += s.speed * dtSeconds
 
         // The weather eases toward its target: slowly for real changes, faster when someone picks one.
         val target = if (c.realWeather) (weather?.takeIf { it.known }?.target ?: CLEAR) else Conditions.preset(c.weather) ?: CLEAR
