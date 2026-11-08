@@ -230,6 +230,9 @@ internal fun SceneState.beachOnScreen(x: Int): Float {
     return maxOf(beachAt((c + x - BAY).toDouble(), 1.0), beachAt((c + x).toDouble(), 1.0), beachAt((c + x + BAY).toDouble(), 1.0))
 }
 
+/** How much of the land is built or sand (city or beach) at screen column [x]: where there is no room for wild country (trees, fences, farms). */
+internal fun SceneState.hardOnScreen(x: Int): Float = maxOf(cityAt((floor(cam).toInt() + x).toDouble(), 1.0), beachOnScreen(x))
+
 /** Whether the sea is on screen at column [x], row [y]: the beach, with the waterline bending away at either end of it. */
 private fun SceneState.seaAt(x: Int, y: Int): Boolean {
     val c = floor(cam).toInt()
