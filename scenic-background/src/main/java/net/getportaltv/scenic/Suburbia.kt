@@ -399,7 +399,7 @@ internal fun PixelScene.drawSuburbPeople(s: SceneState) {
 
 // ---------- the season ----------
 
-private fun PixelScene.pumpkin(s: SceneState, x: Int, bottom: Int, night: Float, haze: Float) {
+internal fun PixelScene.pumpkin(s: SceneState, x: Int, bottom: Int, night: Float, haze: Float) {
     val orange = solid(s, rgb(238, 122, 30), haze)
     fill(x, bottom - 3, x + 4, bottom, orange)
     fill(x + 1, bottom - 4, x + 3, bottom - 3, orange)
