@@ -53,6 +53,8 @@ class SettingsFragment : Fragment() {
     private var refreshShaderColors: (() -> Unit)? = null
     /** Looks again at which extensions may draw the background and updates the choices on the Background page. */
     private var refreshBackgroundChoices: (() -> Unit)? = null
+    /** Looks up the extensions that can draw the screen saver again (one was just allowed, changed or removed). */
+    private var refreshSaverLooks: (() -> Unit)? = null
 
 
     fun setBackgroundChangedListener(listener: () -> Unit) {
@@ -993,16 +995,22 @@ class SettingsFragment : Fragment() {
         }
         addLook("Videos", ScreensaverSettings.LOOK_VIDEO)
         addLook("Shaders", ScreensaverSettings.LOOK_SHADER)
-        // A kid profile can't change the TV's screen saver anyway (Settings is for adults), so every drawer is offered.
-        viewLifecycleOwner.lifecycleScope.launch {
+        // Looked up again whenever an extension is allowed, changed or removed (from the Extensions page), so the choice is
+        // there as soon as it is allowed, without leaving Settings.
+        fun loadLooks() = viewLifecycleOwner.lifecycleScope.launch {
             val drawers = withContext(Dispatchers.IO) {
                 com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
                     com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
                 }
             }
+            lookTiles.filter { it.first.startsWith("${ScreensaverSettings.LOOK_EXTENSION}:") }.forEach { lookRow.removeView(it.second) }
+            lookTiles.removeAll { it.first.startsWith("${ScreensaverSettings.LOOK_EXTENSION}:") }
             drawers.forEach { addLook(it.name, "${ScreensaverSettings.LOOK_EXTENSION}:${it.packageName}") }
+            // An extension that was chosen but is no longer allowed no longer draws it: the screen saver falls back to the shader.
             refreshLook()
         }
+        refreshSaverLooks = { loadLooks() }
+        loadLooks()
         refreshLook()
         refreshSaverMode()
 
@@ -1910,6 +1918,7 @@ class SettingsFragment : Fragment() {
             extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed)
             refreshCategories?.invoke()
             refreshBackgroundChoices?.invoke()
+            refreshSaverLooks?.invoke()
         }) {
             // Back from the catalog lands on this page again.
             returnToCategory = R.id.cat_extensions
