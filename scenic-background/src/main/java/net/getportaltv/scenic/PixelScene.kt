@@ -736,6 +736,8 @@ class PixelScene {
             // The line runs in stretches of a few spans with none between: a pole stands wherever a span starts or ends.
             val wired = powerSpan(i)
             if (!wired && !powerSpan(i - 1)) continue
+            // City streets have their own lamps; a country pole and its wires would cut across the skyline and the road.
+            if (s.cityAt(i * spacing.toDouble(), 1.7) > 0.3f || s.cityAt((i + 1) * spacing.toDouble(), 1.7) > 0.3f) continue
             fill(x, 112, x + 3, H, wood)
             fill(x - 6, 116, x + 9, 118, wood)
             fill(x - 4, 124, x + 7, 125, wood)
