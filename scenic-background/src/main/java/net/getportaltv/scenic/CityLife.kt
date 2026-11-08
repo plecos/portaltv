@@ -33,9 +33,8 @@ internal fun PixelScene.drawCityPeople(s: SceneState) {
         val age = (s.time - ev.spawn).toFloat()
         val x = if (v < 0) W + 24 + v * age else -24 + v * age
         if (x < -20 || x > W + 20) continue
-        val amount = smoothstep(0.3f, 0.9f, s.cityAt(x + s.cam, 1.0))
-        if (amount <= 0f) continue
-        spritePaint.alpha = (amount * 255).toInt()
+        // Whether there is a city where they set off decides it for the whole walk, so nobody is half there or pops in and out.
+        if (s.cityAt(s.cam - travelV * age + (if (v < 0) W + 24 else -24), 1.0) < 0.6f) continue
         val frame = floor(age * 3.2f).toInt() % 2
         val bottom = ROAD_TOP - (ev.unit(5) * 2).toInt()
         val umbrella = if (rainy) (ev.unit(6) * 4).toInt().coerceIn(0, 3) else -1
@@ -55,9 +54,7 @@ internal fun PixelScene.drawCityPeople(s: SceneState) {
     for (i in first..first + W / cell + 2) {
         if (Noise.unit(i, 860) > 0.3f * crowd) continue
         val wx = i * cell + 6 + (Noise.unit(i, 861) * (cell - 22)).toInt()
-        val amount = smoothstep(0.3f, 0.9f, s.cityAt(wx.toDouble(), 1.0))
-        if (amount <= 0f) continue
-        spritePaint.alpha = (amount * 255).toInt()
+        if (s.cityAt(wx.toDouble(), 1.0) < 0.6f) continue
         val x = wx - offset
         val bottom = ROAD_TOP - (Noise.unit(i, 862) * 2).toInt()
         val bag = if (Noise.unit(i, 863) < 0.5f) (Noise.unit(i, 864) * 4).toInt().coerceIn(0, 3) else -1

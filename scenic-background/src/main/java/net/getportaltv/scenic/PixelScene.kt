@@ -633,7 +633,6 @@ class PixelScene {
         val period = 3.5
         val slot = floor(s.time / period).toInt()
         val night = s.look.day < 0.45f
-        val cityNow = s.cityNow()
         // Two passes, far lane first: the cars coming toward us (facing left) are in the upper lane and are drawn behind the ones
         // going our way (facing right) in the lane nearer the front, whatever order they set off in.
         // A car stays for as long as it takes to cross, so the look-back covers the slowest (MIN_SCREEN_SPEED) with room to spare;
@@ -652,12 +651,17 @@ class PixelScene {
             val k = j + stream * 9973 + pass * 5003
             // Each lane takes half of what the slot would give, so the lanes add up to the same traffic as before.
             val roll = Noise.unit(k, 101) * 2f
+            val spawn = j * laneSlot + Noise.unit(k, 102) * laneSlot
+            val e = (s.time - spawn).toFloat()
+            if (e < 0f) continue
+            // How much city there was where the car came in decides it for its whole drive: it is never half there, and doesn't
+            // pop in or out as the city comes and goes.
+            val cityThen = s.cityAt(s.cam - travelV.toDouble() * e + W / 2.0, 1.0)
             val cityCar = stream == 1 || roll > 0.30f
             if (stream == 1) {
-                if (cityNow < 0.05f || roll > 0.7f * cityNow) continue
-            } else if (roll > 0.30f + 0.4f * cityNow || cityNow < 0.05f && cityCar) continue
-            spritePaint.alpha = if (cityCar) (cityNow * 255f).toInt().coerceIn(0, 255) else 255
-            val spawn = j * laneSlot + Noise.unit(k, 102) * laneSlot
+                if (cityThen < 0.05f || roll > 0.7f * cityThen) continue
+            } else if (roll > 0.30f + 0.4f * cityThen || cityThen < 0.05f && cityCar) continue
+            spritePaint.alpha = 255
             // Seen from the road: our own lane's cars go the way we do (slower or faster than us), the other lane's come toward us.
             val speed = if (ourLane) 14f + Noise.unit(k, 104) * 46f else 30f + Noise.unit(k, 104) * 50f
             val raw = if (ourLane) speed - travelV else -speed - travelV
@@ -667,8 +671,6 @@ class PixelScene {
             // In the city some of the extra vehicles are taxis and buses.
             val kind = Noise.unit(k, 107)
             val sp = if (cityCar && kind < 0.22f) taxi else if (cityCar && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
-            val e = (s.time - spawn).toFloat()
-            if (e < 0f) continue
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9
