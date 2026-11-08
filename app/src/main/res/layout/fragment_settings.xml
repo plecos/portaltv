@@ -654,6 +654,31 @@
                     android:orientation="horizontal" />
             </LinearLayout>
 
+            <!-- Brightness: how much the picture is dimmed behind the home screen, for the video and an extension's background -->
+            <LinearLayout
+                android:id="@+id/brightness_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="Brightness"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/brightness_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </LinearLayout>
+
             <!-- Sound: for the video only -->
             <LinearLayout
                 android:id="@+id/sound_group"

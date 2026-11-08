@@ -40,7 +40,7 @@ class ExtensionLabelsTest {
 
     @Test
     fun statusSaysWhatIsAllowed() {
-        assertEquals("Not allowed", ExtensionLabels.status(ExtensionState.NOT_ALLOWED, emptySet()))
+        assertEquals("Needs your permission", ExtensionLabels.status(ExtensionState.NOT_ALLOWED, emptySet()))
         assertEquals("Allowed: tiles, cards", ExtensionLabels.status(ExtensionState.ALLOWED, linkedSetOf("tiles", "cards")))
         assertEquals("Allowed: settings page", ExtensionLabels.status(ExtensionState.ALLOWED, setOf("settings")))
         assertTrue(ExtensionLabels.status(ExtensionState.SIGNER_CHANGED, emptySet()).contains("someone else"))
@@ -51,8 +51,9 @@ class ExtensionLabelsTest {
     @Test
     fun theSummaryCountsFoundAndAllowed() {
         assertEquals("None installed", ExtensionLabels.summary(0, 0))
-        assertEquals("1 found, not allowed", ExtensionLabels.summary(1, 0))
-        assertEquals("3 found, none allowed", ExtensionLabels.summary(3, 0))
+        assertEquals("1 found, needs your permission", ExtensionLabels.summary(1, 0))
+        assertEquals("3 found, need your permission", ExtensionLabels.summary(3, 0))
+        assertEquals("1 found, needs your permission", ExtensionLabels.summary(1, 0))
         assertEquals("2 found, 1 allowed", ExtensionLabels.summary(2, 1))
     }
 

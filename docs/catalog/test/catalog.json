@@ -47,6 +47,36 @@
       "icon": "icons/portal-sample.png"
     },
     {
+      "package": "net.getportaltv.scenic",
+      "name": "Scenic Travel",
+      "description": "An animated background: a journey through the countryside that follows the real sky, sun, moon and weather.",
+      "author": "Portal TV",
+      "source": "https://github.com/plecos/portaltv",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "capabilities": [
+        "settings",
+        "background",
+        "weather"
+      ],
+      "signer": "abababababababababababababababababababababababababababababababab",
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "0.1",
+          "apk": "https://example.com/net.getportaltv.scenic-1.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 2700000,
+          "contract": 1
+        }
+      ],
+      "tags": [
+        "background",
+        "weather",
+        "scenery"
+      ],
+      "icon": "icons/portal-sample.png"
+    },
+    {
       "package": "net.example.garage",
       "name": "Garage door",
       "description": "Garage door does useful things on your TV.",

@@ -51,6 +51,8 @@ class SettingsFragment : Fragment() {
 
     /** Shows or hides the shader color picker to match the background mode. */
     private var refreshShaderColors: (() -> Unit)? = null
+    /** Looks again at which extensions may draw the background and updates the choices on the Background page. */
+    private var refreshBackgroundChoices: (() -> Unit)? = null
 
 
     fun setBackgroundChangedListener(listener: () -> Unit) {
@@ -71,6 +73,7 @@ class SettingsFragment : Fragment() {
         setupWeatherLocation(view)
         setupShaderColors(view)
         setupSpeed(view)
+        setupBrightness(view)
         setupSound(view)
         setupVideoChoices(view)
         setupKidsVideoAccess(view)
@@ -1188,7 +1191,8 @@ class SettingsFragment : Fragment() {
         val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
         val kidId = com.portal.tv.repo.ProfileManager.getActiveId(context)
         val kidMay = kid && kidId != null && BackgroundSettings.kidCanPickExtension(context, kidId)
-        viewLifecycleOwner.lifecycleScope.launch {
+        // Looked up again whenever an extension is allowed or changed (from the Extensions page), so the choices are never out of date.
+        val load = { viewLifecycleOwner.lifecycleScope.launch {
             val drawers = if (kid && !kidMay) emptyList() else withContext(Dispatchers.IO) {
                 com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
                     com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
@@ -1225,7 +1229,9 @@ class SettingsFragment : Fragment() {
             drawers.forEach { ext -> extensionTiles += ext.packageName to tile(ext.name) { choose(ext.packageName) } }
             extensionTiles.forEach { typeRow.addView(it.second) }
             highlight()
-        }
+        } }
+        refreshBackgroundChoices = { load() }
+        load()
 
         highlight()
     }
@@ -1639,6 +1645,55 @@ class SettingsFragment : Fragment() {
         refresh()
     }
 
+    /**
+     * How bright the picture is behind the home screen, for the video and an extension's background: the higher, the less
+     * it is dimmed (and the harder the text on top is to read). The shader is left out: it is already dark.
+     */
+    private fun setupBrightness(view: View) {
+        val context = requireContext()
+        val group = view.findViewById<View>(R.id.brightness_group)
+        val row = view.findViewById<android.widget.LinearLayout>(R.id.brightness_row)
+        val px = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+        val chips = listOf(0.25f to "25%", 0.5f to "50%", 0.75f to "75%", 1f to "100%").map { (value, label) ->
+            val chip = TextView(context).apply {
+                text = label
+                textSize = 18f
+                typeface = resources.getFont(R.font.inter)
+                gravity = android.view.Gravity.CENTER
+                setPadding(px(24), 0, px(24), 0)
+                isFocusable = true
+                contentDescription = "Brightness $label"
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, px(48)
+                ).apply { marginEnd = px(8) }
+            }
+            row.addView(chip)
+            value to chip
+        }
+        fun refresh() {
+            val mode = BackgroundSettings.getMode(context)
+            group.visibility = if (mode == "video" || mode == com.portal.tv.extensions.BackgroundChoice.MODE) View.VISIBLE else View.GONE
+            val brightness = BackgroundSettings.getBrightness(context)
+            // The one nearest the saved value is lit (older saves may sit between steps).
+            val nearest = chips.minByOrNull { kotlin.math.abs(it.first - brightness) }?.first
+            chips.forEach { (value, chip) ->
+                val on = value == nearest
+                chip.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+                chip.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
+            }
+        }
+        chips.forEach { (value, chip) ->
+            chip.setOnClickListener {
+                BackgroundSettings.setBrightness(context, value)
+                refresh()
+                onBackgroundChanged?.invoke()
+            }
+        }
+        val previous = refreshShaderColors
+        refreshShaderColors = { previous?.invoke(); refresh() }
+        refresh()
+    }
+
     /** How fast the video plays and the shader moves; shown for those two backgrounds. */
     private fun setupSpeed(view: View) {
         val context = requireContext()
@@ -1829,6 +1884,7 @@ class SettingsFragment : Fragment() {
         val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }, { found, allowed ->
             extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed)
             refreshCategories?.invoke()
+            refreshBackgroundChoices?.invoke()
         }) {
             // Back from the catalog lands on this page again.
             returnToCategory = R.id.cat_extensions

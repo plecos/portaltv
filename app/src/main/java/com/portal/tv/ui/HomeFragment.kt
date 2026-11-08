@@ -368,6 +368,9 @@ class HomeFragment : Fragment() {
                 textureView.visibility = View.GONE
                 dimOverlay.visibility = View.VISIBLE
                 val context = requireContext()
+                // The same dimming a video background gets (its brightness setting, 25% dark by default), not the layout's 50%,
+                // which left an extension's picture too dark. The extension's own colours are left alone.
+                dimOverlay.alpha = 1f - BackgroundSettings.getBrightness(context)
                 val chosen = BackgroundSettings.getExtension(context)
                 val profile = com.portal.tv.repo.ProfileManager.getActive(context)
                 // A kid gets it only if a parent turned it on for them (the background view checks again before it draws).
@@ -385,6 +388,7 @@ class HomeFragment : Fragment() {
                         shaderView?.let { it.onPause(); root.removeView(it) }
                         shaderView = null
                         dimOverlay.visibility = View.VISIBLE
+                        dimOverlay.alpha = 1f - BackgroundSettings.getBrightness(context)
                         IntroAnimation.release(BACKGROUND_READY)
                     }
                     bg.onFailed = { reason ->

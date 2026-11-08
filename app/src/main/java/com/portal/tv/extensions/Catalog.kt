@@ -105,8 +105,13 @@ object CatalogParser {
         data class NeedsNewerPortal(val format: Int) : Result()
     }
 
-    /** [allowHttp] is for a test server in debug builds only; the catalog and every link in it are https otherwise. */
-    fun parse(text: String, allowHttp: Boolean = false): Result {
+    /**
+     * [allowHttp] is for a test server in debug builds only; the catalog and every link in it are https otherwise.
+     * [checkNames] is for the checks on catalog pull requests: it refuses a listing whose name or package name could pass for
+     * Portal's own, unless its signer is one of [firstPartySigners]. Portal itself reads a signed catalog without it: the
+     * signature is what says the maintainer put each listing there, and Portal's own extensions are listed under Portal's names.
+     */
+    fun parse(text: String, allowHttp: Boolean = false, checkNames: Boolean = false, firstPartySigners: Set<String> = emptySet()): Result {
         if (text.length > MAX_FILE_CHARS) return Result.Invalid("The catalog is too big.")
         val root = try {
             JSONObject(text)
@@ -131,7 +136,7 @@ object CatalogParser {
         for (i in 0 until list.length()) {
             val obj = list.opt(i) as? JSONObject
             if (obj == null) { problems += "Extension ${i + 1} isn't an object."; continue }
-            when (val r = entry(obj, allowHttp)) {
+            when (val r = entry(obj, allowHttp, checkNames, firstPartySigners)) {
                 is Entry.Bad -> problems += "${obj.optString("package", "Extension ${i + 1}")}: ${r.reason}"
                 is Entry.Good -> {
                     if (entries.any { it.packageName == r.entry.packageName }) problems += "${r.entry.packageName}: listed twice."
@@ -161,18 +166,11 @@ object CatalogParser {
         data class Bad(val reason: String) : Entry()
     }
 
-    private fun entry(o: JSONObject, allowHttp: Boolean): Entry {
+    private fun entry(o: JSONObject, allowHttp: Boolean, checkNames: Boolean, firstPartySigners: Set<String>): Entry {
         fun bad(why: String) = Entry.Bad(why)
         val pkg = o.opt("package") as? String ?: return bad("it has no package.")
         if (pkg.length > 100 || !PACKAGE.matches(pkg)) return bad("the package name isn't valid.")
         val name = text(o, "name", ManifestParser.MAX_LABEL) ?: return bad("it has no name, or one that is too long.")
-        // The same rules Portal applies to an installed extension, so a listing is refused here, with the reason, instead of
-        // being listed and then failing on a TV.
-        // A debug build reading a test server ([allowHttp]) is exempt, because the test catalog lists Portal's own sample.
-        if (!allowHttp) {
-            Impersonation.reason(name)?.let { return bad("its name \"$name\" $it") }
-            if (Impersonation.isReservedPackage(pkg)) return bad("its package name is reserved for Portal's own apps.")
-        }
         val description = text(o, "description", ManifestParser.MAX_DESCRIPTION) ?: return bad("it has no description, or one that is too long.")
         val author = text(o, "author", MAX_AUTHOR) ?: return bad("it has no author, or one that is too long.")
         val source = url(o.opt("source"), allowHttp) ?: return bad("it needs a source link that is an https address.")
@@ -187,6 +185,12 @@ object CatalogParser {
         }
 
         val signer = signer(o.opt("signer")) ?: return bad("its signer isn't a SHA-256 fingerprint.")
+        // The same rules Portal applies to an installed extension, run on catalog pull requests so a refused name is found with the
+        // reason there instead of on a TV. Portal's own extensions (signed by a first-party key) may use Portal's names.
+        if (checkNames && signer !in firstPartySigners) {
+            Impersonation.reason(name)?.let { return bad("its name \"$name\" $it") }
+            if (Impersonation.isReservedPackage(pkg)) return bad("its package name is reserved for Portal's own apps (unless it is signed with a first-party key; see docs/CATALOG.md).")
+        }
 
         val tags = mutableListOf<String>()
         val tl = o.opt("tags")
