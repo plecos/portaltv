@@ -48,6 +48,7 @@ class PixelScene {
     private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> Sprite.of(Sprites.cloud(w, h, 100 + i)) }
     private val carBodies = intArrayOf(rgb(214, 56, 56), rgb(60, 110, 200), rgb(236, 200, 60), rgb(240, 240, 240), rgb(70, 74, 84), rgb(70, 160, 96))
     internal val cars = carBodies.map { Sprites.car(it) }
+    private val schoolBus = Sprites.schoolBus()
     private val taxi = Sprites.taxi(rgb(244, 196, 40))
     private val buses = intArrayOf(rgb(46, 112, 192), rgb(200, 62, 52), rgb(60, 150, 96)).map { Sprites.bus(it) }
     private val trucks = intArrayOf(rgb(236, 236, 240), rgb(200, 90, 50), rgb(60, 120, 170)).map { Sprites.truck(it) }
@@ -821,7 +822,8 @@ class PixelScene {
             val where = s.cam - travelV.toDouble() * e + W / 2.0
             val cityThen = s.cityAt(where, 1.0)
             // The suburbs are busier than the country but not as busy as the city.
-            val townThen = maxOf(cityThen, 0.55f * s.suburbAt(where, 1.0))
+            val suburbThen = s.suburbAt(where, 1.0)
+            val townThen = maxOf(cityThen, 0.55f * suburbThen)
             val cityCar = stream == 1 || roll > 0.30f
             if (stream == 1) {
                 if (townThen < 0.05f || roll > 0.7f * townThen) continue
@@ -835,7 +837,9 @@ class PixelScene {
             val truck = Noise.unit(k, 105) < 0.22f
             // In the city some of the extra vehicles are taxis and buses.
             val kind = Noise.unit(k, 107)
-            val sp = if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            // In the suburbs, by day, an occasional school bus.
+            val school = cityCar && suburbThen > 0.5f && cityThen < 0.2f && s.look.day > 0.4f && kind < 0.12f
+            val sp = if (school) schoolBus else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9

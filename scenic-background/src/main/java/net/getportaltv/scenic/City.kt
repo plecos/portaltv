@@ -37,7 +37,7 @@ internal fun PixelScene.bulb(s: SceneState, x: Int, y: Int, k: Int, night: Float
 }
 
 /** Lights scattered over a conifer standing with its foot at ([x] + [w] / 2, [bottom]). */
-private fun PixelScene.treeLights(s: SceneState, x: Int, bottom: Int, w: Int, h: Int, seed: Int, night: Float) {
+internal fun PixelScene.treeLights(s: SceneState, x: Int, bottom: Int, w: Int, h: Int, seed: Int, night: Float) {
     if (s.season.festive < 0.02f) return
     for (k in 0 until 9) {
         val row = 1 + (Noise.unit(seed, k, 840) * (h - 3)).toInt()

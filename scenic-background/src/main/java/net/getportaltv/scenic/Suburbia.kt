@@ -60,6 +60,8 @@ internal fun PixelScene.drawSuburbBlocks(s: SceneState) {
     if (s.placeMode != Places.JOURNEY && s.placeMode != Places.SUBURBIA) return
     val offset = floor(s.cam * NEAR).toInt()
     val first = Math.floorDiv(offset, DISTRICT) - 1
+    secondRow(s)
+    waterTower(s)
     spritePaint.colorFilter = filter(s, 0.04f + s.look.haze * 0.3f)
     for (d in first..first + W / DISTRICT + 2) {
         val x0 = d * DISTRICT - offset
@@ -91,7 +93,8 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
     val siding = solid(s, SIDING[pick(seed, 4, SIDING.size)], haze)
     val trim = lerp(siding, rgb(255, 255, 255), 0.4f)
     val shade = lerp(siding, rgb(10, 10, 30), 0.2f)
-    val roof = solid(s, ROOFS[pick(seed, 5, ROOFS.size)], haze)
+    // Snow settles on the roofs: they go white as it lies on them.
+    val roof = lit(s, ROOFS[pick(seed, 5, ROOFS.size)], haze)
     val roofLight = lerp(roof, rgb(255, 255, 255), 0.14f)
     val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
     val dark = lerp(glassDay, rgb(10, 12, 24), 0.45f)
@@ -103,7 +106,6 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
         val inset = r * (wm / 2 + 2) / rows
         fill(mx - 2 + inset, BASE - hm - 1 - r, mx + wm + 2 - inset, BASE - hm - r, if (r == rows - 1) roofLight else roof)
     }
-    if (s.snowCover > 0.03f) fillAlpha(mx - 2, BASE - hm - rows, mx + wm + 2, BASE - hm - rows + 2, solid(s, rgb(238, 242, 250), haze), s.snowCover)
     // The garage: lower, with a panelled door.
     fill(gx, BASE - 8, gx + gw, BASE, siding)
     fill(gx - 1, BASE - 10, gx + gw + 1, BASE - 8, roof)
@@ -137,6 +139,8 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
         var bx = mx; var k = 0
         while (bx < mx + wm) { bulb(s, bx, BASE - hm, seed * 7 + k, night); bx += 3; k++ }
     }
+    // Decorations for the season (Christmas, then Halloween).
+    decorate(s, seed, mx, wm, dx, gx, gw, garageLeft, night, haze)
     // The driveway widens toward the sidewalk, with a car on it now and then.
     val drive = solid(s, rgb(150, 150, 156), haze)
     for (y in BASE until ROAD_TOP) {
@@ -149,9 +153,17 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
     val spare = CELL - (gw + wm) - 3
     val treeX = if (garageLeft) x + gw + wm + 3 else cellX - 1
     val u = Noise.unit(seed, 12, 970)
+    val warm = s.cond.tempC > 14f && s.snowCover < 0.1f && s.season.winter < 0.5f
     if (spare >= 12) when {
-        u < 0.5f -> sprite(Sprites.roundTreeYear.at(s.season, seed * 3), treeX, BASE + 3)
-        u < 0.75f -> sprite(Sprites.pine, treeX, BASE + 3)
+        u < 0.16f && warm -> pool(s, seed, treeX, night, haze)
+        u < 0.28f && warm && s.cond.rain < 0.1f -> trampoline(s, seed, treeX, haze)
+        s.season.halloween > 0.3f && u < 0.5f -> pumpkinPatch(s, seed, treeX, night, haze)
+        u < 0.58f -> sprite(Sprites.roundTreeYear.at(s.season, seed * 3), treeX, BASE + 3)
+        u < 0.82f -> {
+            sprite(Sprites.pine, treeX, BASE + 3)
+            // A lit tree at Christmas.
+            treeLights(s, treeX, BASE + 3, Sprites.pine.width, Sprites.pine.height, seed, night)
+        }
         else -> sprite(Sprites.bushYear.at(s.season, seed * 3 + 1), treeX + 1, BASE + 3)
     }
     val mbx = if (garageLeft) gx + gw + 3 else gx - 3
@@ -203,7 +215,8 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
 private const val GROCERY = 0
 private const val RESTAURANT = 1
 private const val DEPARTMENT = 2
-private val WIDTHS = intArrayOf(100, 46, 120)
+private const val GAS = 3
+private val WIDTHS = intArrayOf(100, 46, 120, 66)
 
 private fun PixelScene.commercialDistrict(s: SceneState, d: Int, x0: Int, offset: Int) {
     val centre = (d * DISTRICT + DISTRICT / 2).toDouble()
@@ -220,14 +233,17 @@ private fun PixelScene.commercialDistrict(s: SceneState, d: Int, x0: Int, offset
     // Stores, left to right, as many as fit.
     var x = x0 + 8
     var k = 0
+    // Where the drive-through queues are, so no parked car stands in them.
+    val queues = ArrayList<IntArray>()
     while (k < 5) {
-        val kind = pick(d * 10 + k, 1, 3)
+        val kind = pick(d * 10 + k, 1, 4)
         val w = WIDTHS[kind]
         if (x + w > x0 + DISTRICT - 4) break
         when (kind) {
             GROCERY -> grocery(s, d * 10 + k, x, w, night, haze)
-            RESTAURANT -> restaurant(s, d * 10 + k, x, w, night, haze)
-            else -> department(s, d * 10 + k, x, w, night, haze)
+            RESTAURANT -> { restaurant(s, d * 10 + k, x, w, night, haze); queues += intArrayOf(x - 80, x + w + 12) }
+            DEPARTMENT -> department(s, d * 10 + k, x, w, night, haze)
+            else -> gasStation(s, d * 10 + k, x, w, night, haze)
         }
         x += w + 10
         k++
@@ -236,9 +252,11 @@ private fun PixelScene.commercialDistrict(s: SceneState, d: Int, x0: Int, offset
     var cx = x0 + 8
     var i = 0
     while (cx < x0 + DISTRICT - 20) {
-        if (Noise.unit(d, i, 971) < 0.45f) sprite(cars[pick(d * 40 + i, 2, cars.size)], cx, SIDEWALK + 1)
+        if (Noise.unit(d, i, 971) < 0.45f && queues.none { cx > it[0] && cx < it[1] }) sprite(cars[pick(d * 40 + i, 2, cars.size)], cx, SIDEWALK + 1)
         cx += 17; i++
     }
+    // The cars queueing at each drive-through, creeping up to the window.
+    for (q in queues) driveThrough(s, d, q[0] + 80, q[1] - 12 - (q[0] + 80))
     for (end in 0..1) {
         val px = if (end == 0) x0 + 3 else x0 + DISTRICT - 3
         fill(px, BASE - 14, px + 1, SIDEWALK, solid(s, rgb(90, 94, 104), haze))
@@ -286,7 +304,7 @@ private fun PixelScene.restaurant(s: SceneState, seed: Int, x: Int, w: Int, nigh
     val h = 12
     val body = solid(s, rgb(238, 206, 156), haze)
     val shade = lerp(body, rgb(10, 10, 30), 0.2f)
-    val red = solid(s, rgb(200, 50, 44), haze)
+    val red = lit(s, rgb(200, 50, 44), haze)
     val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
     val glass = lerp(glassDay, WARM, night * 0.85f)
     fill(x, BASE - h, x + w, BASE, body)
@@ -377,4 +395,270 @@ internal fun PixelScene.drawSuburbPeople(s: SceneState) {
         }
     }
     spritePaint.colorFilter = null
+}
+
+// ---------- the season ----------
+
+private fun PixelScene.pumpkin(s: SceneState, x: Int, bottom: Int, night: Float, haze: Float) {
+    val orange = solid(s, rgb(238, 122, 30), haze)
+    fill(x, bottom - 3, x + 4, bottom, orange)
+    fill(x + 1, bottom - 4, x + 3, bottom - 3, orange)
+    fill(x + 1, bottom - 5, x + 2, bottom - 4, solid(s, rgb(60, 120, 50), haze))
+    // A face, glowing at night.
+    val face = if (night > 0.2f) lerp(rgb(60, 30, 10), rgb(255, 220, 80), night) else rgb(60, 30, 10)
+    fill(x, bottom - 3, x + 1, bottom - 2, face)
+    fill(x + 3, bottom - 3, x + 4, bottom - 2, face)
+    fill(x + 1, bottom - 1, x + 3, bottom, face)
+}
+
+private fun PixelScene.pumpkinPatch(s: SceneState, seed: Int, x: Int, night: Float, haze: Float) {
+    for (k in 0 until 4) pumpkin(s, x + k * 3 + (if (k % 2 == 0) 0 else 1), SIDEWALK - 1 - (k % 2), night, haze)
+}
+
+private fun PixelScene.ghost(s: SceneState, x: Int, bottom: Int, haze: Float) {
+    val white = solid(s, rgb(246, 246, 250), haze)
+    val sway = (sin(s.time * 2.0 + x) * 1.0).toInt()
+    fill(x + sway, bottom - 8, x + 5 + sway, bottom - 2, white)
+    fill(x - 1 + sway, bottom - 7, x + 6 + sway, bottom - 3, white)
+    fill(x + 1 + sway, bottom - 6, x + 2 + sway, bottom - 5, rgb(30, 30, 40))
+    fill(x + 3 + sway, bottom - 6, x + 4 + sway, bottom - 5, rgb(30, 30, 40))
+    fill(x + sway, bottom - 2, x + 1 + sway, bottom - 1, white); fill(x + 2 + sway, bottom - 2, x + 3 + sway, bottom - 1, white); fill(x + 4 + sway, bottom - 2, x + 5 + sway, bottom - 1, white)
+}
+
+private fun PixelScene.tombstone(s: SceneState, x: Int, bottom: Int, haze: Float) {
+    val stone = solid(s, rgb(156, 160, 168), haze)
+    fill(x, bottom - 5, x + 4, bottom, stone)
+    fill(x + 1, bottom - 6, x + 3, bottom - 5, stone)
+    fill(x + 1, bottom - 3, x + 3, bottom - 2, lerp(stone, rgb(40, 40, 50), 0.5f))
+}
+
+private fun PixelScene.snowman(s: SceneState, x: Int, bottom: Int) {
+    val white = solid(s, rgb(248, 250, 252), 0.0f)
+    fill(x, bottom - 4, x + 5, bottom, white)
+    fill(x + 1, bottom - 7, x + 4, bottom - 4, white)
+    fill(x + 1, bottom - 10, x + 4, bottom - 7, white)
+    fill(x + 1, bottom - 12, x + 4, bottom - 10, rgb(40, 40, 50))
+    fill(x + 2, bottom - 8, x + 3, bottom - 7, rgb(240, 120, 30))
+    fill(x + 1, bottom - 9, x + 2, bottom - 8, rgb(30, 30, 36)); fill(x + 3, bottom - 9, x + 4, bottom - 8, rgb(30, 30, 36))
+}
+
+/** An inflatable Santa, glowing at night. */
+private fun PixelScene.santa(s: SceneState, x: Int, bottom: Int, night: Float) {
+    val red = lerp(rgb(200, 40, 44), rgb(255, 90, 80), night * 0.5f)
+    fill(x, bottom - 6, x + 6, bottom, red)
+    fill(x + 1, bottom - 9, x + 5, bottom - 6, rgb(240, 200, 170))
+    fill(x + 1, bottom - 7, x + 5, bottom - 6, rgb(250, 250, 250))
+    fill(x, bottom - 11, x + 5, bottom - 9, red)
+    fill(x + 4, bottom - 12, x + 6, bottom - 11, rgb(250, 250, 250))
+    fill(x, bottom - 3, x + 6, bottom - 2, rgb(30, 30, 36))
+    if (night > 0.2f) fillAlpha(x - 2, bottom - 12, x + 8, bottom, rgb(255, 120, 100), night * 0.12f)
+}
+
+private fun PixelScene.reindeer(s: SceneState, x: Int, bottom: Int, night: Float) {
+    val glow = lerp(solid(s, rgb(170, 130, 90), 0.04f), rgb(255, 250, 220), night * 0.7f)
+    fill(x, bottom - 4, x + 6, bottom - 2, glow)
+    fill(x + 1, bottom - 2, x + 2, bottom, glow); fill(x + 4, bottom - 2, x + 5, bottom, glow)
+    fill(x + 5, bottom - 6, x + 7, bottom - 4, glow)
+    fill(x + 5, bottom - 8, x + 6, bottom - 6, glow); fill(x + 7, bottom - 8, x + 8, bottom - 6, glow)
+    if (night > 0.2f) fillAlpha(x - 1, bottom - 9, x + 9, bottom, rgb(255, 250, 220), night * 0.1f)
+}
+
+private fun PixelScene.candyCanes(s: SceneState, x: Int, bottom: Int) {
+    for (k in 0 until 3) {
+        val cx = x + k * 4
+        fill(cx, bottom - 5, cx + 1, bottom, rgb(250, 250, 250))
+        fill(cx, bottom - 4, cx + 1, bottom - 3, rgb(220, 40, 44))
+        fill(cx, bottom - 2, cx + 1, bottom - 1, rgb(220, 40, 44))
+        fill(cx + 1, bottom - 5, cx + 2, bottom - 4, rgb(220, 40, 44))
+    }
+}
+
+/** Christmas and Halloween around a house: a wreath, a figure or two in the yard, pumpkins on the step, lights along the eaves. */
+private fun PixelScene.decorate(s: SceneState, seed: Int, mx: Int, wm: Int, dx: Int, gx: Int, gw: Int, garageLeft: Boolean, night: Float, haze: Float) {
+    val xmas = s.season.festive
+    val hallo = s.season.halloween
+    val front = SIDEWALK - 1
+    if (xmas > 0.3f) {
+        // A wreath on the door, and one figure in the front yard.
+        if (Noise.unit(seed, 30, 970) < 0.6f) {
+            fill(dx + 1, BASE - 6, dx + 3, BASE - 4, rgb(40, 130, 60))
+            fill(dx + 1, BASE - 5, dx + 2, BASE - 4, rgb(220, 40, 44))
+        }
+        val yx = if (dx - mx > wm / 2) mx + 4 else mx + wm - 10
+        val pickOne = Noise.unit(seed, 31, 970)
+        when {
+            pickOne < 0.28f -> santa(s, yx, front, night)
+            pickOne < 0.52f -> snowman(s, yx, front)
+            pickOne < 0.76f -> candyCanes(s, dx - 2, front)
+            else -> reindeer(s, yx, front, night)
+        }
+    }
+    if (hallo > 0.3f) {
+        // Pumpkins on the step, and a ghost or gravestones on the lawn.
+        pumpkin(s, dx - 5, BASE, night, haze)
+        pumpkin(s, dx + 6, BASE, night, haze)
+        if (Noise.unit(seed, 32, 970) < 0.5f) pumpkin(s, dx + 10, BASE - 1, night, haze)
+        val yx = if (dx - mx > wm / 2) mx + 4 else mx + wm - 10
+        val pickOne = Noise.unit(seed, 33, 970)
+        when {
+            pickOne < 0.3f -> ghost(s, yx, front, haze)
+            pickOne < 0.6f -> { tombstone(s, yx, front, haze); tombstone(s, yx + 6, front - 1, haze) }
+        }
+        // Orange lights along the eaves of some.
+        if (Noise.unit(seed, 34, 970) < 0.4f) {
+            var bx = mx; var k = 0
+            val hm = if (Noise.unit(seed, 1, 970) < 0.55f) 10 else 17
+            while (bx < mx + wm) {
+                fillAlpha(bx, BASE - hm, bx + 1, BASE - hm + 1, if (k % 2 == 0) rgb(255, 140, 30) else rgb(160, 70, 220), 0.6f + 0.4f * night)
+                bx += 3; k++
+            }
+        }
+    }
+}
+
+// ---------- the yards ----------
+
+/** A swimming pool in the side yard behind a low fence, bright water in summer (and a lounger beside it). */
+private fun PixelScene.pool(s: SceneState, seed: Int, x: Int, night: Float, haze: Float) {
+    val deck = solid(s, rgb(214, 208, 196), haze)
+    val water = lerp(solid(s, rgb(70, 170, 224), haze), rgb(20, 40, 90), night * 0.6f)
+    val fence = solid(s, rgb(150, 112, 76), haze)
+    fill(x - 1, SIDEWALK - 7, x + 15, SIDEWALK - 1, deck)
+    fill(x + 1, SIDEWALK - 6, x + 13, SIDEWALK - 3, water)
+    // Light ripples moving over the water.
+    for (k in 0 until 3) {
+        val rx = x + 2 + ((s.time * 3 + k * 4) % 10).toInt()
+        fillAlpha(rx, SIDEWALK - 6 + k, rx + 2, SIDEWALK - 5 + k, rgb(220, 244, 255), 0.5f)
+    }
+    if (night > 0.3f) fillAlpha(x + 1, SIDEWALK - 6, x + 13, SIDEWALK - 3, rgb(120, 220, 255), night * 0.25f)
+    fill(x - 1, SIDEWALK - 9, x + 15, SIDEWALK - 7, fence)
+    // A lounger.
+    fill(x + 4, SIDEWALK - 2, x + 11, SIDEWALK - 1, solid(s, rgb(250, 250, 246), haze))
+}
+
+/** A trampoline with a child bouncing on it by day. */
+private fun PixelScene.trampoline(s: SceneState, seed: Int, x: Int, haze: Float) {
+    val frame = solid(s, rgb(60, 66, 78), haze)
+    val mat = solid(s, rgb(34, 36, 44), haze)
+    fill(x, SIDEWALK - 5, x + 12, SIDEWALK - 4, mat)
+    fill(x, SIDEWALK - 4, x + 1, SIDEWALK - 1, frame); fill(x + 11, SIDEWALK - 4, x + 12, SIDEWALK - 1, frame)
+    // The safety net.
+    var nx = x
+    while (nx <= x + 11) { fillAlpha(nx, SIDEWALK - 11, nx + 1, SIDEWALK - 5, rgb(200, 204, 210), 0.35f); nx += 3 }
+    fill(x, SIDEWALK - 11, x + 12, SIDEWALK - 10, frame)
+    if (s.look.day > 0.5f) {
+        val jump = (kotlin.math.abs(sin(s.time * 3.0 + seed)) * 5).toInt()
+        val skin = solid(s, People.SKIN[People.skinIndex(Noise.unit(seed, 40, 970))], haze)
+        fill(x + 5, SIDEWALK - 9 - jump, x + 7, SIDEWALK - 7 - jump, skin)
+        fill(x + 5, SIDEWALK - 7 - jump, x + 7, SIDEWALK - 5 - jump, solid(s, SHIRTS[pick(seed, 41, SHIRTS.size)], haze))
+    }
+}
+
+/** A second street of smaller houses behind the first, hazy with distance. */
+private fun PixelScene.secondRow(s: SceneState) {
+    val factor = 0.3
+    val offset = floor(s.cam * factor).toInt()
+    val cell = 30
+    val first = Math.floorDiv(offset, cell) - 1
+    val haze = 0.24f + s.look.haze * 0.3f
+    val base = FIELD_TOP + 5
+    for (i in first..first + W / cell + 3) {
+        val wx = (i * cell + cell / 2).toDouble()
+        if (s.suburbAt(wx, factor) < 0.5f || s.cityAt(wx, factor) > 0.4f) continue
+        if (Noise.unit(i, 975) < 0.18f) continue
+        val x = i * cell - offset + 3
+        val w = 13 + (Noise.unit(i, 976) * 4).toInt()
+        val siding = lit(s, SIDING[pick(i, 977, SIDING.size)], haze)
+        val roof = lit(s, ROOFS[pick(i, 978, ROOFS.size)], haze)
+        fill(x, base - 6, x + w, base, siding)
+        for (r in 0 until 4) fill(x - 1 + r * (w / 4), base - 7 - r, x + w + 1 - r * (w / 4), base - 6 - r, roof)
+        val glass = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
+        fill(x + 2, base - 4, x + 4, base - 2, glass)
+        fill(x + w - 5, base - 4, x + w - 3, base - 2, glass)
+        // A tree between some of them.
+        if (Noise.unit(i, 979) < 0.5f) {
+            val tx = x + w + 2
+            fill(tx, base - 6, tx + 5, base - 2, lit(s, rgb(70, 130, 64), haze))
+            fill(tx + 2, base - 2, tx + 3, base, lit(s, rgb(96, 70, 50), haze))
+        }
+    }
+}
+
+/** A water tower on a hill behind the houses, with a red light on top at night. */
+private fun PixelScene.waterTower(s: SceneState) {
+    val factor = 0.2
+    val offset = floor(s.cam * factor).toInt()
+    val cell = 600
+    val first = Math.floorDiv(offset, cell) - 1
+    val haze = 0.3f + s.look.haze * 0.3f
+    for (i in first..first + W / cell + 2) {
+        if (Noise.unit(i, 980) > 0.55f) continue
+        val wx = i * cell + 120 + (Noise.unit(i, 981) * 300).toInt()
+        if (s.suburbAt(wx.toDouble(), factor) < 0.6f || s.cityAt(wx.toDouble(), factor) > 0.3f) continue
+        val x = wx - offset
+        if (x < -20 || x > W + 20) continue
+        val base = FIELD_TOP - 5
+        val legs = lit(s, rgb(120, 124, 134), haze)
+        val tank = lit(s, rgb(214, 220, 228), haze)
+        val band = lit(s, rgb(196, 60, 56), haze)
+        fill(x + 1, base - 12, x + 2, base, legs); fill(x + 9, base - 12, x + 10, base, legs)
+        fill(x + 3, base - 12, x + 4, base, legs); fill(x + 7, base - 12, x + 8, base, legs)
+        fill(x, base - 22, x + 11, base - 12, tank)
+        fill(x, base - 18, x + 11, base - 16, band)
+        fill(x + 2, base - 24, x + 9, base - 22, tank)
+        fill(x + 4, base - 26, x + 7, base - 24, tank)
+        fill(x + 5, base - 29, x + 6, base - 26, legs)
+        if (s.dark() > 0.2f && (s.time * 0.9).toInt() % 2 == 0) fillAlpha(x + 4, base - 31, x + 7, base - 28, rgb(255, 60, 50), 0.9f)
+    }
+}
+
+// ---------- more shops ----------
+
+/** A gas station: pumps under a canopy, a little shop, and a tall price sign. */
+private fun PixelScene.gasStation(s: SceneState, seed: Int, x: Int, w: Int, night: Float, haze: Float) {
+    val red = lit(s, rgb(206, 52, 46), haze)
+    val white = solid(s, rgb(240, 240, 236), haze)
+    val post = solid(s, rgb(220, 220, 216), haze)
+    val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
+    val glass = lerp(glassDay, WARM, night * 0.85f)
+    // The canopy on two posts, lit from underneath at night.
+    fill(x + 4, BASE - 13, x + 4 + 1, BASE, post); fill(x + 38, BASE - 13, x + 39, BASE, post)
+    fill(x, BASE - 17, x + 44, BASE - 13, white)
+    fill(x, BASE - 17, x + 44, BASE - 15, red)
+    if (s.snowCover > 0.03f) fillAlpha(x, BASE - 18, x + 44, BASE - 17, rgb(238, 242, 250), s.snowCover)
+    if (night > 0.2f) fillAlpha(x + 2, BASE - 13, x + 42, BASE, rgb(255, 244, 190), night * 0.18f)
+    // The pumps.
+    for (px in intArrayOf(x + 12, x + 22, x + 31)) {
+        fill(px, BASE - 7, px + 4, BASE, solid(s, rgb(150, 154, 164), haze))
+        fill(px, BASE - 8, px + 4, BASE - 6, red)
+        fill(px + 1, BASE - 6, px + 3, BASE - 4, glass)
+    }
+    // A cashier's shop at the end.
+    val body = solid(s, rgb(232, 226, 210), haze)
+    fill(x + 46, BASE - 11, x + w, BASE, body)
+    fill(x + 45, BASE - 12, x + w + 1, BASE - 11, red)
+    fill(x + 48, BASE - 8, x + w - 4, BASE - 2, glass)
+    fill(x + w - 3, BASE - 8, x + w - 1, BASE, lerp(glass, rgb(20, 20, 30), 0.35f))
+    // The price sign on a tall pole: three rows of numbers.
+    val px = x - 3
+    fill(px, BASE - 20, px + 1, BASE, solid(s, rgb(96, 100, 110), haze))
+    fill(px - 5, BASE - 31, px + 6, BASE - 19, solid(s, rgb(34, 40, 52), haze))
+    fill(px - 5, BASE - 31, px + 6, BASE - 29, red)
+    for (row in 0 until 3) lettering(px - 3, BASE - 28 + row * 3, 8, 2, seed * 3 + row, if (night > 0.2f) rgb(255, 230, 120) else rgb(220, 200, 120))
+    if (night > 0.2f) fillAlpha(px - 7, BASE - 33, px + 8, BASE - 17, rgb(255, 236, 170), night * 0.2f)
+}
+
+/** Cars queueing at a restaurant's drive-through (from [x] to its window at [x] + [w]): every so often they all move up one place and the first one drives off. */
+private fun PixelScene.driveThrough(s: SceneState, seed: Int, x: Int, w: Int) {
+    val tt = s.time / 9.0 + (seed % 7) * 0.31
+    val c = floor(tt).toInt()
+    val p = (tt - c).toFloat()
+    val move = smoothstep(0.8f, 1f, p)
+    val window = x + w - 16
+    for (j in 0..4) {
+        if (j == 4 && p < 0.8f) continue
+        val cx = window - 17 * j + (17 * move).toInt()
+        if (cx < x - 20) continue
+        sprite(cars[pick((c + j) * 13 + seed, 3, cars.size)], cx, SIDEWALK + 1)
+    }
 }
