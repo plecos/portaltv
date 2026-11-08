@@ -110,12 +110,12 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         val day = if (c.yearDay > 0f) c.yearDay else if (calendar) dayOfYear(s.nowMs) else Seasons.dayFor(c.season)
         Seasons.update(s.season, day, s.lat, calendar)
         s.season.christmas = kotlin.math.floor(day).toInt() in (358 + leap)..(359 + leap)
-        // New Year: the half hour either side of local midnight between 31 December and 1 January.
+        // New Year: all through the nights of 31 December and 1 January, building to a peak at local midnight.
         val dayNo = kotlin.math.floor(day).toInt()
         s.season.newYear = if (dayNo == 365 + leap || dayNo == 1) {
             val minute = (((s.nowMs + java.util.TimeZone.getDefault().getOffset(s.nowMs)) / 60_000L) % 1440L).toInt()
             val away = if (dayNo == 1) minute else 1440 - minute
-            (1f - away / 30f).coerceIn(0f, 1f)
+            0.3f + 0.7f * (1f - away / 60f).coerceIn(0f, 1f)
         } else 0f
         // Old snow lies on the ground through deep winter even on a clear day; a mild real day melts it.
         val lying = if (c.realWeather && s.cond.tempC > 8f) 0f else s.season.lying

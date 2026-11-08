@@ -19,8 +19,8 @@ private val BURSTS = listOf(
 )
 
 /**
- * New Year's Eve: in the half hour either side of midnight, fireworks go up over the city, few at first and then thicker
- * until midnight, when the finale is a sky full of them.
+ * New Year: through the nights of 31 December and 1 January fireworks go up in every scene, few at first and thicker in the
+ * hour before and after midnight, when the finale is a sky full of them.
  */
 internal fun PixelScene.drawFireworks(s: SceneState) {
     val strength = s.season.newYear
