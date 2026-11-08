@@ -8,11 +8,12 @@ import android.view.View
 
 /**
  * Shows the scene: each frame it moves the scene on, draws it into the small picture and scales that up to fill the view with
- * hard edges. It draws at most [maxFps] times a second and stops when it is taken off the screen.
+ * hard edges. It draws at most [maxFps] times a second (asked again each frame, so a change in settings takes effect at once),
+ * drops to a lower rate if the TV can't keep up, and stops when it is taken off the screen.
  */
 class ScenicView(
     context: Context,
-    maxFps: Int = 30,
+    private val maxFps: () -> Int = { 30 },
     config: () -> Config,
     private val weather: PortalWeather? = null
 ) : View(context) {
@@ -24,8 +25,9 @@ class ScenicView(
     private var last = 0L
     private var attached = false
     // A slow TV gets a lower frame rate and a plainer picture instead of a stuttering one.
-    private val steps = intArrayOf(30, 20, 15, 10)
-    private var step = steps.indexOfFirst { it <= maxFps }.coerceAtLeast(0)
+    private var steps = stepsFor(maxFps())
+    private var aim = steps[0]
+    private var step = 0
     private var ema = 0.0
     private var calm = 0
     private var drawn = 0
@@ -61,6 +63,9 @@ class ScenicView(
 
     override fun onDraw(canvas: Canvas) {
         val now = System.nanoTime()
+        // A different frame rate chosen: start again from it, and let the TV's speed pull it down from there if it has to.
+        val want = maxFps()
+        if (want != aim) { steps = stepsFor(want); aim = steps[0]; step = 0; ema = 0.0; calm = 0; applyQuality() }
         val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceIn(0f, 0.25f)
         last = now
         director.step(dt)
@@ -87,18 +92,30 @@ class ScenicView(
             step++
             ema = 0.0
             calm = 0
-            scene.dither = step == 0
-            scene.particleScale = if (step >= 2) 0.5f else 1f
+            applyQuality()
         } else if (ema < budget * 0.18 && step > 0 && ++calm > steps[step] * 20) {
             step--
             ema = 0.0
             calm = 0
-            scene.dither = step == 0
-            scene.particleScale = if (step >= 2) 0.5f else 1f
+            applyQuality()
         } else if (ema >= budget * 0.18) calm = 0
         if (attached) {
             val spent = (System.nanoTime() - now) / 1_000_000L
             postInvalidateDelayed((1000L / steps[step] - spent).coerceAtLeast(1L))
         }
+    }
+
+    /** The picture is plainer at a low rate: no dithering below 30 a second, and half the rain and snow at 15 or less. */
+    private fun applyQuality() {
+        scene.dither = steps[step] >= 30
+        scene.particleScale = if (steps[step] <= 15) 0.5f else 1f
+    }
+
+    private companion object {
+        /** Every rate the picture steps between, highest first. */
+        val RATES = intArrayOf(120, 90, 60, 30, 20, 15, 10)
+
+        /** [target] first, then each lower rate to fall back to if the TV can't keep up. */
+        fun stepsFor(target: Int): IntArray = (listOf(target) + RATES.filter { it < target }).toIntArray()
     }
 }

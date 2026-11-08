@@ -25,6 +25,11 @@ object ScreensaverSettings {
     const val NIGHT_DIM = "dim"
     const val NIGHT_BLACK = "black"
 
+    /** The time (and weather) on the screen saver moves round the screen like a DVD logo, steps from corner to corner, or isn't shown. */
+    const val CLOCK_BOUNCE = "bounce"
+    const val CLOCK_CORNERS = "corners"
+    const val CLOCK_OFF = "off"
+
     /** The screen saver plays videos, or shows a slowly moving shader of colors. */
     const val LOOK_VIDEO = "video"
     const val LOOK_SHADER = "shader"
@@ -111,6 +116,21 @@ object ScreensaverSettings {
 
     fun setExtension(context: Context, packageName: String?) {
         prefs(context).edit().apply { if (packageName == null) remove("extension") else putString("extension", packageName) }.apply()
+    }
+
+    /** How the time shows on the screen saver: [CLOCK_BOUNCE] (the default), [CLOCK_CORNERS] or [CLOCK_OFF]. */
+    fun clockMode(context: Context): String =
+        prefs(context).getString("clock_mode", CLOCK_BOUNCE)?.takeIf { it == CLOCK_BOUNCE || it == CLOCK_CORNERS || it == CLOCK_OFF } ?: CLOCK_BOUNCE
+
+    fun setClockMode(context: Context, mode: String) {
+        prefs(context).edit().putString("clock_mode", mode).apply()
+    }
+
+    /** Whether the weather shows under the time (it never does when the time is off). */
+    fun showWeather(context: Context): Boolean = prefs(context).getBoolean("show_weather", true)
+
+    fun setShowWeather(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("show_weather", on).apply()
     }
 
     /** [LOOK_VIDEO], [LOOK_SHADER] or [LOOK_EXTENSION]. */

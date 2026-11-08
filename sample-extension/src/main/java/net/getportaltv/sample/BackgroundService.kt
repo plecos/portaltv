@@ -55,7 +55,7 @@ class BackgroundService : Service() {
         val width = data.getInt("width", 1920)
         val height = data.getInt("height", 1080)
         val token = data.getBinder("host_token") ?: return
-        val fps = data.getInt("max_fps", 30).coerceIn(1, 60)
+        val fps = minOf(30, data.getInt("max_fps", 30)).coerceIn(1, 60)
         val display = getSystemService(DisplayManager::class.java).getDisplay(data.getInt("display_id", 0)) ?: return
         val context = createDisplayContext(display)
         val viewHost = SurfaceControlViewHost(context, display, token)

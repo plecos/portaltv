@@ -49,7 +49,7 @@ class SettingsActivity : Activity() {
             .putBoolean("real_weather", config.realWeather).putString("weather", config.weather)
             .putBoolean("real_time", config.realTime).putFloat("hour", config.hour)
             .putBoolean("scroll", config.scroll).putString("environment", config.environment).putString("style", config.style)
-            .putString("season", config.season).apply() }
+            .putString("season", config.season).putInt("fps", config.fps).apply() }
         fun refresh() = rows.forEach { it.update() }
 
         row("Weather", { if (config.realWeather) "Follow the real weather" else "Always: ${config.weather}" }) { d ->
@@ -78,13 +78,17 @@ class SettingsActivity : Activity() {
             val i = Settings.SEASONS.indexOf(config.season)
             config = config.copy(season = Settings.SEASONS[(i + d + Settings.SEASONS.size) % Settings.SEASONS.size]); save(); refresh()
         }
+        row("Frame rate", { "${config.fps} frames a second" + if (config.fps > 30) "  (the TV slows it if it can't keep up)" else "" }) { d ->
+            val i = Settings.FRAME_RATES.indexOf(config.fps)
+            config = config.copy(fps = Settings.FRAME_RATES[(i + d + Settings.FRAME_RATES.size) % Settings.FRAME_RATES.size]); save(); refresh()
+        }
         row("Drawing style", { config.style }) { d ->
             val i = Settings.STYLES.indexOf(config.style)
             config = config.copy(style = Settings.STYLES[(i + d + Settings.STYLES.size) % Settings.STYLES.size]); save(); refresh()
         }
         list.addView(text("Left and right change a setting. Time of day moves by half an hour, and past midnight goes back to the real time.", 14f, Color.rgb(150, 150, 170)).apply { setPadding(0, dp(8), 0, 0) })
 
-        preview = ScenicView(this, 20, { config }, PortalWeather(this))
+        preview = ScenicView(this, { 20 }, { config }, PortalWeather(this))
         val frame = FrameLayout(this).apply { addView(preview, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
         root.addView(ScrollView(this).apply { addView(list); isFillViewport = false }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         root.addView(frame, LinearLayout.LayoutParams(dp(520), dp(292)).apply { leftMargin = dp(32); gravity = Gravity.TOP })

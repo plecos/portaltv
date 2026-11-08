@@ -56,6 +56,7 @@ class PreviewActivity : Activity() {
         if (intent.hasExtra("at")) config = config.copy(startTime = intent.getFloatExtra("at", 0f).toDouble())
         intent.getStringExtra("place")?.let { if (it in Places.CHOICES) config = config.copy(environment = it) }
         if (intent.hasExtra("speed")) config = config.copy(speed = intent.getFloatExtra("speed", 1f).coerceIn(0.1f, 20f))
+        if (intent.hasExtra("fps")) config = config.copy(fps = intent.getIntExtra("fps", 30))
         if (intent.hasExtra("yearday")) config = config.copy(yearDay = intent.getFloatExtra("yearday", 0f))
         intent.getStringExtra("season")?.let { if (it in Seasons.CHOICES) config = config.copy(season = it) }
         yearLapse = intent.getBooleanExtra("yearlapse", false)
@@ -63,7 +64,7 @@ class PreviewActivity : Activity() {
         if (intent.hasExtra("boost")) config = config.copy(boost = intent.getBooleanExtra("boost", false))
         lapse = intent.getBooleanExtra("lapse", false)
         cycle = intent.getBooleanExtra("cycle", false)
-        view = ScenicView(this, 30, { config }, PortalWeather(this))
+        view = ScenicView(this, { config.fps }, { config }, PortalWeather(this))
         readout = TextView(this).apply { setTextColor(Color.WHITE); setShadowLayer(4f, 1f, 1f, Color.BLACK); textSize = 18f; setPadding(32, 24, 32, 24) }
         setContentView(FrameLayout(this).apply {
             addView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
