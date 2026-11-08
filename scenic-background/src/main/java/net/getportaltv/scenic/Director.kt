@@ -27,6 +27,9 @@ class SceneState {
     var speed = 30f
     /** Which place the journey is in: see [Places]. */
     var placeMode = Places.JOURNEY
+    /** When this visit to the city's Christmas sleigh set off (-1 when none is flying), and whether it has been seen. */
+    var santaAt = -1.0
+    var santaSeen = false
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */
     var bridges = IntArray(0)
     /** Where the year has got to. */

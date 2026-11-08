@@ -52,22 +52,30 @@ internal fun PixelScene.drawSanta(s: SceneState) {
     val night = (1f - s.look.day * 1.6f).coerceIn(0f, 1f)
     if (night < 0.3f || s.look.deck > 0.7f) return
     val travelV = if (s.travelling) s.speed else 0f
-    // One sleigh at a time: it crosses in under 50 seconds and only starts in the first half of its 110-second slot, so the
-    // next one cannot begin before it has gone.
-    for (ev in LifeSchedule.events(s.time, 110.0, 50.0, 0.9f, 441, s.boost)) {
-        if (ev.spawn % 110.0 > 55.0) continue
-        val dir = if (ev.unit(1) < 0.5f) 1 else -1
+    // Once per visit to the city: when the city is on screen at night and he has not been yet, pick a moment soon, fly him
+    // across, and then he is done until the city has been left and come back to.
+    val city = s.cityNow()
+    if (s.santaAt < 0.0 && city < 0.05f) s.santaSeen = false
+    if (s.santaAt < 0.0 && !s.santaSeen && city > 0.5f) {
+        s.santaAt = s.time + if (s.boost) 0.0 else 6.0 + Noise.unit(s.time.toInt() / 7, 442) * 40.0
+    }
+    if (s.santaAt < 0.0) return
+    val age = (s.time - s.santaAt).toFloat()
+    if (age < 0f) return
+    if (age > 50f) { s.santaAt = -1.0; s.santaSeen = true; return }
+    val seed = (s.santaAt * 10).toInt()
+    run {
+        val dir = if (Noise.unit(seed, 1) < 0.5f) 1 else -1
         val v = dir * 9f - travelV * 0.02f
-        val age = (s.time - ev.spawn).toFloat()
         val x = if (v > 0) -62f + v * age else W + 2f + v * age
-        if (x < -64 || x > W + 4) continue
-        val y = 14 + (ev.unit(2) * 40).toInt() + (sin(age * 1.1) * 2).toInt()
+        if (x < -64 || x > W + 4) return@run
+        val y = 14 + (Noise.unit(seed, 2) * 40).toInt() + (sin(age * 1.1) * 2).toInt()
         // A trail of golden sparkles behind them.
         for (k in 1..24) {
             val tx = (if (dir > 0) x + 2 - k * 2.5f else x + 58 + k * 2.5f).toInt()
             if (tx < 0 || tx >= W) continue
-            if (Noise.unit(k, floor(s.time * 4).toInt() + ev.seed, 880) > 0.5f) continue
-            val ty = y + 6 + (Noise.unit(k, ev.seed, 881) * 7).toInt() - 3
+            if (Noise.unit(k, floor(s.time * 4).toInt() + seed, 880) > 0.5f) continue
+            val ty = y + 6 + (Noise.unit(k, seed, 881) * 7).toInt() - 3
             fillAlpha(tx, ty, tx + 1, ty + 1, rgb(255, 226, 120), (1f - k / 26f) * 0.9f * night)
         }
         spritePaint.colorFilter = null
