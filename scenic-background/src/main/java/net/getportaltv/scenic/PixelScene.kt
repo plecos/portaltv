@@ -196,13 +196,16 @@ class PixelScene {
             for (x in xa until xb) {
                 if (clip == null || clip[x]) {
                     val d = fb[i]
-                    fb[i] = OPAQUE or (((sr * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
-                        (((sg * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or ((sb * a + (d and 0xFF) * ia + 127) / 255)
+                    fb[i] = OPAQUE or ((d255(sr * a + ((d shr 16) and 0xFF) * ia)) shl 16) or
+                        ((d255(sg * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255(sb * a + (d and 0xFF) * ia))
                 }
                 i++
             }
         }
     }
+
+    /** [v] divided by 255 and rounded, for [v] up to 65534, without a division (which a slow TV is slow at). */
+    private fun d255(v: Int): Int { val t = v + 128; return (t + (t shr 8)) shr 8 }
 
     /** One pixel, [color] over what is there at strength [a] (0 to 255). */
     private fun dot(x: Int, y: Int, color: Int, a: Int) {
@@ -213,8 +216,8 @@ class PixelScene {
         if (a >= 255) { fb[i] = color or OPAQUE; return }
         val d = fb[i]
         val ia = 255 - a
-        fb[i] = OPAQUE or ((((color shr 16 and 0xFF) * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
-            ((((color shr 8 and 0xFF) * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or (((color and 0xFF) * a + (d and 0xFF) * ia + 127) / 255)
+        fb[i] = OPAQUE or ((d255((color shr 16 and 0xFF) * a + ((d shr 16) and 0xFF) * ia)) shl 16) or
+            ((d255((color shr 8 and 0xFF) * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255((color and 0xFF) * a + (d and 0xFF) * ia))
     }
 
     internal fun fillCircle(cx: Float, cy: Float, r: Float, color: Int, alpha: Float) = fillOval(cx - r, cy - r, cx + r, cy + r, color, alpha)
@@ -249,8 +252,8 @@ class PixelScene {
                     if (a >= 255) fb[i] = color or OPAQUE
                     else {
                         val d = fb[i]
-                        fb[i] = OPAQUE or (((sr * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
-                            (((sg * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or ((sb * a + (d and 0xFF) * ia + 127) / 255)
+                        fb[i] = OPAQUE or ((d255(sr * a + ((d shr 16) and 0xFF) * ia)) shl 16) or
+                            ((d255(sg * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255(sb * a + (d and 0xFF) * ia))
                     }
                 }
                 i++
@@ -291,17 +294,17 @@ class PixelScene {
                 val c = px[sy * sw + (if (flip) sw - 1 - sx else sx)]
                 val sa = c ushr 24
                 if (sa == 0) continue
-                val a = if (alpha >= 255) sa else (sa * alpha + 127) / 255
+                val a = if (alpha >= 255) sa else d255(sa * alpha)
                 if (a <= 0) continue
-                val r = kotlin.math.min(255, ((c shr 16) and 0xFF) * mr / 255 + ar)
-                val g = kotlin.math.min(255, ((c shr 8) and 0xFF) * mg / 255 + ag)
-                val b = kotlin.math.min(255, (c and 0xFF) * mb / 255 + ab)
+                val r = kotlin.math.min(255, d255(((c shr 16) and 0xFF) * mr) + ar)
+                val g = kotlin.math.min(255, d255(((c shr 8) and 0xFF) * mg) + ag)
+                val b = kotlin.math.min(255, d255((c and 0xFF) * mb) + ab)
                 val i = y * W + dx
                 if (a >= 255) { fb[i] = OPAQUE or (r shl 16) or (g shl 8) or b; continue }
                 val d = fb[i]
                 val ia = 255 - a
-                fb[i] = OPAQUE or (((r * a + ((d shr 16) and 0xFF) * ia + 127) / 255) shl 16) or
-                    (((g * a + ((d shr 8) and 0xFF) * ia + 127) / 255) shl 8) or ((b * a + (d and 0xFF) * ia + 127) / 255)
+                fb[i] = OPAQUE or ((d255(r * a + ((d shr 16) and 0xFF) * ia)) shl 16) or
+                    ((d255(g * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255(b * a + (d and 0xFF) * ia))
             }
         }
     }

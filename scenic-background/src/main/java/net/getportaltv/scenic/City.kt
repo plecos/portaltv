@@ -391,12 +391,13 @@ internal fun PixelScene.drawSubwayEntrances(s: SceneState) {
 
 /** Concrete in place of the fields and grass, a pavement along the road and a crossing now and then. */
 internal fun PixelScene.drawCityGround(s: SceneState) {
+    if (!s.anyCity) return
     val concrete = lit(s, rgb(116, 118, 126), 0.1f + s.look.haze * 0.3f)
     val pavement = lit(s, rgb(170, 168, 160), 0.06f)
     val joint = lit(s, rgb(136, 134, 128), 0.06f)
     val cam = floor(s.cam).toInt()
     for (x in 0 until W) {
-        val a = s.cityAt((x + cam).toDouble(), 1.0)
+        val a = s.cityOnScreen(x)
         if (a <= 0.01f) continue
         fillAlpha(x, FIELD_TOP, x + 1, ROAD_TOP - 5, concrete, a * 0.97f)
         fillAlpha(x, ROAD_TOP - 5, x + 1, ROAD_TOP, pavement, a)
@@ -407,13 +408,14 @@ internal fun PixelScene.drawCityGround(s: SceneState) {
 
 /** The pavement in front of the road, drawn over the grass, and zebra crossings over the road. */
 internal fun PixelScene.drawCityRoad(s: SceneState) {
+    if (!s.anyCity) return
     val pavement = lit(s, rgb(150, 148, 142), 0.0f)
     val joint = lit(s, rgb(120, 118, 112), 0.0f)
     val kerb = lit(s, rgb(190, 188, 180), 0.0f)
     val white = lit(s, rgb(236, 232, 214), 0.02f, 0.1f)
     val cam = floor(s.cam).toInt()
     for (x in 0 until W) {
-        val a = s.cityAt((x + cam).toDouble(), 1.0)
+        val a = s.cityOnScreen(x)
         if (a <= 0.01f) continue
         fillAlpha(x, ROAD_BOTTOM + 2, x + 1, H, pavement, a)
         fillAlpha(x, ROAD_BOTTOM + 2, x + 1, ROAD_BOTTOM + 3, kerb, a)

@@ -37,6 +37,9 @@ class SceneState {
     val beachRaw = Strip(PixelScene.W + 2 * 150 + 16) { wx -> beachAt(wx.toDouble(), 1.0) }
     val cityRaw = Strip(PixelScene.W + 16) { wx -> cityAt(wx.toDouble(), 1.0) }
     var colsCam = Int.MIN_VALUE
+    /** Whether any beach (within the bay's reach) or any city is on screen: when not, those parts of the picture are skipped. */
+    var anyBeach = false
+    var anyCity = false
     var colsMode = ""
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */
     var bridges = IntArray(0)

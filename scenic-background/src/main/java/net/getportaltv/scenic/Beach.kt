@@ -238,6 +238,12 @@ internal fun SceneState.hardOnScreen(x: Int): Float =
 
 private const val SCREEN_PAD = 8
 
+/** The city at screen column [x] (from what [prepareColumns] worked out this frame). */
+internal fun SceneState.cityOnScreen(x: Int): Float = cityCols[x + SCREEN_PAD]
+
+/** The beach at screen column [x] itself, with none of the bay's reach either side. */
+internal fun SceneState.beachExact(x: Int): Float = beachRaw[x + SCREEN_PAD + BAY]
+
 /** Works out, once a frame, how much city and beach there is at each screen column (the far scenery asks for it many times over). */
 internal fun SceneState.prepareColumns() {
     val c = floor(cam).toInt()
@@ -247,10 +253,16 @@ internal fun SceneState.prepareColumns() {
     // The first world column of each strip: the beach reaches BAY either side of the screen, and SCREEN_PAD more for the spare columns.
     beachRaw.moveTo(c - BAY - SCREEN_PAD)
     cityRaw.moveTo(c - SCREEN_PAD)
+    var beach = false
+    var city = false
     for (i in 0 until W + 2 * SCREEN_PAD) {
         beachCols[i] = maxOf(beachRaw[i], beachRaw[i + BAY], beachRaw[i + 2 * BAY])
         cityCols[i] = cityRaw[i]
+        if (beachCols[i] > 0.01f) beach = true
+        if (cityCols[i] > 0.01f) city = true
     }
+    anyBeach = beach
+    anyCity = city
 }
 
 /** Whether the sea is on screen at column [x], row [y]: the beach, with the waterline bending away at either end of it. */
@@ -266,6 +278,7 @@ private fun SceneState.offSeason(): Float = smoothstep(0.35f, 0.9f, season.winte
 /** The sea with its waves, the shore with foam, the sand and the boardwalk, over the field wherever there is beach. */
 internal fun PixelScene.drawBeachGround(s: SceneState) {
     if (s.placeMode != Places.JOURNEY && s.placeMode != Places.BEACH) return
+    if (!s.anyBeach) return
     val cam = floor(s.cam).toInt()
     val wind = min(1f, s.cond.wind / 30f)
     val l = s.look
@@ -622,12 +635,13 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
 
 /** Sand instead of grass on the verge in front of the road. */
 internal fun PixelScene.drawBeachRoad(s: SceneState) {
+    if (!s.anyBeach) return
     val sand = lit(s, rgb(214, 194, 146), 0.0f)
     val edge = lit(s, rgb(236, 220, 176), 0.0f)
     val speck = lit(s, rgb(186, 164, 120), 0.0f)
     val cam = floor(s.cam).toInt()
     for (x in 0 until W) {
-        if (s.beachAt((x + cam).toDouble(), 1.0) < 0.5f) continue
+        if (s.beachExact(x) < 0.5f) continue
         fill(x, ROAD_BOTTOM + 2, x + 1, H, sand)
         fill(x, ROAD_BOTTOM + 2, x + 1, ROAD_BOTTOM + 3, edge)
         for (y in ROAD_BOTTOM + 4 until H) if (Noise.unit(x + cam, y, 903) < 0.08f) fill(x, y, x + 1, y + 1, speck)
