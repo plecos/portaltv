@@ -19,7 +19,7 @@ import kotlin.math.sin
  * city grows up gradually as the journey comes to it, and shrinks away again after.
  */
 
-private fun SceneState.night() = (1f - look.day * 1.6f).coerceIn(0f, 1f)
+internal fun SceneState.night() = (1f - look.day * 1.6f).coerceIn(0f, 1f)
 
 internal val WARM = rgb(255, 214, 120)
 
@@ -122,12 +122,13 @@ internal fun SceneState.inPark(x: Int): Boolean {
 private const val NORMAL = 0
 private const val PARK = 1
 private const val SCHOOL = 2
+private const val TOWER = 3
 private const val LOT = 120
 private const val NEAR_FACTOR = 0.5
 
 private fun lotKind(lot: Int): Int {
     val u = Noise.unit(lot, 840)
-    return if (u < 0.07f) PARK else if (u < 0.12f) SCHOOL else NORMAL
+    return if (u < 0.07f) PARK else if (u < 0.12f) SCHOOL else if (u < 0.155f) TOWER else NORMAL
 }
 
 /** Works out where the parks are on screen (once a frame, in [SceneState.parks]): the subway comes up into daylight in them. */
@@ -156,6 +157,10 @@ internal fun PixelScene.drawCityBlocks(s: SceneState) {
         when (lotKind(lot)) {
             PARK -> drawPark(s, lot, x0, bottom, amount)
             SCHOOL -> drawSchool(s, lot, x0, bottom, growth, night)
+            TOWER -> {
+                building(s, lot * 7, x0, LOT / 2, bottom, growth, night)
+                clockTower(s, lot, x0 + LOT / 2 + 8, bottom, growth, night)
+            }
             else -> for (half in 0..1) {
                 val x = x0 + half * (LOT / 2)
                 // A cell is one building, or two narrow ones.
@@ -504,4 +509,77 @@ internal fun PixelScene.drawCityRoad(s: SceneState) {
         var sx = x
         while (sx < x + 22) { fill(sx, ROAD_TOP + 3, sx + 3, ROAD_BOTTOM - 2, white); sx += 5 }
     }
+}
+
+private val DIGITS = arrayOf(
+    "111101101101111", "010110010010111", "111001111100111", "111001111001111", "101101111001001",
+    "111100111001111", "111100111101111", "111001001001001", "111101111101111", "111101111001111"
+)
+
+/** One tall building with the time in glowing digits on a face at the top: the real time, or the hour chosen in the settings. */
+private fun PixelScene.clockTower(s: SceneState, lot: Int, x: Int, bottom: Int, growth: Float, night: Float) {
+    val w = 44
+    if (x + w < -4 || x > W + 4) return
+    val h = (96f * growth).toInt()
+    if (h < 8) return
+    val top = bottom - h
+    val body = solid(s, rgb(168, 156, 140), 0.04f + s.look.haze * 0.3f)
+    val light = lerp(body, rgb(255, 255, 255), 0.14f)
+    val shade = lerp(body, rgb(10, 10, 30), 0.24f)
+    fill(x, top, x + w, bottom, body)
+    fill(x, top, x + 1, bottom, light)
+    fill(x + w - 2, top, x + w, bottom, shade)
+    fill(x - 2, top - 2, x + w + 2, top + 1, shade)
+    // A little spire.
+    fill(x + w / 2 - 3, top - 6, x + w / 2 + 3, top - 2, shade)
+    fill(x + w / 2 - 1, top - 12, x + w / 2 + 1, top - 6, shade)
+    if (s.snowCover > 0.03f) fillAlpha(x - 2, top - 3, x + w + 2, top, solid(s, rgb(238, 242, 250), 0.04f), s.snowCover)
+    // The face: dark glass with the time on it.
+    val faceTop = top + 5
+    fill(x + 3, faceTop - 1, x + w - 3, faceTop + 15, shade)
+    fill(x + 4, faceTop, x + w - 4, faceTop + 14, rgb(14, 16, 24))
+    val minutes = (((s.nowMs + java.util.TimeZone.getDefault().getOffset(s.nowMs)) / 60_000L) % 1440L).toInt().let { if (it < 0) it + 1440 else it }
+    val hour = (minutes / 60).let { if (it % 12 == 0) 12 else it % 12 }
+    val minute = minutes % 60
+    val text = IntArray(5)
+    var count = 0
+    if (hour >= 10) text[count++] = 1
+    text[count++] = hour % 10
+    text[count++] = 10
+    text[count++] = minute / 10
+    text[count++] = minute % 10
+    val glow = lerp(rgb(255, 186, 64), rgb(255, 240, 190), 0.2f)
+    val lit = lerp(rgb(170, 110, 40), glow, 0.55f + 0.45f * night)
+    var width = 0
+    for (k in 0 until count) width += if (text[k] == 10) 4 else 8
+    var dx = x + (w - width + 2) / 2
+    val colon = s.time.toInt() % 2 == 0
+    for (k in 0 until count) {
+        val c = text[k]
+        if (c == 10) {
+            if (colon) { fill(dx + 1, faceTop + 4, dx + 3, faceTop + 6, lit); fill(dx + 1, faceTop + 8, dx + 3, faceTop + 10, lit) }
+            dx += 4
+        } else {
+            val rows = DIGITS[c]
+            for (r in 0 until 5) for (q in 0 until 3) if (rows[r * 3 + q] == '1') fill(dx + q * 2, faceTop + 2 + r * 2, dx + q * 2 + 2, faceTop + 4 + r * 2, lit)
+            dx += 8
+        }
+    }
+    if (night > 0.2f) fillAlpha(x + 2, faceTop - 3, x + w - 2, faceTop + 17, rgb(255, 190, 90), night * 0.14f)
+    // Windows below, a few lit at night, and a door.
+    val dark = lerp(lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f), rgb(10, 12, 24), 0.45f * night)
+    var wy = faceTop + 22
+    while (wy < bottom - 16) {
+        var wx = x + 5
+        var col = 0
+        while (wx + 3 < x + w - 4) {
+            val on = Noise.unit(lot * 17 + col, wy, 851) < 0.4f
+            fill(wx, wy, wx + 3, wy + 5, if (on && night > 0f) lerp(dark, WARM, night) else dark)
+            wx += 7
+            col++
+        }
+        wy += 9
+    }
+    fill(x + w / 2 - 3, bottom - 10, x + w / 2 + 3, bottom, lerp(body, rgb(40, 30, 30), 0.55f))
+    fill(x + w / 2 - 4, bottom - 11, x + w / 2 + 4, bottom - 10, shade)
 }

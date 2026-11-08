@@ -543,7 +543,8 @@ private fun PixelScene.drawPier(s: SceneState, foot: Int) {
     if (night > 0.2f) fillAlpha(endX - 5, lastRow - 10, endX + 4, lastRow - 3, rgb(255, 226, 150), night * 0.2f)
 }
 
-private const val NEAR_FACTOR = 0.6
+// Everything on the sand and boardwalk is fixed to the ground, so it slides past exactly with it, like the lamp posts.
+private const val NEAR_FACTOR = 1.0
 private const val CELL = 96
 
 /** Umbrellas, sunbathers, a volleyball net, a lifeguard tower, sandcastles and swimmers on the beach, the palms along the boardwalk, and the pier. */
@@ -650,7 +651,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         }
     }
     // Palms along the boardwalk, swaying in the wind.
-    val palmFactor = 0.9
+    val palmFactor = 1.0
     val palmOffset = floor(s.cam * palmFactor).toInt()
     val palmCell = 58
     val firstPalm = Math.floorDiv(palmOffset, palmCell) - 2

@@ -105,6 +105,7 @@ class PixelScene {
         phase("drawCityPeople") { drawCityPeople(s) }
         phase("drawSuburbPeople") { drawSuburbPeople(s) }
         phase("drawRoadsideTrees") { drawRoadsideTrees(s) }
+        phase("drawCampsites") { drawCampsites(s) }
         phase("drawForestMist") { drawForestMist(s) }
         phase("drawDepthFog") { drawDepthFog(s) }
         phase("drawButterflies") { drawButterflies(s) }
@@ -487,13 +488,16 @@ class PixelScene {
     private fun strip(name: String, mode: String, compute: (Int) -> Float): Strip = strips.getOrPut("$name/$mode") { Strip(W + 8, compute) }
 
     private fun drawMountains(s: SceneState, cam: Double) {
-        mountainRange(s, cam, factor = 0.045, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLineBase = 0.72f)
+        mountainRange(s, cam, factor = 0.045, freq = 0.0075f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLineBase = 0.72f)
         // Now and then a low cloud drifts in front of the far mountains (and behind the near ones).
         drawClouds(s, 2)
-        mountainRange(s, cam, factor = 0.08, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLineBase = 0.66f)
+        mountainRange(s, cam, factor = 0.08, freq = 0.0115f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLineBase = 0.66f)
     }
 
     /** A range of peaks: lit on the slopes that face left, shaded on the ones that face right, with snow on the highest. */
+    /** Eases the height off toward 1 instead of cutting it flat, so the tallest summits are rounded rather than plateaus. */
+    private fun softPeak(v: Float): Float = if (v < 0.6f) v else 0.6f + 0.4f * Math.tanh(((v - 0.6f) / 0.4f).toDouble()).toFloat()
+
     private fun mountainRange(s: SceneState, cam: Double, factor: Double, freq: Float, seed: Int, maxH: Float, base: Int, air: Float, snowLineBase: Float) {
         // Snow lies lower on the mountains in winter.
         val snowLine = snowLineBase - 0.3f * s.season.winter
@@ -508,7 +512,7 @@ class PixelScene {
         // What does not change as the picture slides along (the peaks, and how much range there is here) is kept from the last frame.
         val shape = strip("m$seed", s.placeMode) { wx ->
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            ((Noise.mountain(wx * freq, seed) - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt(wx.toDouble(), factor)
+            softPeak(((Noise.mountain(wx * freq, seed) - 0.18f) * 1.5f).coerceAtLeast(0f)) * mountainsAt(wx.toDouble(), factor)
         }
         val city = strip("mc$seed", s.placeMode) { wx -> s.cityAt(wx.toDouble(), factor) }
         shape.moveTo(offset.toInt() - 4)

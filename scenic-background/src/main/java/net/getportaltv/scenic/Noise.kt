@@ -41,18 +41,19 @@ object Noise {
         return total / norm
     }
 
-    /** Peaks and valleys from 0 to 1: layers of folded noise, so the tops are sharp and the heights uneven. */
+    /** Peaks and valleys from 0 to 1: layers of folded noise with rounded tops, so the heights are uneven but the summits are not needles. */
     fun mountain(x: Float, seed: Int): Float {
         var total = 0f
         var amp = 0.55f
         var freq = 1f
         var norm = 0f
         for (o in 0 until 3) {
-            val r = 1f - abs(2f * smooth(x * freq, seed + o * 17) - 1f)
+            val d = 2f * smooth(x * freq, seed + o * 17) - 1f
+            val r = 1f - d * d
             total += r * r * amp
             norm += amp
-            amp *= 0.5f
-            freq *= 2.3f
+            amp *= 0.4f
+            freq *= 2f
         }
         return total / norm
     }
