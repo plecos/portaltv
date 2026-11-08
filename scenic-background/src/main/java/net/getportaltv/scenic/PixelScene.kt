@@ -47,7 +47,7 @@ class PixelScene {
     // The pictures that are drawn many times, made once.
     private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> Sprite.of(Sprites.cloud(w, h, 100 + i)) }
     private val carBodies = intArrayOf(rgb(214, 56, 56), rgb(60, 110, 200), rgb(236, 200, 60), rgb(240, 240, 240), rgb(70, 74, 84), rgb(70, 160, 96))
-    private val cars = carBodies.map { Sprites.car(it) }
+    internal val cars = carBodies.map { Sprites.car(it) }
     private val taxi = Sprites.taxi(rgb(244, 196, 40))
     private val buses = intArrayOf(rgb(46, 112, 192), rgb(200, 62, 52), rgb(60, 150, 96)).map { Sprites.bus(it) }
     private val trucks = intArrayOf(rgb(236, 236, 240), rgb(200, 90, 50), rgb(60, 120, 170)).map { Sprites.truck(it) }
@@ -89,17 +89,20 @@ class PixelScene {
         phase("drawField") { drawField(s) }
         phase("drawCityGround") { drawCityGround(s) }
         phase("drawBeachGround") { drawBeachGround(s) }
+        phase("drawSuburbGround") { drawSuburbGround(s) }
         phase("drawSeaLife") { drawSeaLife(s) }
         phase("drawRiverBehind") { drawRiverBehind(s) }
         phase("drawRailway") { drawRailway(s) }
         phase("drawPonds") { drawPonds(s) }
         phase("drawFieldAnimals") { drawFieldAnimals(s) }
         phase("drawFarm") { drawFarm(s, cam) }
+        phase("drawSuburbBlocks") { drawSuburbBlocks(s) }
         phase("drawCityBlocks") { drawCityBlocks(s) }
         phase("drawStreetLamps") { drawStreetLamps(s) }
         phase("drawBeachFront") { drawBeachFront(s) }
         phase("drawSubwayEntrances") { drawSubwayEntrances(s) }
         phase("drawCityPeople") { drawCityPeople(s) }
+        phase("drawSuburbPeople") { drawSuburbPeople(s) }
         phase("drawRoadsideTrees") { drawRoadsideTrees(s) }
         phase("drawForestMist") { drawForestMist(s) }
         phase("drawDepthFog") { drawDepthFog(s) }
@@ -634,7 +637,7 @@ class PixelScene {
             val open = openCountry(Math.floorDiv(i, 6), 90)
             // How much of this stretch is forest: it brings more trees, and takes the farms away.
             val forest = s.forestAt(i * chunk + chunk / 2.0, factor)
-            val city = s.hardOnScreen(left + chunk / 2)
+            val city = s.builtOnScreen(left + chunk / 2)
             // Trees: 3 to 6 a chunk, at their own depths (fewer in open country), and in forest up to eleven more, each there once the forest is thick enough for it.
             // A log cabin in a clearing, very rarely, deep in the forest.
             val cabin = forest > 0.6f && Noise.unit(i, 700) < 0.08f
@@ -648,7 +651,7 @@ class PixelScene {
                 if ((depth > 0.5f) != (pass == 1)) continue
                 val x = left + (Noise.unit(i, if (t < 7) 20 + t else 320 + t) * chunk).toInt()
                 // Judged where the tree itself stands, not the middle of the stretch it belongs to, so none is left on the sand or the water.
-                val hard = s.hardOnScreen(x)
+                val hard = s.builtOnScreen(x)
                 if (hard > 0.5f || !wood && Noise.unit(i, 500 + t) < hard * 1.3f) continue
                 val y = FIELD_TOP + 6 + (depth * 12f).toInt()
                 if (cabin && kotlin.math.abs(x - cabinX - 10) < 30) continue
@@ -748,7 +751,7 @@ class PixelScene {
         val y = ROAD_TOP - 1
         val first = floor(offset / 160).toInt() - 1
         for (i in first..first + W / 160 + 2) {
-            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f || s.hardOnScreen((i * 160 - offset).toInt() + 80) > 0.2f) continue
+            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f || s.builtOnScreen((i * 160 - offset).toInt() + 80) > 0.2f) continue
             val x0 = (i * 160 - offset).toInt()
             val len = 90 + (Noise.unit(i, 81) * 60).toInt()
             fill(x0, y - 4, x0 + len, y - 3, rail)
@@ -815,11 +818,14 @@ class PixelScene {
             if (e < 0f) continue
             // How much city there was where the car came in decides it for its whole drive: it is never half there, and doesn't
             // pop in or out as the city comes and goes.
-            val cityThen = s.cityAt(s.cam - travelV.toDouble() * e + W / 2.0, 1.0)
+            val where = s.cam - travelV.toDouble() * e + W / 2.0
+            val cityThen = s.cityAt(where, 1.0)
+            // The suburbs are busier than the country but not as busy as the city.
+            val townThen = maxOf(cityThen, 0.55f * s.suburbAt(where, 1.0))
             val cityCar = stream == 1 || roll > 0.30f
             if (stream == 1) {
-                if (cityThen < 0.05f || roll > 0.7f * cityThen) continue
-            } else if (roll > 0.30f + 0.4f * cityThen || cityThen < 0.05f && cityCar) continue
+                if (townThen < 0.05f || roll > 0.7f * townThen) continue
+            } else if (roll > 0.30f + 0.4f * townThen || townThen < 0.05f && cityCar) continue
             spritePaint.alpha = 255
             // Seen from the road: our own lane's cars go the way we do (slower or faster than us), the other lane's come toward us.
             val speed = if (ourLane) 14f + Noise.unit(k, 104) * 46f else 30f + Noise.unit(k, 104) * 50f
@@ -829,7 +835,7 @@ class PixelScene {
             val truck = Noise.unit(k, 105) < 0.22f
             // In the city some of the extra vehicles are taxis and buses.
             val kind = Noise.unit(k, 107)
-            val sp = if (cityCar && kind < 0.22f) taxi else if (cityCar && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            val sp = if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9
@@ -924,7 +930,7 @@ class PixelScene {
         val firstTuft = floor(tuftOffset / 13).toInt() - 1
         for (i in firstTuft..firstTuft + W / 13 + 2) {
             val x = (i * 13 + Noise.unit(i, 90) * 9 - tuftOffset).toInt()
-            if (s.riverCovers(x, H - 3, 2) || s.hardOnScreen(x + 6) > 0.3f) continue
+            if (s.riverCovers(x, H - 3, 2) || s.builtOnScreen(x + 6) > 0.3f) continue
             val h = 2 + (Noise.unit(i, 91) * 4).toInt()
             val sway = (sin(s.time * 2.0 + i) * min(1f, s.cond.wind / 25f)).roundToInt()
             fill(x + sway, H - h - 1, x + 1 + sway, H - 1, grassDark)

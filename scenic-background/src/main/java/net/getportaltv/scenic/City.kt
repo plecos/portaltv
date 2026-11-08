@@ -21,13 +21,13 @@ import kotlin.math.sin
 
 private fun SceneState.night() = (1f - look.day * 1.6f).coerceIn(0f, 1f)
 
-private val WARM = rgb(255, 214, 120)
+internal val WARM = rgb(255, 214, 120)
 
 /** The colours of festive lights. */
-private val FESTIVE = intArrayOf(rgb(255, 70, 60), rgb(70, 220, 110), rgb(255, 214, 80), rgb(90, 160, 255), rgb(255, 120, 220))
+internal val FESTIVE = intArrayOf(rgb(255, 70, 60), rgb(70, 220, 110), rgb(255, 214, 80), rgb(90, 160, 255), rgb(255, 120, 220))
 
 /** One festive bulb at ([x], [y]); [k] picks its colour and when it twinkles. */
-private fun PixelScene.bulb(s: SceneState, x: Int, y: Int, k: Int, night: Float) {
+internal fun PixelScene.bulb(s: SceneState, x: Int, y: Int, k: Int, night: Float) {
     val fest = s.season.festive
     val c = FESTIVE[Math.floorMod(k, FESTIVE.size)]
     val bright = if ((s.time * 1.6).toInt() % 3 == Math.floorMod(k, 3)) 0.5f else 1f

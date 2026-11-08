@@ -36,9 +36,12 @@ class SceneState {
     /** The beach and the city at each world column in reach of the screen (the bay reaches far to either side), kept as the journey slides along. */
     val beachRaw = Strip(PixelScene.W + 2 * 150 + 16) { wx -> beachAt(wx.toDouble(), 1.0) }
     val cityRaw = Strip(PixelScene.W + 16) { wx -> cityAt(wx.toDouble(), 1.0) }
+    val suburbRaw = Strip(PixelScene.W + 16) { wx -> suburbAt(wx.toDouble(), 1.0) }
+    val suburbCols = FloatArray(PixelScene.W + 16)
     var colsCam = Int.MIN_VALUE
     /** Whether any beach (within the bay's reach) or any city is on screen: when not, those parts of the picture are skipped. */
     var anyBeach = false
+    var anySuburb = false
     var anyCity = false
     var colsMode = ""
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */

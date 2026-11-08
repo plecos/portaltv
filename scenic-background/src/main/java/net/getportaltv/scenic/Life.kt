@@ -124,7 +124,7 @@ internal fun PixelScene.drawPonds(s: SceneState) {
     val first = floor(offset / chunk).toInt() - 1
     val l = s.look
     for (i in first..first + W / chunk + 2) {
-        if (Noise.unit(i, 140) > 0.30f || s.hardOnScreen((i * chunk - offset).toInt() + chunk / 2) > 0.2f) continue
+        if (Noise.unit(i, 140) > 0.30f || s.builtOnScreen((i * chunk - offset).toInt() + chunk / 2) > 0.2f) continue
         val left = (i * chunk - offset).toInt()
         val cx = left + 30 + (Noise.unit(i, 141) * 100).toInt()
         val halfW = 20 + (Noise.unit(i, 142) * 8).toInt()
@@ -169,7 +169,7 @@ internal fun PixelScene.drawFieldAnimals(s: SceneState) {
     for (i in first..first + W / chunk + 2) {
         val left = (i * chunk - offset).toInt()
         val forest = s.forestAt(i * chunk + chunk / 2.0, 0.5)
-        if (s.hardOnScreen(left + chunk / 2) > 0.2f) continue
+        if (s.builtOnScreen(left + chunk / 2) > 0.2f) continue
         if (Noise.unit(i, 150) < 0.24f + forest * 0.4f) {
             val n = 1 + (Noise.unit(i, 151) * 3).toInt()
             val dx = left + 10 + (Noise.unit(i, 152) * 120).toInt()
