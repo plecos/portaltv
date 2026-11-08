@@ -55,12 +55,12 @@ class SeasonalTree(val green: Sprite) {
         // Bare: the trunk, and a scatter of twigs where the crown was.
         val twig = rgb(92, 64, 40)
         bare = recolour { _, x, y -> if (Noise.unit(x, y, 77) < 0.22f) twig else null }
-        // Blossom: an airy crown of pink and white flowers among bare twigs, so the branches still show through.
+        // Blossom: an airy crown of white flowers and the first pale green among bare twigs, so the branches still show through.
         blossom = recolour { c, x, y ->
             val r = Noise.unit(x, y, 78)
             when {
-                r < 0.34f -> if (c == LEAF_L) rgb(255, 226, 234) else rgb(246, 178, 198)
-                r < 0.44f -> rgb(255, 250, 250)
+                r < 0.30f -> if (c == LEAF_L) rgb(252, 252, 244) else rgb(232, 236, 214)
+                r < 0.42f -> rgb(176, 214, 112)
                 r < 0.62f -> twig
                 else -> null
             }
