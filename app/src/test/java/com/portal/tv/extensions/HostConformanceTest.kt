@@ -408,14 +408,17 @@ class HostConformanceTest {
     )
 
     @Test
-    fun weatherNeedsItsOwnCapabilityAndNoKidProfile() {
+    fun weatherNeedsItsOwnCapabilityButAnyProfileMayHaveIt() {
         tv.weather = WeatherSnapshot(report(), tv.now - 60_000)
         tv.install(A, ALL - Capability.WEATHER)
         handler().call(A, HostApi.WEATHER_GET, emptyMap()).assertError(HostApi.Error.NOT_ALLOWED)
         tv.install(A, setOf(Capability.WEATHER))
         assertTrue(handler().call(A, HostApi.WEATHER_GET, emptyMap()).ok)
+        // Kids see the weather on Portal's own page, so a kid profile (or none at all) is no reason to refuse it.
         tv.profile = HostProfile(2, true)
-        handler().call(A, HostApi.WEATHER_GET, emptyMap()).assertError(HostApi.Error.KID_PROFILE)
+        assertTrue(handler().call(A, HostApi.WEATHER_GET, emptyMap()).ok)
+        tv.profile = null
+        assertTrue(handler().call(A, HostApi.WEATHER_GET, emptyMap()).ok)
     }
 
     @Test
