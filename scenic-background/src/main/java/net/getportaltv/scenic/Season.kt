@@ -21,6 +21,8 @@ class SeasonState {
     var winter = 0f
     /** How much old snow is lying on a clear day, 0 to 1: deep winter in cold latitudes, nothing in mild ones or the tropics. */
     var lying = 0f
+    /** How much the festive lights are on, 0 to 1: from the start of December to the first week of January, everywhere (the date, not the climate). */
+    var festive = 0f
     /** The two colours of the field's stripes (crops, stubble, ploughed earth, dormant grass). */
     var fieldA = rgb(92, 158, 70)
     var fieldB = rgb(80, 142, 62)
@@ -73,6 +75,8 @@ object Seasons {
      * is used as it is (no turning round in the south, no tropics).
      */
     fun update(out: SeasonState, dayOfYear: Float, lat: Double, calendar: Boolean) {
+        // Decorations follow the date in the town, so they are the same either side of the equator and in the tropics.
+        out.festive = if (dayOfYear >= 300f) smoothstep(334f, 340f, dayOfYear) else 1f - smoothstep(6f, 10f, dayOfYear)
         if (calendar && kotlin.math.abs(lat) < TROPICS) {
             // Near the equator the year does not show in the trees and fields.
             out.leaf = 1f; out.autumn = 0f; out.bloom = 0f; out.winter = 0f; out.lying = 0f

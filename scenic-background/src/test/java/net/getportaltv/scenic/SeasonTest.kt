@@ -61,4 +61,16 @@ class SeasonTest {
         assertEquals(at(366f).leaf, at(1f).leaf, 0.01f)
         assertEquals(at(366f).winter, at(1f).winter, 0.01f)
     }
+
+    @Test fun festiveLightsFollowTheDateEverywhere() {
+        assertEquals(0f, at(196f).festive, 0.001f)
+        assertEquals(1f, at(359f).festive, 0.001f)
+        assertEquals(1f, at(2f).festive, 0.001f)
+        assertEquals(0f, at(20f).festive, 0.001f)
+        // The same in the tropics and the south, where the date still marks the season of the town.
+        assertEquals(1f, at(359f, lat = 5.0).festive, 0.001f)
+        assertEquals(1f, at(359f, lat = -34.0).festive, 0.001f)
+        // They come on and go off gradually.
+        assertTrue(at(337f).festive in 0.05f..0.95f)
+    }
 }

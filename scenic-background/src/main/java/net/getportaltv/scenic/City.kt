@@ -21,6 +21,30 @@ private fun SceneState.night() = (1f - look.day * 1.6f).coerceIn(0f, 1f)
 
 private val WARM = rgb(255, 214, 120)
 
+/** The colours of festive lights. */
+private val FESTIVE = intArrayOf(rgb(255, 70, 60), rgb(70, 220, 110), rgb(255, 214, 80), rgb(90, 160, 255), rgb(255, 120, 220))
+
+/** One festive bulb at ([x], [y]); [k] picks its colour and when it twinkles. */
+private fun PixelScene.bulb(s: SceneState, x: Int, y: Int, k: Int, night: Float) {
+    val fest = s.season.festive
+    val c = FESTIVE[Math.floorMod(k, FESTIVE.size)]
+    val bright = if ((s.time * 1.6).toInt() % 3 == Math.floorMod(k, 3)) 0.5f else 1f
+    val a = fest * (0.5f + 0.5f * night) * bright
+    fillAlpha(x, y, x + 1, y + 1, c, a)
+    if (night > 0.2f) fillAlpha(x - 1, y - 1, x + 2, y + 2, c, night * 0.16f * fest * bright)
+}
+
+/** Lights scattered over a conifer standing with its foot at ([x] + [w] / 2, [bottom]). */
+private fun PixelScene.treeLights(s: SceneState, x: Int, bottom: Int, w: Int, h: Int, seed: Int, night: Float) {
+    if (s.season.festive < 0.02f) return
+    for (k in 0 until 9) {
+        val row = 1 + (Noise.unit(seed, k, 840) * (h - 3)).toInt()
+        val reach = (row * (w / 2) / (h - 2)).coerceAtLeast(1)
+        val dx = (Noise.unit(seed, k, 841) * (reach * 2 + 1)).toInt() - reach
+        bulb(s, x + w / 2 + dx, bottom - h + row, seed + k, night)
+    }
+}
+
 /** One layer of skyline: tall plain towers far away, with lit windows at night. */
 private class Skyline(val factor: Double, val cell: Int, val minH: Float, val maxH: Float, val color: Int, val air: Float, val seed: Int, val windows: Boolean)
 
@@ -159,6 +183,8 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     fill(x + w - 2, top, x + w, bottom, shade)
     // The parapet.
     fill(x - 1, top - 1, x + w + 1, top + 1, shade)
+    // Snow lies along the roof edge.
+    if (s.snowCover > 0.03f) fillAlpha(x - 1, top - 2, x + w + 1, top, solid(s, rgb(238, 242, 250), 0.04f), s.snowCover)
     // Windows in rows, lit at night here and there.
     var wy = top + 5
     val shopTop = bottom - 11
@@ -167,7 +193,9 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
         var col = 0
         while (wx + 3 < x + w - 3) {
             val on = Noise.unit(i * 31 + col, wy, 825) < 0.5f
-            val glass = if (on && night > 0f) lerp(glassDay, WARM, night) else if (night > 0f) lerp(glassDay, dark, night) else glassDay
+            val coloured = on && s.season.festive > 0.02f && Noise.unit(i * 31 + col, wy, 829) < 0.22f * s.season.festive
+            val lamp = if (coloured) FESTIVE[(Noise.unit(i * 31 + col, wy, 842) * FESTIVE.size).toInt().coerceIn(0, FESTIVE.size - 1)] else WARM
+            val glass = if (on && night > 0f) lerp(glassDay, lamp, night) else if (night > 0f) lerp(glassDay, dark, night) else glassDay
             fill(wx, wy, wx + 3, wy + 4, glass)
             fill(wx, wy + 4, wx + 3, wy + 5, shade)
             wx += 6
@@ -180,6 +208,11 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     fill(x + 2, shopTop, x + w - 2, shopTop + 3, awning)
     var ax = x + 3
     while (ax < x + w - 3) { fill(ax, shopTop, ax + 2, shopTop + 3, lerp(awning, rgb(255, 255, 255), 0.45f)); ax += 4 }
+    if (s.season.festive > 0.02f && Noise.unit(i, 843) < 0.6f) {
+        var bx = x + 3
+        var k = 0
+        while (bx < x + w - 3) { bulb(s, bx, shopTop - 1, i * 13 + k, night); bx += 3; k++ }
+    }
     fill(x + 2, shopTop + 3, x + w - 2, bottom, lerp(glassDay, lerp(WARM, body, 0.35f), night * 0.8f))
     var mx = x + 2 + 8
     while (mx < x + w - 4) { fill(mx, shopTop + 3, mx + 1, bottom, lerp(body, rgb(20, 20, 30), 0.4f)); mx += 9 }
@@ -220,8 +253,10 @@ private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, a
     spritePaint.colorFilter = filter(s, 0.04f + s.look.haze * 0.3f)
     sprite(Sprites.roundTreeYear.at(s.season, lot * 5), x0 + 4, bottom - 1)
     sprite(Sprites.pine, x0 + 18, bottom - 3)
+    treeLights(s, x0 + 18, bottom - 3, Sprites.pine.width, Sprites.pine.height, lot * 3, s.night())
     sprite(Sprites.roundTreeYear.at(s.season, lot * 5 + 1), x0 + LOT - 16, bottom - 1)
     sprite(Sprites.pine, x0 + LOT - 28, bottom - 4)
+    treeLights(s, x0 + LOT - 28, bottom - 4, Sprites.pine.width, Sprites.pine.height, lot * 3 + 1, s.night())
     sprite(Sprites.bushYear.at(s.season, lot * 5 + 2), x0 + 34, bottom - 1)
     sprite(Sprites.bushYear.at(s.season, lot * 5 + 3), x0 + LOT - 44, bottom - 1)
     spritePaint.colorFilter = null
@@ -314,6 +349,15 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
         fill(x, ROAD_TOP - h, x + 1, ROAD_TOP, post)
         fill(x, ROAD_TOP - h, x + 5, ROAD_TOP - h + 1, post)
         fill(x + 3, ROAD_TOP - h + 1, x + 6, ROAD_TOP - h + 2, if (night > 0.2f) rgb(255, 236, 170) else solid(s, rgb(210, 210, 200), 0.0f))
+        // Festive lights hang in a swag from each lamp to the next across the street.
+        if (s.season.festive > 0.02f && h > 18 && s.cityAt(wx.toDouble(), 1.0) > 0.5f && s.cityAt((wx + spacing).toDouble(), 1.0) > 0.5f) {
+            var px = 5
+            while (px < spacing) {
+                val f = px / spacing.toFloat()
+                bulb(s, x + px, ROAD_TOP - h + 2 + (6f * 4f * f * (1f - f)).toInt(), i * 29 + px / 4, night)
+                px += 4
+            }
+        }
         if (night > 0.05f && h > 18) {
             // A soft glow round the lamp.
             fillAlpha(x + 2, ROAD_TOP - h, x + 8, ROAD_TOP - h + 5, rgb(255, 226, 150), night * 0.22f)
