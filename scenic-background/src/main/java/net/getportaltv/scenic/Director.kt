@@ -29,6 +29,11 @@ class SceneState {
     var placeMode = Places.JOURNEY
     /** When this visit to the city's Christmas sleigh set off (-1 when none is flying), and whether it has been seen. */
     var santaAt = -1.0
+    /** Each visit to the beach (counted), and when in it a whale breaches and a shark's fin cruises by (-1 for none). */
+    var beachVisit = 0
+    var beachWas = false
+    var whaleAt = -1.0
+    var finAt = -1.0
     var santaSeen = false
     /** How much beach and city there is at each screen column (with a few spare at either end), worked out once for each place the journey has reached. */
     val beachCols = FloatArray(PixelScene.W + 16)

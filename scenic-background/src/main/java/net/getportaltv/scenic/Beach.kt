@@ -11,6 +11,7 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.math.sqrt
 import kotlin.math.sin
 
 /**
@@ -419,6 +420,17 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
 
 /** Boats and ships out on the sea, and gulls along the shore. */
 internal fun PixelScene.drawSeaLife(s: SceneState) {
+    // Each visit to the beach may have a whale breaching and a shark's fin going by, at a moment of its own, once.
+    val here = s.beachNow()
+    if (here < 0.05f) { s.beachWas = false; s.whaleAt = -1.0; s.finAt = -1.0 }
+    else if (here > 0.6f && !s.beachWas) {
+        s.beachWas = true
+        s.beachVisit++
+        val v = s.beachVisit
+        s.whaleAt = if (s.boost || Noise.unit(v, 1601) < 0.6f) s.time + (if (s.boost) -1.5 else 14.0 + Noise.unit(v, 1602) * 70.0) else -1.0
+        s.finAt = if (s.boost || Noise.unit(v, 1603) < 0.7f) s.time + (if (s.boost) -7.0 else 8.0 + Noise.unit(v, 1604) * 80.0) else -1.0
+    }
+    if (s.whaleAt >= 0.0 || s.finAt >= 0.0) { drawWhale(s); drawFin(s) }
     // Out on the sea only (each boat checks the sea is under it), so nothing sails over the land at either end of the beach.
     if (s.beachAt(s.cam - BAY, 1.0) < 0.5f && s.beachAt(s.cam + W / 2.0, 1.0) < 0.5f && s.beachAt(s.cam + W + BAY, 1.0) < 0.5f) return
     val travelV = if (s.travelling) s.speed else 0f
@@ -651,15 +663,14 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             val swimHair = solid(s, People.hair(People.hairIndex(Noise.unit(i, 918))), 0.04f)
             val foam = solid(s, rgb(250, 252, 252), 0.0f)
             val stroke = ((t * 1.6 + i) % 2.0) < 1.0
-            // A round head with hair on top, shoulders just out of the water, and an arm that reaches up and over, stroke by stroke.
-            fill(sx, sy, sx + 4, sy + 1, swimHair)
-            fill(sx, sy + 1, sx + 4, sy + 4, swimSkin)
-            fill(sx, sy + 1, sx + 1, sy + 2, swimHair)
-            fill(sx - 1, sy + 4, sx + 5, sy + 5, swimSkin)
-            if (stroke) fill(sx + 5, sy - 2, sx + 6, sy + 3, swimSkin) else fill(sx + 5, sy + 3, sx + 8, sy + 4, swimSkin)
-            // The water closing round them, with ripples spreading out.
-            fillAlpha(sx - 3, sy + 5, sx + 9, sy + 6, foam, 0.7f)
-            fillAlpha(sx - 5, sy + 6, sx + 11, sy + 7, foam, 0.25f)
+            // A head with hair on top and shoulders just out of the water (small: they are further out than the people on the sand),
+            // an arm that reaches up and over, stroke by stroke, and the water closing round them.
+            fill(sx, sy, sx + 3, sy + 1, swimHair)
+            fill(sx, sy + 1, sx + 3, sy + 2, swimSkin)
+            fill(sx - 1, sy + 2, sx + 4, sy + 3, swimSkin)
+            if (stroke) fill(sx + 4, sy - 1, sx + 5, sy + 2, swimSkin) else fill(sx + 4, sy + 2, sx + 6, sy + 3, swimSkin)
+            fillAlpha(sx - 2, sy + 3, sx + 7, sy + 4, foam, 0.65f)
+            fillAlpha(sx - 3, sy + 4, sx + 8, sy + 5, foam, 0.2f)
         }
         // Out of season a few people walk the sand wrapped up warm, some with a dog.
         if (crowd < 0.7f && Noise.unit(i, 906) < 0.45f * (1f - crowd)) {
@@ -713,3 +724,113 @@ internal fun PixelScene.drawBeachRoad(s: SceneState) {
         for (y in ROAD_BOTTOM + 4 until H) if (Noise.unit(x + cam, y, 903) < 0.08f) fill(x, y, x + 1, y + 1, speck)
     }
 }
+
+/** A whale leaping clear of the water out at sea and falling back with a splash, once now and then. */
+private fun PixelScene.drawWhale(s: SceneState) {
+    if (s.whaleAt < 0.0) return
+    val age = (s.time - s.whaleAt).toFloat()
+    if (age < 0f || age > 4.4f) return
+    val v = s.beachVisit
+    val dir = if (Noise.unit(v, 1605) < 0.5f) 1 else -1
+    val travelV = if (s.travelling) s.speed else 0f
+    val x0 = 90f + Noise.unit(v, 1606) * 140f - travelV * 0.08f * age
+    val ySea = SEA_TOP + 17 + (Noise.unit(v, 1607) * 3).toInt()
+    if (!seaOn(s, x0.toInt(), ySea) || !seaOn(s, (x0 + dir * 26).toInt(), ySea)) return
+    val foam = solid(s, rgb(250, 252, 252), 0.0f)
+    val back = solid(s, rgb(46, 64, 90), 0.15f)
+    val belly = solid(s, rgb(196, 206, 216), 0.15f)
+    val jump = 2.6f
+    val len = 14
+    val height = 14f
+    if (age < jump) {
+        val u = age / jump
+        val hx = x0 + dir * 26f * u
+        val hy = ySea - 4f * height * u * (1f - u)
+        var tx = dir * 26f
+        var ty = -4f * height * (1f - 2f * u)
+        val n = sqrt(tx * tx + ty * ty)
+        tx /= n; ty /= n
+        // The belly is on the lower side of the body as it turns over.
+        var px = -ty
+        var py = tx
+        if (py < 0f) { px = -px; py = -py }
+        for (k in 0..len + 2) {
+            val cx = hx - tx * k
+            val cy = hy - ty * k
+            val half = when { k < 2 -> 0; k > len - 3 -> 0; else -> 1 }
+            for (w in -half..half) {
+                val x = (cx + px * w).toInt()
+                val y = (cy + py * w).toInt()
+                if (y > ySea) continue
+                fill(x, y, x + 1, y + 1, if (w == 1 || (w == 0 && half == 0 && k < 3)) belly else back)
+            }
+            // The flukes at the tail: a flat tail, wider than the body.
+            if (k >= len) for (w in intArrayOf(-3, -2, 2, 3)) {
+                val x = (cx + px * w).toInt()
+                val y = (cy + py * w).toInt()
+                if (y <= ySea) fill(x, y, x + 1, y + 1, back)
+            }
+        }
+        // Spray where it leaves the water.
+        if (u < 0.25f) for (j in 0 until 10) {
+            val sx = (x0 + (Noise.unit(j, v, 1610) - 0.5f) * 12f).toInt()
+            val sy = (ySea - Noise.unit(j, v, 1611) * 9f * (u * 4f + 0.2f)).toInt()
+            fillAlpha(sx, sy, sx + 1, sy + 1, foam, 0.8f * (1f - u * 3f).coerceAtLeast(0.2f))
+        }
+    }
+    // The splash where it comes down, a column of spray and rings spreading across the water.
+    val a = age - jump
+    if (a >= 0f && a < 1.8f) {
+        val xl = x0 + dir * 26f
+        val f = 1f - a / 1.8f
+        for (j in 0 until 14) {
+            val sx = (xl + (Noise.unit(j, v, 1612) - 0.5f) * (6f + a * 14f)).toInt()
+            val rise = Noise.unit(j, v, 1613) * 12f
+            val sy = (ySea - rise * sin(Math.PI * (a / 1.8f)).toFloat()).toInt()
+            fillAlpha(sx, sy, sx + 1, sy + 1, foam, 0.85f * f)
+        }
+        val r = (3f + a * 8f).toInt()
+        fillAlpha((xl - r).toInt(), ySea, (xl + r).toInt(), ySea + 1, foam, 0.45f * f)
+        fillAlpha((xl - r * 0.7f).toInt(), ySea + 1, (xl + r * 0.7f).toInt(), ySea + 2, foam, 0.25f * f)
+    }
+}
+
+/** A shark's fin cutting slowly along through the water near the shore, with a wake behind it. */
+private fun PixelScene.drawFin(s: SceneState) {
+    if (s.finAt < 0.0) return
+    val age = (s.time - s.finAt).toFloat()
+    val dur = 24f
+    if (age < 0f || age > dur) return
+    val v = s.beachVisit
+    val dir = if (Noise.unit(v, 1620) < 0.5f) 1 else -1
+    val travelV = if (s.travelling) s.speed else 0f
+    val x = (if (dir > 0) 40f + 7f * age else W - 40f - 7f * age) - travelV * 0.08f * age
+    val y = SHORE - 8 - (Noise.unit(v, 1621) * 5).toInt() + (sin(age * 0.9) * 0.6).toInt()
+    if (!seaOn(s, x.toInt(), y)) return
+    // The fin rises out of the water and sinks away again at the end.
+    val rise = minOf(1f, age / 1.5f, (dur - age) / 1.5f).coerceAtLeast(0f)
+    val h = (5 * rise).toInt()
+    val fin = solid(s, rgb(58, 64, 76), 0.1f)
+    val edge = solid(s, rgb(96, 104, 118), 0.1f)
+    val foam = solid(s, rgb(250, 252, 252), 0.0f)
+    val widths = intArrayOf(1, 2, 2, 3, 4)
+    for (r in 0 until h) {
+        val w = widths[r + (5 - h).coerceAtLeast(0)]
+        val top = y - h + r
+        // A curved front edge leaning forward, with a straight trailing edge.
+        val left = if (dir > 0) x.toInt() + (h - r) / 2 - (w - 1) else x.toInt() - (h - r) / 2
+        fill(left, top, left + w, top + 1, fin)
+        fill(if (dir > 0) left + w - 1 else left, top, if (dir > 0) left + w else left + 1, top + 1, edge)
+    }
+    // The wake: a V of foam spreading out behind it.
+    if (rise > 0.3f) for (k in 1..9) {
+        val wx = x.toInt() - dir * (k * 2)
+        val spread = k / 3
+        fillAlpha(wx, y - spread, wx + 1, y - spread + 1, foam, 0.55f * (1f - k / 10f))
+        fillAlpha(wx, y + 1 + spread, wx + 1, y + 2 + spread, foam, 0.45f * (1f - k / 10f))
+    }
+    fillAlpha(x.toInt() - 3, y, x.toInt() + 5, y + 1, foam, 0.5f)
+}
+
+/** Whether there is sea at screen column [x], row [y] (the same test the sea itself is drawn with). */
+private fun seaOn(s: SceneState, x: Int, y: Int): Boolean = x in 0 until W && s.seaAt(x, y)
