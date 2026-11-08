@@ -16,7 +16,7 @@ shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
 - **Has life in it.** People walking, cycling or with a dog (and umbrellas in the rain), rabbits, deer, a tractor, ducks on the
   pond, a train now and then on the railway (which comes and goes, curving away into the distance), stretches of open country with no farm or fence, low clouds in front of the far mountains, butterflies by day, fireflies on warm nights, bats at dusk, and a plane (or, about once every ten minutes in full daylight, a balloon) with a contrail. Each one turns up on its own schedule (`Life.kt`, tested in `LifeScheduleTest`) and they stay away
   in storms.
-- **Looks like an old computer.** The scene is drawn at 320 by 180 pixels, dithered and limited to a small palette, then scaled
+- **Looks like an old computer.** The scene is drawn at 320 by 180 pixels, limited to a small palette (clean bands of colour, or dithered if you turn that on), then scaled
   up whole, so every pixel is a clean square on the TV. Only one style so far; more can be added as other renderers.
 - **Looks after a slow TV.** It aims for the frame rate chosen in its settings (15, 30, 60, 90 or 120; 60 by default) and steps down through 60, 30, 20, 15 and 10 (and drops some
   of the rain) if drawing is taking too long.
