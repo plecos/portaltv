@@ -249,6 +249,10 @@ What Portal does with it:
 - If you don't answer within 5 seconds, your process stops, you are no longer allowed, or you are signed by someone else now,
   Portal goes back to its own gradient and keeps the choice, trying you again the next time the home screen opens.
 - You are asked to stop whenever the home screen isn't showing (another app, the screen saver), and started again when it is back.
+- The same drawing can also be chosen as the **screen saver**: Settings, Screen saver, Look lists each extension allowed
+  `background` beside Videos and Shaders. Portal starts you the same way (with `MSG_START`) when the screen saver begins and stops
+  you when it ends; the clock and weather bounce over your picture, and the night setting dims it. If you can't be used the
+  screen saver becomes Portal's shader. The screen saver is the TV's, not a profile's, so there is nothing to set per kid.
 - A kid profile uses it only if a parent has turned it on for that kid, under Settings, Extensions (a section that appears once there are
   kid profiles and an extension allowed to draw the background). Turning it off puts the kid back on Portal's own background.
 

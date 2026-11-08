@@ -79,6 +79,8 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
 
     /** The shader being shown instead of videos, when the profile's background is a shader. */
     private var shader: ShaderBackgroundView? = null
+    /** The extension's picture, when the screen saver is one an extension draws. */
+    private var extensionView: com.portal.tv.ui.ExtensionBackgroundView? = null
 
     private val tick = object : Runnable {
         override fun run() {
@@ -164,6 +166,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         ui.removeCallbacksAndMessages(null)
         removeCallbacks(bounce)
         stopShader()
+        stopExtension()
         stopPlaylist()
         scope?.cancel()
         scope = null
@@ -174,7 +177,44 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     /** With the shader look, the screen saver is a slowly moving shader in the colors and style chosen for it. */
     private fun startShaderIfWanted() {
         stopShader()
-        if (ScreensaverSettings.look(context) != ScreensaverSettings.LOOK_SHADER) return
+        stopExtension()
+        val look = ScreensaverSettings.look(context)
+        val chosen = ScreensaverSettings.extension(context)
+        if (look == ScreensaverSettings.LOOK_EXTENSION && chosen != null) { startExtension(chosen); return }
+        if (look != ScreensaverSettings.LOOK_SHADER) return
+        startShader()
+    }
+
+    /**
+     * An extension draws the screen saver in its own process and Portal only shows the result, as it does for the home
+     * screen's background. The screen stays black until its first picture arrives and then fades in; if it can't be used
+     * (not answering, no longer allowed) the screen saver turns into the shader instead, so it is never left black.
+     */
+    private fun startExtension(packageName: String) {
+        val scope = scope ?: return
+        val bg = com.portal.tv.ui.ExtensionBackgroundView(context)
+        bg.onReady = { if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }
+        bg.onFailed = { reason ->
+            android.util.Log.w("Portal", "Extension screen saver $packageName not used: $reason")
+            stopExtension()
+            startShader()
+            if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start()
+        }
+        addView(bg, 0, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        extensionView = bg
+        textureView.visibility = View.GONE
+        bg.start(packageName, scope)
+    }
+
+    private fun stopExtension() {
+        extensionView?.let {
+            it.stop()
+            removeView(it)
+        }
+        extensionView = null
+    }
+
+    private fun startShader() {
         val view = ShaderBackgroundView(
             context,
             ShaderPalettes.find(ScreensaverSettings.shaderColor(context)),
@@ -200,7 +240,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     // ---------- Video ----------
 
     private fun buildPlaylist() {
-        if (shader != null) {
+        if (shader != null || extensionView != null) {
             playlist = emptyList()
             return
         }

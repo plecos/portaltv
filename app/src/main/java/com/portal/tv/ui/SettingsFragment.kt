@@ -965,20 +965,45 @@ class SettingsFragment : Fragment() {
             )
         )
         fun refreshSaverMode() {
-            val shader = ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_SHADER
-            view.findViewById<View>(R.id.screensaver_videos_title).visibility = if (shader) View.GONE else View.VISIBLE
-            view.findViewById<View>(R.id.opt_screensaver_videos).visibility = if (shader) View.GONE else View.VISIBLE
+            val videos = ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_VIDEO
+            view.findViewById<View>(R.id.screensaver_videos_title).visibility = if (videos) View.VISIBLE else View.GONE
+            view.findViewById<View>(R.id.opt_screensaver_videos).visibility = if (videos) View.VISIBLE else View.GONE
             for (id in listOf(R.id.screensaver_sound_title, R.id.screensaver_sound_row, R.id.screensaver_sound_note)) {
-                view.findViewById<View>(id).visibility = if (shader) View.GONE else View.VISIBLE
+                view.findViewById<View>(id).visibility = if (videos) View.VISIBLE else View.GONE
             }
             refreshSaverShader()
         }
-        choices(
-            R.id.screensaver_look_row,
-            listOf("Videos" to ScreensaverSettings.LOOK_VIDEO, "Shaders" to ScreensaverSettings.LOOK_SHADER),
-            { ScreensaverSettings.look(context) },
-            { ScreensaverSettings.setLook(context, it); refreshSaverMode() }
-        )
+        // Videos, Shaders, and one choice for each extension an adult allowed to draw the background (the same ones the home
+        // screen's background can use): it draws the screen saver the same way, in its own process.
+        val lookRow = view.findViewById<android.widget.LinearLayout>(R.id.screensaver_look_row)
+        val lookTiles = mutableListOf<Pair<String, TextView>>()
+        fun currentLook() = ScreensaverSettings.choiceOf(ScreensaverSettings.look(context), ScreensaverSettings.extension(context))
+        fun refreshLook() = lookTiles.forEach { (choice, t) -> style(t, choice == currentLook()) }
+        fun addLook(label: String, choice: String) {
+            val t = tile(label)
+            t.setOnClickListener {
+                val (look, extension) = ScreensaverSettings.parseChoice(choice)
+                ScreensaverSettings.setLook(context, look)
+                if (extension != null) ScreensaverSettings.setExtension(context, extension)
+                refreshLook()
+                refreshSaverMode()
+            }
+            lookRow.addView(t)
+            lookTiles += choice to t
+        }
+        addLook("Videos", ScreensaverSettings.LOOK_VIDEO)
+        addLook("Shaders", ScreensaverSettings.LOOK_SHADER)
+        // A kid profile can't change the TV's screen saver anyway (Settings is for adults), so every drawer is offered.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val drawers = withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
+                    com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
+                }
+            }
+            drawers.forEach { addLook(it.name, "${ScreensaverSettings.LOOK_EXTENSION}:${it.packageName}") }
+            refreshLook()
+        }
+        refreshLook()
         refreshSaverMode()
 
         view.findViewById<TextView>(R.id.opt_screensaver_preview).setOnClickListener {
