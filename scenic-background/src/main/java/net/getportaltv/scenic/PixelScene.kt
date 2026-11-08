@@ -51,7 +51,10 @@ class PixelScene {
 
     // ---------- one frame ----------
 
+    private var scene: SceneState? = null
+
     fun render(s: SceneState) {
+        scene = s
         val l = s.look
         val cam = s.cam
         s.bridges = s.findBridges()
@@ -153,6 +156,15 @@ class PixelScene {
             canvas.drawBitmap(sp.bitmap, x.toFloat(), (bottom - sp.height).toFloat(), spritePaint)
             canvas.restore()
         } else canvas.drawBitmap(sp.bitmap, x.toFloat(), (bottom - sp.height).toFloat(), spritePaint)
+        // Evergreens grow white as snow builds up on them.
+        val s = scene
+        val frost = if (s != null && s.snowCover > 0.03f) Sprites.frosted(sp) else null
+        if (frost != null) {
+            val keep = spritePaint.alpha
+            spritePaint.alpha = (keep * s!!.snowCover).toInt().coerceIn(0, 255)
+            canvas.drawBitmap(frost.bitmap, x.toFloat(), (bottom - sp.height).toFloat(), spritePaint)
+            spritePaint.alpha = keep
+        }
     }
 
     // ---------- sky ----------

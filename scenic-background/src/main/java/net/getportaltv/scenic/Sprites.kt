@@ -54,7 +54,7 @@ class SeasonalTree(val green: Sprite) {
         )
         // Bare: the trunk, and a scatter of twigs where the crown was.
         val twig = rgb(92, 64, 40)
-        bare = recolour { _, x, y -> if (Noise.unit(x, y, 77) < 0.22f) twig else null }
+        bare = recolour { _, x, y -> if (Noise.unit(x, y, 77) < 0.34f) twig else null }
         // Blossom: an airy crown of the first yellow-green buds and leaves among bare twigs, so the branches still show through.
         blossom = recolour { c, x, y ->
             val r = Noise.unit(x, y, 78)
@@ -88,6 +88,8 @@ class SeasonalTree(val green: Sprite) {
 object Sprites {
     private val GREEN = mapOf('d' to rgb(30, 92, 48), 'g' to rgb(46, 128, 62), 'l' to rgb(86, 168, 74), 'b' to rgb(104, 70, 40), 'B' to rgb(74, 48, 30))
 
+    private val frostOf = java.util.IdentityHashMap<Sprite, Sprite>()
+
     val pine = Sprite(
         listOf(
             "....d....",
@@ -115,6 +117,8 @@ object Sprites {
         ), GREEN
     )
 
+    init { frostOf[pine] = frost(pine); frostOf[pineSmall] = frost(pineSmall) }
+
     val roundTree = Sprite(
         listOf(
             "...dgggd...",
@@ -141,6 +145,31 @@ object Sprites {
         ), GREEN
     )
 
+    /** Evergreens and the snow-dusted picture of each, drawn over them as snow builds up. */
+    fun frosted(sp: Sprite): Sprite? = frostOf[sp]
+
+    /** [sp] with snow lying on every tier's ledge and dusted over the rest, the green dulled; the trunk is left alone. */
+    private fun frost(sp: Sprite): Sprite {
+        val src = sp.bitmap
+        val b = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        val snow = rgb(238, 242, 250)
+        val shade = rgb(190, 206, 214)
+        for (y in 0 until src.height) for (x in 0 until src.width) {
+            val c = src.getPixel(x, y)
+            if (c == 0) continue
+            val green = Colors.g(c) > Colors.r(c) + 20 && Colors.g(c) > Colors.b(c)
+            if (!green) { b.setPixel(x, y, c); continue }
+            val above = if (y > 0) src.getPixel(x, y - 1) else 0
+            val r = Noise.unit(x, y, 91)
+            b.setPixel(x, y, when {
+                above == 0 || y % 3 == 0 -> snow
+                r < 0.35f -> shade
+                else -> Colors.lerp(c, rgb(150, 168, 160), 0.5f)
+            })
+        }
+        return Sprite.of(b)
+    }
+
     /** A tall fir: [tiers] layers of branches, each wider than the one above, lit on the left, with a short trunk. */
     fun fir(tiers: Int): Sprite {
         val half = tiers + 1
@@ -160,7 +189,7 @@ object Sprites {
             }.concatToString()
         }
         for (t in 0 until 2) rows += CharArray(width) { x -> if (x == half || x == half - 1 && t == 1) (if (x == half) 'B' else 'b') else '.' }.concatToString()
-        return Sprite(rows, GREEN)
+        return Sprite(rows, GREEN).also { frostOf[it] = frost(it) }
     }
 
     /** A broad tree with a round crown of the given [radius], lit from the upper left, on a trunk. */
