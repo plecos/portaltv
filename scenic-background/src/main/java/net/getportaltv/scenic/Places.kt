@@ -47,8 +47,34 @@ object Places {
     fun forest(journey: Double, mode: String): Float = amount(FOREST, journey, mode)
     fun city(journey: Double, mode: String): Float = amount(CITY, journey, mode)
     fun beach(journey: Double, mode: String): Float = amount(BEACH, journey, mode)
-    fun suburbia(journey: Double, mode: String): Float = amount(SUBURBIA, journey, mode)
-    fun amusement(journey: Double, mode: String): Float = amount(AMUSEMENT, journey, mode)
+    /**
+     * The suburbs give way to the amusement park's car park directly, with no countryside between: in the park's stretch they
+     * run on until the car park is coming in, and on its far side there are none.
+     */
+    fun suburbia(journey: Double, mode: String): Float {
+        if (mode != JOURNEY) return amount(SUBURBIA, journey, mode)
+        val stretch = floor(journey / STRETCH).toInt()
+        val pos = journey - stretch * STRETCH
+        if (placeOf(stretch) == AMUSEMENT) return if (pos < PARK_FULL_FROM) 1f - smoothstep(PARK_FROM.toFloat(), PARK_FULL_FROM.toFloat(), pos.toFloat()) else 0f
+        if (placeOf(stretch - 1) == AMUSEMENT && pos < BLEND / 2) return 0f
+        return along(journey, STRETCH, BLEND) { k -> if (placeOf(k) == SUBURBIA || placeOf(k) == AMUSEMENT) 1f else 0f }
+    }
+
+    /** Where in its stretch the car park comes in, is full, starts to thin, and is gone (pixels of travel); the rides stand in the full part. */
+    const val PARK_FROM = 900.0
+    const val PARK_FULL_FROM = 1400.0
+    const val PARK_FULL_TO = 3100.0
+    const val PARK_TO = 3600.0
+
+    /** The amusement park: a car park a little over one stretch long, in the middle of its stretch, so it is not mostly empty tarmac. */
+    fun amusement(journey: Double, mode: String): Float {
+        if (mode == AMUSEMENT) return 1f
+        if (mode != JOURNEY) return 0f
+        val stretch = floor(journey / STRETCH).toInt()
+        if (placeOf(stretch) != AMUSEMENT) return 0f
+        val pos = (journey - stretch * STRETCH).toFloat()
+        return smoothstep(PARK_FROM.toFloat(), PARK_FULL_FROM.toFloat(), pos) * (1f - smoothstep(PARK_FULL_TO.toFloat(), PARK_TO.toFloat(), pos))
+    }
 
     /**
      * How tall the mountains are at [journey] (a position in the range's own world: its x divided by how fast it moves), from 0 (none:

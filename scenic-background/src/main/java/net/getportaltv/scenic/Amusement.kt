@@ -26,16 +26,16 @@ private const val ROW_A = FIELD_TOP + 15
 private const val ROW_B = ROAD_TOP - 2
 
 // Where each ride stands along its stretch (layer pixels from the stretch's start), and how wide it is.
-private const val GATE_X = 620
+private const val GATE_X = 700
 private const val GATE_W = 64
-private const val CAROUSEL_X = 760
-private const val FERRIS_X = 860
-private const val COASTER_X = 960
-private const val TOWER_X = 1360
-private const val SWING_X = 1430
-private val STALLS = intArrayOf(702, 728, 824, 930, 1318, 1390, 1408)
-private const val PARK_FROM = 560
-private const val PARK_TO = 1500
+private const val CAROUSEL_X = 840
+private const val FERRIS_X = 940
+private const val COASTER_X = 1040
+private const val TOWER_X = 1420
+private const val SWING_X = 1486
+private val STALLS = intArrayOf(782, 808, 904, 1010, 1388, 1452, 1466)
+private const val PARK_FROM = 640
+private const val PARK_TO = 1580
 
 private fun SceneState.dark() = (1f - look.day * 1.6f).coerceIn(0f, 1f)
 
@@ -61,7 +61,7 @@ internal fun PixelScene.drawParkGround(s: SceneState) {
     val kerb = lit(s, rgb(206, 204, 196), 0.04f)
     val cam = floor(s.cam).toInt()
     for (x in 0 until W) {
-        val a = s.parkOnScreen(x)
+        val a = s.parkOnScreen(x) * (1f - maxOf(s.suburbOnScreen(x), s.suburbAt((floor(s.cam * LAYER) + x), LAYER)))
         if (a <= 0.01f) continue
         fillAlpha(x, BASE - 1, x + 1, ROAD_TOP - 1, tarmac, a)
         fillAlpha(x, ROAD_TOP - 1, x + 1, ROAD_TOP, kerb, a)
@@ -454,8 +454,10 @@ internal fun PixelScene.drawParkFront(s: SceneState) {
     val firstCell = Math.floorDiv(cam, cell) - 1
     for (ci in firstCell..firstCell + W / cell + 2) {
         val x = ci * cell - cam + 1
-        val a = s.parkOnScreen(x.coerceIn(0, W - 1) + (if (x < 0) 0 else 0))
+        val a = s.parkOnScreen(x.coerceIn(0, W - 1))
         if (a <= 0.05f) continue
+        // No parked car where a house still stands (the houses are on a slower layer than the road, so ask where they are).
+        if (s.suburbAt(floor(s.cam * LAYER) + x.coerceIn(-8, W + 8), LAYER) > 0.02f || s.suburbOnScreen(x.coerceIn(0, W - 1)) > 0.02f) continue
         // A clear way up to the gate.
         val into = Math.floorMod(ci * cell, (Places.STRETCH).toInt())
         if (into in (2 * GATE_X - 20)..(2 * (GATE_X + GATE_W) + 20)) continue
