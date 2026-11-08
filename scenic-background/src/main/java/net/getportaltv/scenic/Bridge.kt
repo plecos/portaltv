@@ -58,12 +58,12 @@ internal fun SceneState.riverCovers(x: Int, y: Int, margin: Int = 6): Boolean {
     return false
 }
 
-private fun PixelScene.water(s: SceneState): Int = lerp(lit(s, rgb(60, 118, 172), 0.06f), s.look.skyBottom, 0.3f)
+private fun PixelScene.water(s: SceneState): Int = lerp(solid(s, rgb(60, 118, 172), 0.06f), s.look.skyBottom, 0.3f)
 
 private fun PixelScene.riverRows(s: SceneState, left: Int, from: Int, to: Int) {
     val water = water(s)
     val deep = lerp(water, rgb(20, 40, 70), 0.25f)
-    val bank = lit(s, rgb(96, 82, 56), 0.06f)
+    val bank = solid(s, rgb(96, 82, 56), 0.06f)
     for (y in from until to) {
         val span = riverSpan(left, y) ?: continue
         val x0 = span[0]
@@ -93,8 +93,8 @@ internal fun PixelScene.drawRiverFront(s: SceneState) {
         val b = riverSpan(left, H - 1) ?: continue
         val x0 = minOf(a[0], b[0]) - 3
         val x1 = maxOf(a[1], b[1]) + 3
-        val plank = lit(s, rgb(130, 94, 60), 0.0f)
-        val dark = lit(s, rgb(90, 62, 40), 0.0f)
+        val plank = solid(s, rgb(130, 94, 60), 0.0f)
+        val dark = solid(s, rgb(90, 62, 40), 0.0f)
         fill(x0, ROAD_BOTTOM + 8, x1, ROAD_BOTTOM + 11, plank)
         fill(x0, ROAD_BOTTOM + 10, x1, ROAD_BOTTOM + 11, dark)
         var px = x0
@@ -105,11 +105,11 @@ internal fun PixelScene.drawRiverFront(s: SceneState) {
 /** The covered bridge itself, over the cars: a roofed wooden box with a long dark opening at the height of the traffic. */
 internal fun PixelScene.drawBridge(s: SceneState) {
     val night = (1f - s.look.day * 1.6f).coerceIn(0f, 1f)
-    val wall = lit(s, rgb(150, 54, 46), 0.0f)
-    val wallDark = lit(s, rgb(118, 40, 36), 0.0f)
-    val roof = lit(s, rgb(90, 62, 54), 0.0f)
-    val ridge = lit(s, rgb(128, 90, 68), 0.0f)
-    val stone = lit(s, rgb(128, 124, 118), 0.0f)
+    val wall = solid(s, rgb(150, 54, 46), 0.0f)
+    val wallDark = solid(s, rgb(118, 40, 36), 0.0f)
+    val roof = solid(s, rgb(90, 62, 54), 0.0f)
+    val ridge = solid(s, rgb(128, 90, 68), 0.0f)
+    val stone = solid(s, rgb(128, 124, 118), 0.0f)
     val inside = rgb(18, 16, 22)
     for (left in s.bridges) {
         val right = left + BRIDGE_WIDTH
@@ -121,7 +121,7 @@ internal fun PixelScene.drawBridge(s: SceneState) {
         fill(left - 3, ROAD_TOP - 13, right + 3, ROAD_TOP - 6, roof)
         fill(left - 3, ROAD_TOP - 13, right + 3, ROAD_TOP - 12, ridge)
         var rx = left - 2
-        while (rx < right + 3) { fill(rx, ROAD_TOP - 11, rx + 1, ROAD_TOP - 9, lit(s, rgb(70, 46, 40), 0.0f)); rx += 4 }
+        while (rx < right + 3) { fill(rx, ROAD_TOP - 11, rx + 1, ROAD_TOP - 9, solid(s, rgb(70, 46, 40), 0.0f)); rx += 4 }
         // The opening: dark inside, so cars show dimly as they pass through, behind the posts.
         val open0 = ROAD_TOP
         val open1 = ROAD_BOTTOM
@@ -137,6 +137,6 @@ internal fun PixelScene.drawBridge(s: SceneState) {
         fill(right - 2, open0, right, open1 + 2, wallDark)
         // The stone below, which the water runs under.
         fill(left, open1, right, open1 + 2, stone)
-        fill(left, open1, right, open1 + 1, lit(s, rgb(150, 146, 140), 0.0f))
+        fill(left, open1, right, open1 + 1, solid(s, rgb(150, 146, 140), 0.0f))
     }
 }

@@ -204,16 +204,16 @@ internal fun PixelScene.drawBeachGround(s: SceneState) {
     val cam = floor(s.cam).toInt()
     val wind = min(1f, s.cond.wind / 30f)
     val l = s.look
-    val horizon = lerp(l.skyBottom, lit(s, rgb(90, 140, 196), 0.0f), 0.5f)
-    val far = lit(s, rgb(46, 116, 176), 0.1f)
-    val near = lit(s, rgb(46, 156, 176), 0.04f)
+    val horizon = lerp(l.skyBottom, solid(s, rgb(90, 140, 196), 0.0f), 0.5f)
+    val far = solid(s, rgb(46, 116, 176), 0.1f)
+    val near = solid(s, rgb(46, 156, 176), 0.04f)
     val sand = lit(s, rgb(222, 202, 154), 0.04f)
     val speck = lit(s, rgb(196, 174, 128), 0.04f)
     val wet = lit(s, rgb(176, 156, 116), 0.04f)
-    val foam = lit(s, rgb(250, 252, 252), 0.0f)
-    val wood = lit(s, rgb(152, 114, 78), 0.0f)
-    val seam = lit(s, rgb(110, 80, 54), 0.0f)
-    val rail = lit(s, rgb(236, 232, 224), 0.0f)
+    val foam = solid(s, rgb(250, 252, 252), 0.0f)
+    val wood = solid(s, rgb(152, 114, 78), 0.0f)
+    val seam = solid(s, rgb(110, 80, 54), 0.0f)
+    val rail = solid(s, rgb(236, 232, 224), 0.0f)
     val glitter = s.glitterX()
     for (x in 0 until W) {
         val b = s.beachAt((x + cam).toDouble(), 1.0)
@@ -386,9 +386,9 @@ private fun SceneState.piers(): IntArray {
 
 /** A pier: planks running out over the water toward the horizon, on posts, with a lamp at the end. */
 private fun PixelScene.drawPier(s: SceneState, foot: Int) {
-    val plank = lit(s, rgb(160, 120, 82), 0.04f)
-    val plankDark = lit(s, rgb(120, 88, 60), 0.04f)
-    val post = lit(s, rgb(92, 66, 46), 0.04f)
+    val plank = solid(s, rgb(160, 120, 82), 0.04f)
+    val plankDark = solid(s, rgb(120, 88, 60), 0.04f)
+    val post = solid(s, rgb(92, 66, 46), 0.04f)
     val lastRow = SEA_TOP + 3
     for (y in BOARD_TOP downTo lastRow) {
         val t = (BOARD_TOP - y) / (BOARD_TOP - lastRow).toFloat()
@@ -402,7 +402,7 @@ private fun PixelScene.drawPier(s: SceneState, foot: Int) {
     val endX = (foot + (W / 2f - foot) * 0.35f).toInt()
     fill(endX - 1, lastRow - 6, endX, lastRow, post)
     val night = (1f - s.look.day * 1.6f).coerceIn(0f, 1f)
-    fill(endX - 2, lastRow - 7, endX + 1, lastRow - 6, if (night > 0.2f) rgb(255, 236, 170) else lit(s, rgb(220, 220, 210), 0.0f))
+    fill(endX - 2, lastRow - 7, endX + 1, lastRow - 6, if (night > 0.2f) rgb(255, 236, 170) else solid(s, rgb(220, 220, 210), 0.0f))
     if (night > 0.2f) fillAlpha(endX - 5, lastRow - 10, endX + 4, lastRow - 3, rgb(255, 226, 150), night * 0.2f)
 }
 
@@ -437,7 +437,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
                     val y = baseY + (Noise.unit(i, 884 + u) * 5).toInt()
                     val umb = BeachSprites.umbrellas[(Noise.unit(i, 886 + u) * BeachSprites.umbrellas.size).toInt().coerceIn(0, BeachSprites.umbrellas.size - 1)]
                     val towel = intArrayOf(rgb(230, 90, 80), rgb(80, 150, 220), rgb(250, 210, 80), rgb(110, 190, 140))[(Noise.unit(i, 888 + u) * 4).toInt().coerceIn(0, 3)]
-                    fill(x - 2, y, x + 10, y + 2, lit(s, towel, 0.04f))
+                    fill(x - 2, y, x + 10, y + 2, solid(s, towel, 0.04f))
                     sprite(BeachSprites.sunbathers[(Noise.unit(i, 890 + u) * 4).toInt().coerceIn(0, 3)], x, y)
                     sprite(umb, x - 3, y - 1)
                 }
@@ -450,7 +450,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
                     val phase = (t * 0.8 + Noise.unit(i, 892) * 5) % 2.0
                     val bx = x + 9 + (kotlin.math.cos(phase * Math.PI) * 14).toInt()
                     val by = baseY - 4 - (abs(sin(phase * Math.PI)) * 9).toInt()
-                    fill(bx, by, bx + 2, by + 2, lit(s, rgb(250, 250, 240), 0.0f))
+                    fill(bx, by, bx + 2, by + 2, solid(s, rgb(250, 250, 240), 0.0f))
                 }
             }
             r < 0.69f -> {
@@ -458,8 +458,8 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
                 if (clear(x)) {
                     sprite(BeachSprites.tower, x, baseY + 4)
                     val wave = (sin(t * 3.0) * 1.2).toInt()
-                    fill(x + 12, baseY - 18, x + 13, baseY - 8, lit(s, rgb(220, 220, 220), 0.0f))
-                    fill(x + 13, baseY - 18, x + 17 + wave, baseY - 14, lit(s, rgb(240, 70, 60), 0.0f))
+                    fill(x + 12, baseY - 18, x + 13, baseY - 8, solid(s, rgb(220, 220, 220), 0.0f))
+                    fill(x + 13, baseY - 18, x + 17 + wave, baseY - 14, solid(s, rgb(240, 70, 60), 0.0f))
                 }
             }
             r < 0.82f -> {
@@ -471,9 +471,9 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         if (Noise.unit(i, 895) < 0.4f) {
             val sx = left + 10 + (Noise.unit(i, 896) * 70).toInt()
             val sy = SHORE - 5 - (Noise.unit(i, 897) * 6).toInt() + (sin(t * 1.3 + i) * 1).toInt()
-            fill(sx, sy, sx + 2, sy + 2, lit(s, rgb(232, 184, 148), 0.04f))
+            fill(sx, sy, sx + 2, sy + 2, solid(s, rgb(232, 184, 148), 0.04f))
             val arm = if ((t * 2.0).toInt() % 2 == 0) 2 else 0
-            fill(sx + 2, sy + arm, sx + 4, sy + arm + 1, lit(s, rgb(232, 184, 148), 0.04f))
+            fill(sx + 2, sy + arm, sx + 4, sy + arm + 1, solid(s, rgb(232, 184, 148), 0.04f))
         }
         // A surfer on the water.
         if (Noise.unit(i, 898) < 0.18f) {

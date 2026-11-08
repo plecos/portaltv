@@ -35,7 +35,7 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
     for (layer in skylines) {
         val offset = floor(s.cam * layer.factor).toInt()
         val first = Math.floorDiv(offset, layer.cell) - 2
-        val body = lit(s, layer.color, layer.air + s.look.haze * 0.3f)
+        val body = solid(s, layer.color, layer.air + s.look.haze * 0.3f)
         val roofLine = lerp(body, rgb(255, 255, 255), 0.12f)
         val side = lerp(body, rgb(0, 0, 20), 0.12f)
         val glass = lerp(body, s.look.skyBottom, 0.3f)
@@ -151,7 +151,7 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     if (h < 4) return
     val top = bottom - h
     val base = BLOCK_COLORS[(Noise.unit(i, 824) * BLOCK_COLORS.size).toInt().coerceIn(0, BLOCK_COLORS.size - 1)]
-    val body = lit(s, base, 0.04f + s.look.haze * 0.3f)
+    val body = solid(s, base, 0.04f + s.look.haze * 0.3f)
     val light = lerp(body, rgb(255, 255, 255), 0.12f)
     val shade = lerp(body, rgb(10, 10, 30), 0.22f)
     fill(x, top, x + w, bottom, body)
@@ -176,7 +176,7 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
         wy += 8
     }
     // The shop at the bottom: an awning over a glass front with the lights on at night.
-    val awning = lit(s, AWNINGS[(Noise.unit(i, 826) * AWNINGS.size).toInt().coerceIn(0, AWNINGS.size - 1)], 0.04f)
+    val awning = solid(s, AWNINGS[(Noise.unit(i, 826) * AWNINGS.size).toInt().coerceIn(0, AWNINGS.size - 1)], 0.04f)
     fill(x + 2, shopTop, x + w - 2, shopTop + 3, awning)
     var ax = x + 3
     while (ax < x + w - 3) { fill(ax, shopTop, ax + 2, shopTop + 3, lerp(awning, rgb(255, 255, 255), 0.45f)); ax += 4 }
@@ -199,13 +199,13 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
 private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, amount: Float) {
     val grass = lit(s, rgb(86, 150, 70), 0.06f)
     val path = lit(s, rgb(190, 176, 146), 0.04f)
-    val fenceC = lit(s, rgb(60, 66, 76), 0.04f)
+    val fenceC = solid(s, rgb(60, 66, 76), 0.04f)
     // The lawn, over the concrete, from just below the subway line to the pavement.
     fillAlpha(x0, FIELD_TOP + 14, x0 + LOT, ROAD_TOP - 5, grass, amount)
     fillAlpha(x0 + LOT / 2 - 14, FIELD_TOP + 16, x0 + LOT / 2 + 14, ROAD_TOP - 5, path, amount)
     if (amount < 0.7f) return
     // The subway line behind runs in a concrete cutting, with a tunnel mouth at each end of the park.
-    val concrete = lit(s, rgb(122, 124, 132), 0.04f)
+    val concrete = solid(s, rgb(122, 124, 132), 0.04f)
     val lip = lerp(concrete, rgb(255, 255, 255), 0.18f)
     val mouth = lerp(concrete, rgb(10, 10, 24), 0.12f)
     fill(x0 + 6, FIELD_TOP + 8, x0 + LOT - 6, FIELD_TOP + 14, concrete)
@@ -226,7 +226,7 @@ private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, a
     sprite(Sprites.bush, x0 + LOT - 44, bottom - 1)
     spritePaint.colorFilter = null
     // A bench by the path, and a low railing along the front.
-    val wood = lit(s, rgb(130, 94, 60), 0.04f)
+    val wood = solid(s, rgb(130, 94, 60), 0.04f)
     fill(x0 + LOT / 2 + 18, bottom - 4, x0 + LOT / 2 + 26, bottom - 3, wood)
     fill(x0 + LOT / 2 + 18, bottom - 6, x0 + LOT / 2 + 26, bottom - 5, wood)
     fill(x0 + LOT / 2 + 19, bottom - 3, x0 + LOT / 2 + 20, bottom, fenceC)
@@ -237,9 +237,9 @@ private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, a
 /** A school: a long brick building with a bell tower, a flag and a fenced yard. */
 private fun PixelScene.drawSchool(s: SceneState, lot: Int, x0: Int, bottom: Int, growth: Float, night: Float) {
     if (growth < 0.3f) return
-    val brick = lit(s, rgb(168, 98, 78), 0.04f + s.look.haze * 0.3f)
+    val brick = solid(s, rgb(168, 98, 78), 0.04f + s.look.haze * 0.3f)
     val brickDark = lerp(brick, rgb(10, 10, 30), 0.25f)
-    val roof = lit(s, rgb(96, 80, 82), 0.04f)
+    val roof = solid(s, rgb(96, 80, 82), 0.04f)
     val glassDay = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
     val lamp = lerp(glassDay, WARM, night * 0.7f)
     val h = (30 * growth).toInt()
@@ -259,24 +259,24 @@ private fun PixelScene.drawSchool(s: SceneState, lot: Int, x0: Int, bottom: Int,
         wx += 9
     }
     fill(x + w / 2 - 4, bottom - 11, x + w / 2 + 5, bottom, lerp(brick, rgb(30, 24, 24), 0.5f))
-    fill(x + w / 2 - 6, bottom - 2, x + w / 2 + 7, bottom, lit(s, rgb(180, 176, 168), 0.04f))
+    fill(x + w / 2 - 6, bottom - 2, x + w / 2 + 7, bottom, solid(s, rgb(180, 176, 168), 0.04f))
     // The bell tower over the door.
     fill(x + w / 2 - 5, top - 10, x + w / 2 + 6, top - 2, brick)
     fill(x + w / 2 - 6, top - 12, x + w / 2 + 7, top - 10, roof)
     fill(x + w / 2 - 1, top - 8, x + w / 2 + 2, top - 3, lamp)
     // The flag, and a fence round the yard.
-    val pole = lit(s, rgb(200, 200, 204), 0.04f)
+    val pole = solid(s, rgb(200, 200, 204), 0.04f)
     fill(x0 + LOT - 8, bottom - 26, x0 + LOT - 7, bottom, pole)
     val wave = (sin(s.time * 3.0).toFloat() * 1.2f).toInt()
-    fill(x0 + LOT - 7, bottom - 26, x0 + LOT - 1 + wave, bottom - 21, lit(s, rgb(210, 60, 52), 0.0f))
-    val fenceC = lit(s, rgb(60, 66, 76), 0.04f)
+    fill(x0 + LOT - 7, bottom - 26, x0 + LOT - 1 + wave, bottom - 21, solid(s, rgb(210, 60, 52), 0.0f))
+    val fenceC = solid(s, rgb(60, 66, 76), 0.04f)
     fill(x0 + w + 6, bottom - 5, x0 + LOT - 10, bottom - 4, fenceC)
     var fx = x0 + w + 6
     while (fx < x0 + LOT - 10) { fill(fx, bottom - 6, fx + 1, bottom, fenceC); fx += 4 }
 }
 
 private fun PixelScene.tank(s: SceneState, x: Int, top: Int, shade: Int) {
-    val wood = lit(s, rgb(120, 86, 58), 0.04f)
+    val wood = solid(s, rgb(120, 86, 58), 0.04f)
     fill(x + 1, top - 5, x + 2, top, shade)
     fill(x + 6, top - 5, x + 7, top, shade)
     fill(x, top - 12, x + 8, top - 5, wood)
@@ -287,11 +287,11 @@ private fun PixelScene.tank(s: SceneState, x: Int, top: Int, shade: Int) {
 private fun PixelScene.billboard(s: SceneState, i: Int, x: Int, top: Int, night: Float) {
     val colors = intArrayOf(rgb(230, 70, 90), rgb(60, 170, 230), rgb(250, 200, 60), rgb(110, 220, 130))
     val c = colors[(Noise.unit(i, 829) * colors.size).toInt().coerceIn(0, colors.size - 1)]
-    val post = lit(s, rgb(70, 70, 78), 0.04f)
+    val post = solid(s, rgb(70, 70, 78), 0.04f)
     fill(x + 3, top - 5, x + 4, top, post)
     fill(x + 14, top - 5, x + 15, top, post)
-    fill(x, top - 14, x + 19, top - 5, lit(s, rgb(220, 220, 224), 0.04f))
-    fill(x + 1, top - 13, x + 18, top - 6, lerp(lit(s, c, 0.04f), c, night))
+    fill(x, top - 14, x + 19, top - 5, solid(s, rgb(220, 220, 224), 0.04f))
+    fill(x + 1, top - 13, x + 18, top - 6, lerp(solid(s, c, 0.04f), c, night))
     fill(x + 4, top - 11, x + 15, top - 10, rgb(255, 255, 255))
     fill(x + 4, top - 9, x + 11, top - 8, rgb(255, 255, 255))
     if (night > 0.2f) fillAlpha(x - 3, top - 17, x + 22, top - 3, c, night * 0.16f)
@@ -303,7 +303,7 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
     val offset = floor(s.cam).toInt()
     val spacing = 104
     val first = Math.floorDiv(offset, spacing) - 1
-    val post = lit(s, rgb(58, 62, 72), 0.0f)
+    val post = solid(s, rgb(58, 62, 72), 0.0f)
     for (i in first..first + W / spacing + 2) {
         val wx = i * spacing + 30
         val amount = s.hardAt(wx.toDouble(), 1.0)
@@ -313,7 +313,7 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
         val x = wx - offset
         fill(x, ROAD_TOP - h, x + 1, ROAD_TOP, post)
         fill(x, ROAD_TOP - h, x + 5, ROAD_TOP - h + 1, post)
-        fill(x + 3, ROAD_TOP - h + 1, x + 6, ROAD_TOP - h + 2, if (night > 0.2f) rgb(255, 236, 170) else lit(s, rgb(210, 210, 200), 0.0f))
+        fill(x + 3, ROAD_TOP - h + 1, x + 6, ROAD_TOP - h + 2, if (night > 0.2f) rgb(255, 236, 170) else solid(s, rgb(210, 210, 200), 0.0f))
         if (night > 0.05f && h > 18) {
             // A soft glow round the lamp.
             fillAlpha(x + 2, ROAD_TOP - h, x + 8, ROAD_TOP - h + 5, rgb(255, 226, 150), night * 0.22f)
@@ -326,8 +326,8 @@ internal fun PixelScene.drawSubwayEntrances(s: SceneState) {
     val offset = floor(s.cam).toInt()
     val spacing = 420
     val first = Math.floorDiv(offset, spacing) - 1
-    val rail = lit(s, rgb(54, 60, 70), 0.0f)
-    val sign = lit(s, rgb(40, 100, 190), 0.0f)
+    val rail = solid(s, rgb(54, 60, 70), 0.0f)
+    val sign = solid(s, rgb(40, 100, 190), 0.0f)
     for (i in first..first + W / spacing + 2) {
         val wx = i * spacing + 200 + (Noise.unit(i, 850) * 100).toInt()
         if (s.cityAt(wx.toDouble(), 1.0) < 0.9f) continue
@@ -336,7 +336,7 @@ internal fun PixelScene.drawSubwayEntrances(s: SceneState) {
         fill(x, ROAD_TOP - 6, x + 1, ROAD_TOP - 1, rail)
         fill(x + 13, ROAD_TOP - 6, x + 14, ROAD_TOP - 1, rail)
         fill(x, ROAD_TOP - 6, x + 14, ROAD_TOP - 5, rail)
-        fill(x + 2, ROAD_TOP - 4, x + 12, ROAD_TOP - 1, lit(s, rgb(30, 30, 38), 0.0f))
+        fill(x + 2, ROAD_TOP - 4, x + 12, ROAD_TOP - 1, solid(s, rgb(30, 30, 38), 0.0f))
         // The sign: a blue square with a white mark.
         fill(x + 15, ROAD_TOP - 17, x + 16, ROAD_TOP - 1, rail)
         fill(x + 12, ROAD_TOP - 19, x + 19, ROAD_TOP - 12, sign)

@@ -84,8 +84,10 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
 
         // Snow settles while it falls in the cold and melts away slowly.
         val cold = s.cond.tempC < 2f
-        if (s.cond.snow > 0.15f && cold) s.snowCover = (s.snowCover + s.cond.snow * dtSeconds / 150f).coerceAtMost(1f)
-        else s.snowCover = (s.snowCover - dtSeconds / (if (cold) 900f else 240f)).coerceAtLeast(0f)
+        // (In the preview's fast time-lapse the snow comes and goes as fast as the day does.)
+        val clock = dtSeconds * c.speed.coerceAtLeast(1f)
+        if (s.cond.snow > 0.15f && cold) s.snowCover = (s.snowCover + s.cond.snow * clock / 150f).coerceAtMost(1f)
+        else s.snowCover = (s.snowCover - clock / (if (cold) 900f else 240f)).coerceAtLeast(0f)
 
         // Sky: the real moment, or today at the hour chosen.
         s.lat = weather?.takeIf { it.known }?.latitude ?: weather?.latitude ?: 40.0

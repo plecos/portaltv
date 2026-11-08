@@ -115,13 +115,16 @@ class PixelScene {
         return lerp(c, airColor(s), air)
     }
 
+    /** A colour like [lit] but for things snow does not settle on: walls, wires, posts, water, boards. */
+    internal fun solid(s: SceneState, base: Int, air: Float): Int = lit(s, base, air, 0f)
+
     internal fun airColor(s: SceneState) = lerp(s.look.skyBottom, s.look.fogColor, s.look.haze * 0.8f)
 
     /** A filter that gives sprites the same light and haze. */
-    internal fun filter(s: SceneState, air: Float, extraBright: Float = 1f): LightingColorFilter {
+    internal fun filter(s: SceneState, air: Float, extraBright: Float = 1f, snowy: Boolean = true): LightingColorFilter {
         val l = s.look
         // Snow settles on the trees and roofs too: lighter, and paler.
-        val dust = s.snowCover * 70
+        val dust = if (snowy) s.snowCover * 70 else 0f
         val keep = 1f - air
         val mul = rgb((min(1f, l.tintR * extraBright) * keep * 255).toInt(), (min(1f, l.tintG * extraBright) * keep * 255).toInt(), (min(1f, l.tintB * extraBright) * keep * 255).toInt())
         val a = airColor(s)
@@ -608,7 +611,7 @@ class PixelScene {
 
     private fun drawTraffic(s: SceneState) {
         val travelV = if (s.travelling) s.speed else 0f
-        spritePaint.colorFilter = filter(s, 0.0f)
+        spritePaint.colorFilter = filter(s, 0.0f, snowy = false)
         val period = 3.5
         val slot = floor(s.time / period).toInt()
         val night = s.look.day < 0.45f
@@ -694,8 +697,8 @@ class PixelScene {
 
     private fun drawForeground(s: SceneState, cam: Double) {
         val offset = cam * 1.7
-        val wood = lit(s, rgb(86, 62, 44), 0.0f)
-        val wire = lit(s, rgb(40, 40, 50), 0.0f)
+        val wood = solid(s, rgb(86, 62, 44), 0.0f)
+        val wire = solid(s, rgb(40, 40, 50), 0.0f)
         val spacing = 520
         val first = floor(offset / spacing).toInt() - 1
         // Poles with wires between them.

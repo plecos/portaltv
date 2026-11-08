@@ -69,7 +69,7 @@ internal fun PixelScene.drawWalkers(s: SceneState) {
     if (s.day() < 0.25f || s.stormy() > 0.8f || s.cond.thunder > 0.3f) return
     val rainy = s.cond.rain > 0.2f || s.cond.snow > 0.3f
     val travelV = if (s.travelling) s.speed else 0f
-    spritePaint.colorFilter = filter(s, 0f)
+    spritePaint.colorFilter = filter(s, 0f, snowy = false)
     for (ev in LifeSchedule.events(s.time, 10.0, 80.0, 0.34f, 201, s.boost)) {
         val cycling = ev.unit(1) < 0.35f
         if (cycling && s.cond.rain > 0.55f) continue
