@@ -8,7 +8,9 @@ import net.getportaltv.scenic.PixelScene.Companion.H
 import net.getportaltv.scenic.PixelScene.Companion.ROAD_BOTTOM
 import net.getportaltv.scenic.PixelScene.Companion.ROAD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.W
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.min
 import kotlin.math.sin
 
 /**
@@ -252,14 +254,12 @@ private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, a
     }
     spritePaint.colorFilter = filter(s, 0.04f + s.look.haze * 0.3f)
     sprite(Sprites.roundTreeYear.at(s.season, lot * 5), x0 + 4, bottom - 1)
-    sprite(Sprites.pine, x0 + 18, bottom - 3)
-    treeLights(s, x0 + 18, bottom - 3, Sprites.pine.width, Sprites.pine.height, lot * 3, s.night())
     sprite(Sprites.roundTreeYear.at(s.season, lot * 5 + 1), x0 + LOT - 16, bottom - 1)
     sprite(Sprites.pine, x0 + LOT - 28, bottom - 4)
     treeLights(s, x0 + LOT - 28, bottom - 4, Sprites.pine.width, Sprites.pine.height, lot * 3 + 1, s.night())
-    sprite(Sprites.bushYear.at(s.season, lot * 5 + 2), x0 + 34, bottom - 1)
     sprite(Sprites.bushYear.at(s.season, lot * 5 + 3), x0 + LOT - 44, bottom - 1)
     spritePaint.colorFilter = null
+    drawPlayground(s, lot, x0, bottom)
     // A bench by the path, and a low railing along the front.
     val wood = solid(s, rgb(130, 94, 60), 0.04f)
     fill(x0 + LOT / 2 + 18, bottom - 4, x0 + LOT / 2 + 26, bottom - 3, wood)
@@ -267,6 +267,79 @@ private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, a
     fill(x0 + LOT / 2 + 19, bottom - 3, x0 + LOT / 2 + 20, bottom, fenceC)
     fill(x0 + LOT / 2 + 24, bottom - 3, x0 + LOT / 2 + 25, bottom, fenceC)
     fill(x0 + 1, bottom - 2, x0 + LOT - 1, bottom - 1, fenceC)
+}
+
+/** The playground in a park: a swing set (with a child swinging, and the other swing moving a little in the breeze) and a slide a child comes down now and then. */
+private fun PixelScene.drawPlayground(s: SceneState, lot: Int, x0: Int, bottom: Int) {
+    val t = s.time
+    val metal = solid(s, rgb(214, 62, 52), 0.04f)
+    val chain = solid(s, rgb(176, 178, 186), 0.04f)
+    val seat = solid(s, rgb(246, 200, 60), 0.04f)
+    val slideBlue = solid(s, rgb(60, 124, 214), 0.04f)
+    val ladder = solid(s, rgb(150, 154, 164), 0.04f)
+    // Children are out in the day and dry weather.
+    val kids = s.night() < 0.5f && s.cond.rain < 0.15f && s.snowCover < 0.4f
+    val shirts = intArrayOf(rgb(230, 90, 80), rgb(70, 150, 230), rgb(250, 210, 80), rgb(110, 200, 130), rgb(220, 120, 200))
+    fun kidShirt(k: Int) = solid(s, shirts[(Noise.unit(lot, 950 + k) * shirts.size).toInt().coerceIn(0, shirts.size - 1)], 0.04f)
+    fun kidSkin(k: Int) = solid(s, People.SKIN[People.skinIndex(Noise.unit(lot, 954 + k))], 0.04f)
+    fun kidHair(k: Int) = solid(s, People.hair(People.hairIndex(Noise.unit(lot, 958 + k))), 0.04f)
+    // The swing set: a bar across two A-shaped frames.
+    val left = x0 + 20
+    val right = x0 + 34
+    val top = bottom - 15
+    fill(left, top, right + 1, top + 2, metal)
+    for (post in intArrayOf(left, right)) {
+        fill(post, top, post + 1, bottom, metal)
+        fill(post - 1, bottom - 2, post, bottom, metal)
+        fill(post + 1, bottom - 2, post + 2, bottom, metal)
+    }
+    for (swing in 0..1) {
+        val bx = left + 4 + swing * 6
+        // The first swing has a child on it, going high; the other only moves a little.
+        val occupied = swing == 0 && kids
+        val amplitude = if (occupied) 0.7f else 0.05f + 0.05f * min(1f, s.cond.wind / 30f)
+        val angle = sin(t * 1.7 + swing * 2.1).toFloat() * amplitude
+        val length = 10f
+        val sx = bx + (sin(angle) * length).toInt()
+        val sy = top + 2 + (cos(angle) * length).toInt()
+        line(bx + 0.5f, top + 2f, sx + 0.5f, sy.toFloat(), chain)
+        fill(sx - 2, sy, sx + 2, sy + 1, seat)
+        if (occupied) {
+            // The child: head, hair, body and legs that kick out as they swing forward.
+            val kick = if (cos(t * 1.7) > 0) 1 else -1
+            fill(sx - 1, sy - 5, sx + 1, sy - 3, kidSkin(0))
+            fill(sx - 1, sy - 6, sx + 1, sy - 5, kidHair(0))
+            fill(sx - 1, sy - 3, sx + 2, sy, kidShirt(0))
+            fill(sx - 1 + kick, sy + 1, sx + 1 + kick, sy + 4, solid(s, rgb(60, 70, 110), 0.04f))
+        }
+    }
+    // The slide: a ladder up to a platform, and a ramp down.
+    val platform = bottom - 11
+    fill(x0 + 36, platform, x0 + 40, platform + 1, metal)
+    fill(x0 + 36, platform, x0 + 37, bottom, ladder)
+    fill(x0 + 38, platform, x0 + 39, bottom, ladder)
+    var rung = platform + 3
+    while (rung < bottom) { fill(x0 + 36, rung, x0 + 39, rung + 1, ladder); rung += 3 }
+    for (k in 0..7) {
+        val ry = platform + (k * 9) / 7
+        fill(x0 + 40 + k, ry, x0 + 41 + k, ry + 2, slideBlue)
+    }
+    if (kids) {
+        // A child waits on the platform, then sits and slides down, and then is off again.
+        val u = (t + lot * 1.3) % 9.0
+        if (u < 3.0) {
+            val shift = if (u < 2.0) 0 else 2
+            fill(x0 + 37, platform - 4, x0 + 39, platform - 2, kidSkin(1))
+            fill(x0 + 37, platform - 5, x0 + 39, platform - 4, kidHair(1))
+            fill(x0 + 37, platform - 2 + shift, x0 + 40, platform + shift, kidShirt(1))
+        } else if (u < 4.6) {
+            val k = (((u - 3.0) / 1.6) * 7).toInt().coerceIn(0, 7)
+            val ry = platform + (k * 9) / 7
+            fill(x0 + 40 + k - 1, ry - 4, x0 + 40 + k + 1, ry - 2, kidSkin(1))
+            fill(x0 + 40 + k - 1, ry - 5, x0 + 40 + k + 1, ry - 4, kidHair(1))
+            fill(x0 + 40 + k - 1, ry - 2, x0 + 40 + k + 2, ry, kidShirt(1))
+        }
+    }
 }
 
 /** A school: a long brick building with a bell tower, a flag and a fenced yard. */
