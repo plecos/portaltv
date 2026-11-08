@@ -18,6 +18,7 @@ local.properties
 /.idea/
 /sample-extension/build
 /conformance-extension/build
+/scenic-background/build
 conformance-logcat.txt
 
 # Catalog signing keys: the real private key must never be committed (only the labelled test key is).

@@ -238,6 +238,8 @@ and Video, set per profile). You draw in your own process and Portal shows the r
 3. When you get `MSG_STOP` (3), or Portal unbinds, `release()` the host and stop drawing.
 
 The [sample](../sample-extension/src/main/java/net/getportaltv/sample/BackgroundService.kt) is about 80 lines.
+[Scenic Travel](../scenic-background/README.md) is a full one: an animated countryside journey that follows the real sky, sun,
+moon and weather (it uses the `weather` capability), with its own settings page and a preview for making and checking it.
 
 What Portal does with it:
 - Your picture sits behind everything on the home screen, under the same dark layer Portal puts over its own backgrounds, so
