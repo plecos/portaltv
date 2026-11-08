@@ -137,6 +137,44 @@ private object BeachSprites {
         for (k in 0 until 4) bm.rect(12 + k * 2, 2, 14 + k * 2, 4, cols[(k + 1) % cols.size])
     }
 
+    val lighthouse = picture(9, 24) { bm ->
+        val white = rgb(240, 240, 238)
+        val red = rgb(204, 58, 50)
+        // The tower, narrowing toward the top, in red and white bands.
+        for (y in 6..21) {
+            val half = 2 + (y - 6) / 10
+            val c = if (((y - 6) / 4) % 2 == 0) white else red
+            bm.rect(4 - half, y, 5 + half, y + 1, c)
+        }
+        // The lantern room and a cap.
+        bm.rect(2, 3, 7, 6, rgb(255, 232, 140))
+        bm.rect(2, 2, 7, 3, rgb(60, 60, 70))
+        bm.rect(3, 1, 6, 2, rgb(60, 60, 70)); bm.dot(4, 0, rgb(60, 60, 70))
+        bm.rect(2, 6, 7, 7, rgb(60, 60, 70))
+        // The rock it stands on.
+        bm.rect(0, 22, 9, 24, rgb(92, 88, 92)); bm.rect(1, 21, 8, 22, rgb(92, 88, 92))
+    }
+
+    val cruise = picture(46, 16) { bm ->
+        val white = rgb(246, 246, 246)
+        val shade = rgb(206, 210, 220)
+        val blue = rgb(40, 70, 130)
+        val glass = rgb(70, 100, 140)
+        // The hull, with a dark blue stripe at the waterline and a long white superstructure on top.
+        bm.rect(1, 12, 45, 16, white)
+        bm.rect(0, 12, 2, 13, white)
+        bm.rect(2, 14, 44, 16, blue)
+        for (deck in 0 until 3) {
+            val y = 4 + deck * 3
+            bm.rect(6 - deck, y, 40 + deck, y + 3, if (deck == 0) shade else white)
+            var x = 8 - deck
+            while (x < 38 + deck) { bm.dot(x, y + 1, glass); x += 2 }
+        }
+        bm.rect(30, 0, 34, 4, rgb(240, 190, 60)); bm.rect(30, 0, 34, 1, rgb(50, 50, 60))
+        bm.rect(24, 1, 28, 4, rgb(240, 190, 60)); bm.rect(24, 1, 28, 2, rgb(50, 50, 60))
+        for (x in 8 until 40 step 6) bm.dot(x, 13, rgb(230, 120, 40))
+    }
+
     val gullUp = picture(5, 3) { bm -> bm.dot(0, 0, WHITE); bm.dot(4, 0, WHITE); bm.dot(1, 1, WHITE); bm.dot(3, 1, WHITE); bm.dot(2, 2, rgb(210, 210, 214)) }
     val gullDown = picture(5, 3) { bm -> bm.dot(2, 0, rgb(210, 210, 214)); bm.rect(1, 1, 4, 2, WHITE); bm.dot(0, 2, WHITE); bm.dot(4, 2, WHITE) }
 
@@ -239,6 +277,31 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         if (x < -26 || x > W + 26) continue
         sprite(BeachSprites.ship, x.toInt(), SEA_TOP + 4, flip = dir < 0)
     }
+    // A cruise ship now and then, a little nearer than the cargo ships and bigger, lit up at night.
+    val night = (1f - s.look.day * 1.6f).coerceIn(0f, 1f)
+    for (ev in LifeSchedule.events(s.time, 600.0, 330.0, 0.5f, 831, s.boost)) {
+        val dir = if (ev.unit(1) < 0.5f) 1 else -1
+        val v = dir * 3f - travelV * 0.06f
+        val age = (s.time - ev.spawn).toFloat()
+        val x = if (v > 0) -48f + v * age else W + 48f + v * age
+        if (x < -48 || x > W + 48) continue
+        val bob = (sin(age * 0.6) * 0.6).toInt()
+        sprite(BeachSprites.cruise, x.toInt(), SEA_TOP + 13 + bob, flip = dir < 0)
+        if (night > 0.15f) {
+            spritePaint.colorFilter = null
+            for (deck in 0 until 3) {
+                var wx = 8 - deck
+                while (wx < 38 + deck) {
+                    val lx = if (dir < 0) x.toInt() + 46 - 1 - wx else x.toInt() + wx
+                    fillAlpha(lx, SEA_TOP + 13 + bob - 16 + 4 + deck * 3 + 1, lx + 1, SEA_TOP + 13 + bob - 16 + 4 + deck * 3 + 2, rgb(255, 224, 140), night * 0.9f * (spritePaint.alpha / 255f))
+                    wx += 2
+                }
+            }
+            spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
+        }
+    }
+    // A lighthouse on a rock out on the water, very rarely, with its light turning at night.
+    drawLighthouse(s, night)
     // Sailboats, nearer in, going with the wind.
     for (ev in LifeSchedule.events(s.time, 45.0, 90.0, 0.55f, 811, s.boost)) {
         val dir = if (s.windDir > 0) 1 else -1
@@ -264,6 +327,40 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
     }
     spritePaint.alpha = 255
     spritePaint.colorFilter = null
+}
+
+private fun PixelScene.drawLighthouse(s: SceneState, night: Float) {
+    val factor = 0.12
+    val offset = floor(s.cam * factor).toInt()
+    val cell = 900
+    val first = Math.floorDiv(offset, cell) - 1
+    for (i in first..first + W / cell + 2) {
+        if (Noise.unit(i, 840) > 0.3f) continue
+        val wx = i * cell + 120 + (Noise.unit(i, 841) * 600).toInt()
+        if (s.beachAt(wx.toDouble(), factor) < 0.9f) continue
+        val x = wx - offset
+        if (x < -20 || x > W + 20) continue
+        sprite(BeachSprites.lighthouse, x, SEA_TOP + 5)
+        if (night > 0.2f) {
+            // The beam sweeps round: seen edge on it stretches out to the side, and when it points at us the lamp flares.
+            val angle = s.time * 0.9
+            val side = cos(angle).toFloat()
+            val lx = x + 4
+            val ly = SEA_TOP + 5 - 24 + 4
+            val reach = side * 110f
+            val a = night * 0.28f * abs(side)
+            if (a > 0.02f) {
+                paint.color = rgb(255, 240, 170)
+                paint.alpha = (a * 255f).toInt().coerceIn(0, 255)
+                val path = android.graphics.Path()
+                path.moveTo(lx.toFloat(), ly - 1f); path.lineTo(lx + reach, ly - 4f); path.lineTo(lx + reach, ly + 4f); path.lineTo(lx.toFloat(), ly + 1f); path.close()
+                canvas.drawPath(path, paint)
+                paint.alpha = 255
+            }
+            val flare = Math.pow(abs(sin(angle)).toDouble(), 6.0).toFloat()
+            fillAlpha(lx - 3, ly - 3, lx + 4, ly + 3, rgb(255, 244, 190), night * 0.5f * flare)
+        }
+    }
 }
 
 private fun SceneState.stormy() = (cond.rain * 0.7f + cond.snow * 0.5f + cond.thunder).coerceIn(0f, 1f)

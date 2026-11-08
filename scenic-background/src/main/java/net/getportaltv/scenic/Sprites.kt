@@ -256,6 +256,30 @@ object Sprites {
         ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.72f))
     )
 
+    /** A taxi: a yellow-style car with a checker stripe and a light on the roof. */
+    fun taxi(body: Int): Sprite = Sprite(
+        listOf(
+            "......hh......",
+            "....wwwwww....",
+            "...wcccccc.w..",
+            "cccccccccccccc",
+            "ckckckckckckck",
+            "cccccccccccccc",
+            ".kkk......kkk.",
+            ".kkk......kkk."
+        ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.72f))
+    )
+
+    /** A city bus, 30 wide: a row of windows along the side. */
+    fun bus(body: Int): Sprite {
+        val w = 30
+        val windows = "c" + "wwwc".repeat(6) + "wwwwc"
+        return Sprite(
+            listOf("c".repeat(w), windows, windows, "c".repeat(w), "c" + "C".repeat(w - 2) + "c", "c".repeat(w), "c".repeat(w), ".kkkk" + ".".repeat(w - 10) + ".kkkk", ".kkkk" + ".".repeat(w - 10) + ".kkkk"),
+            CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.78f))
+        )
+    }
+
     fun truck(body: Int): Sprite = Sprite(
         listOf(
             "wwwwwwwwwwwwwwwwwwwww..",

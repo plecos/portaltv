@@ -42,6 +42,8 @@ class PixelScene {
     private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> Sprites.cloud(w, h, 100 + i) }
     private val carBodies = intArrayOf(rgb(214, 56, 56), rgb(60, 110, 200), rgb(236, 200, 60), rgb(240, 240, 240), rgb(70, 74, 84), rgb(70, 160, 96))
     private val cars = carBodies.map { Sprites.car(it) }
+    private val taxi = Sprites.taxi(rgb(244, 196, 40))
+    private val buses = intArrayOf(rgb(46, 112, 192), rgb(200, 62, 52), rgb(60, 150, 96)).map { Sprites.bus(it) }
     private val trucks = intArrayOf(rgb(236, 236, 240), rgb(200, 90, 50), rgb(60, 120, 170)).map { Sprites.truck(it) }
     private val animals = listOf(Sprites.cow, Sprites.sheep, Sprites.horse)
 
@@ -82,6 +84,7 @@ class PixelScene {
         drawSubwayEntrances(s)
         drawRoadsideTrees(s)
         drawForestMist(s)
+        drawDepthFog(s)
         drawButterflies(s)
         drawFence(s, cam)
         drawRoad(s, cam)
@@ -217,7 +220,7 @@ class PixelScene {
         val x = skyX(s.sunAz)
         val y = skyY(s.sunAlt)
         if (x < -20 || x > W + 20) return
-        val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f)).coerceIn(0f, 1f)
+        val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f) * (1f - l.deck)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val core = lerp(rgb(255, 238, 170), rgb(255, 150, 80), l.twilight)
         for (i in 4 downTo 1) fillCircle(x, y, 8f + i * 5f, core, shine * 0.07f)
@@ -238,7 +241,7 @@ class PixelScene {
         val cx = skyX(m.azDeg)
         val cy = skyY(m.altDeg)
         if (cx < -20 || cx > W + 20) return
-        val shine = ((1f - l.gloom * 0.85f) * (1f - l.haze * 0.8f)).coerceIn(0f, 1f)
+        val shine = ((1f - l.gloom * 0.85f) * (1f - l.haze * 0.8f) * (1f - l.deck)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val night = 1f - l.day
         val r = 6
@@ -336,7 +339,7 @@ class PixelScene {
             val x = i - 4
             val m = Noise.mountain((x + offset) * freq, seed)
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - maxOf(s.cityAt((x + offset).toDouble(), factor), 0.85f * s.beachAt((x + offset).toDouble(), factor)))
+            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - maxOf(s.cityAt((x + offset).toDouble(), factor), s.beachAt((x + offset).toDouble(), factor)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
@@ -632,7 +635,9 @@ class PixelScene {
             // Never nearly still on the screen (a car going our speed would sit there for ever), so it always crosses in time.
             val vScreen = if (kotlin.math.abs(raw) < MIN_SCREEN_SPEED) (if (raw < 0f) -MIN_SCREEN_SPEED else MIN_SCREEN_SPEED) else raw
             val truck = Noise.unit(k, 105) < 0.22f
-            val sp = if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            // In the city some of the extra vehicles are taxis and buses.
+            val kind = Noise.unit(k, 107)
+            val sp = if (cityCar && kind < 0.22f) taxi else if (cityCar && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val e = (s.time - spawn).toFloat()
             if (e < 0f) continue
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
@@ -654,7 +659,7 @@ class PixelScene {
 
     private fun drawBirds(s: SceneState) {
         val l = s.look
-        val calm = (1f - s.cond.rain - s.cond.snow - s.cond.fog * 0.6f - s.cond.thunder).coerceIn(0f, 1f)
+        val calm = (1f - s.cond.rain - s.cond.snow - s.cond.fog * 1.3f - s.cond.thunder).coerceIn(0f, 1f)
         val daylight = Colors.smoothstep(-2f, 8f, s.sunAlt.toFloat())
         if (calm * daylight < 0.1f) return
         spritePaint.colorFilter = filter(s, 0.12f)
@@ -779,6 +784,24 @@ class PixelScene {
             val x = ((Noise.unit(i, 23) * (W + 80) + drift * s.time * (0.5f + u1)) % (W + 80)).toFloat() - 40f + (sin(s.time * (0.8 + u1) + i) * 5f).toFloat()
             val size = if (u1 > 0.7f) 2 else 1
             fillAlpha(x.toInt(), y.toInt(), x.toInt() + size, y.toInt() + size, color, 0.55f + 0.45f * u1)
+        }
+    }
+
+    /**
+     * Thick fog closes in from the distance: the sky, mountains, hills, towers and sea are gone altogether, and the land behind the
+     * road is lost a little more with every step back from it, so only what is nearest stays clear.
+     */
+    private fun drawDepthFog(s: SceneState) {
+        val fog = s.cond.fog
+        if (fog < 0.05f) return
+        val color = s.look.fogColor
+        val far = (fog * 1.2f).coerceAtMost(1f)
+        fillAlpha(0, 0, W, FIELD_TOP + 2, color, far)
+        var y = FIELD_TOP + 2
+        while (y < ROAD_TOP) {
+            val t = (y - FIELD_TOP) / (ROAD_TOP - FIELD_TOP).toFloat()
+            fillAlpha(0, y, W, minOf(y + 2, ROAD_TOP), color, fog * (1f - 0.6f * t) * 0.95f)
+            y += 2
         }
     }
 

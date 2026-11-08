@@ -30,6 +30,8 @@ class Look {
     var starVisibility = 0f
     /** How dark the weather is, 0 to 1: cloud, rain and snow. */
     var gloom = 0f
+    /** How complete the grey overcast is, 0 to 1: rain, snow and storms close the sky over entirely (no blue, sun, moon or stars). */
+    var deck = 0f
 
     private class Key(val alt: Float, val top: Int, val bottom: Int)
 
@@ -61,12 +63,13 @@ class Look {
         gloom = (overcast * 0.6f + storm * 0.5f).coerceIn(0f, 1f)
 
         // Cloud and rain turn the sky grey, darker in a storm, and it follows day and night.
-        val grayNight = rgb(20, 22, 32)
+        deck = (c.rain * 2f + c.snow * 2f + c.thunder).coerceIn(0f, 1f)
+        val grayNight = rgb(46, 48, 54)
         val grayDay = lerp(rgb(166, 174, 186), rgb(92, 98, 110), storm)
         val gray = lerp(grayNight, grayDay, day)
         // Near the horizon the overcast keeps a hint of the sunrise colour.
-        top = lerp(top, Colors.scale(gray, 0.9f), overcast * 0.9f)
-        bottom = lerp(bottom, lerp(gray, bottom, twilight * 0.35f), overcast * 0.85f)
+        top = lerp(top, Colors.scale(gray, 0.9f), maxOf(overcast * 0.9f, deck))
+        bottom = lerp(bottom, lerp(gray, bottom, twilight * 0.35f * (1f - deck)), maxOf(overcast * 0.85f, deck))
 
         // Fog: the sky fades into one flat colour.
         fogColor = lerp(rgb(30, 34, 48), lerp(rgb(196, 204, 214), rgb(240, 170, 130), twilight * 0.5f), day.coerceAtLeast(twilight * 0.6f))
@@ -83,14 +86,14 @@ class Look {
         skyBottom = bottom
 
         glow = lerp(rgb(255, 120, 70), rgb(255, 190, 120), 1f - twilight)
-        glowStrength = (twilight * (1f - overcast * 0.85f) * (1f - haze * 0.5f)).coerceIn(0f, 1f)
+        glowStrength = (twilight * (1f - overcast * 0.85f) * (1f - haze * 0.5f) * (1f - deck)).coerceIn(0f, 1f)
 
         // The scenery's tint: dark and blue at night, warm at sunrise and sunset, flatter and darker in overcast.
         val nightR = 0.36f; val nightG = 0.42f; val nightB = 0.68f
         var r = nightR + (1f - nightR) * day
         var g = nightG + (1f - nightG) * day
         var bl = nightB + (1f - nightB) * day
-        val warm = twilight * (1f - overcast * 0.6f)
+        val warm = twilight * (1f - maxOf(overcast * 0.6f, deck))
         r *= 1f + 0.05f * warm
         g *= 1f - 0.12f * warm
         bl *= 1f - 0.30f * warm
@@ -106,6 +109,6 @@ class Look {
         cloudLit = lerp(rgb(70, 78, 112), litTwilight, day.coerceAtLeast(twilight * 0.5f))
         cloudShade = Colors.scale(lerp(cloudLit, rgb(120, 128, 150), 0.5f), 0.72f - 0.12f * grim)
 
-        starVisibility = ((1f - smoothstep(-14f, -3f, sunAltDeg)) * (1f - c.cloud * 0.9f) * (1f - c.fog)).coerceIn(0f, 1f)
+        starVisibility = ((1f - smoothstep(-14f, -3f, sunAltDeg)) * (1f - c.cloud * 0.9f) * (1f - c.fog) * (1f - deck)).coerceIn(0f, 1f)
     }
 }
