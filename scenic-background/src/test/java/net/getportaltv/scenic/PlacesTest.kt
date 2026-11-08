@@ -58,12 +58,13 @@ class PlacesTest {
         assertEquals(Places.SUBURBIA, Places.placeOf(3))
         assertEquals(Places.CITY, Places.placeOf(4))
         assertEquals(Places.SUBURBIA, Places.placeOf(5))
-        assertEquals(Places.COUNTRYSIDE, Places.placeOf(6))
-        assertEquals(Places.BEACH, Places.placeOf(7))
+        assertEquals(Places.AMUSEMENT, Places.placeOf(6))
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(7))
+        assertEquals(Places.BEACH, Places.placeOf(8))
         // ...and then it all comes round again.
-        assertEquals(Places.COUNTRYSIDE, Places.placeOf(8))
-        assertEquals(Places.FOREST, Places.placeOf(9))
-        assertEquals(Places.CITY, Places.placeOf(12))
+        assertEquals(Places.COUNTRYSIDE, Places.placeOf(9))
+        assertEquals(Places.FOREST, Places.placeOf(10))
+        assertEquals(Places.CITY, Places.placeOf(13))
     }
 
     @Test fun cityAndForestNeverMixAndEachReachesFull() {

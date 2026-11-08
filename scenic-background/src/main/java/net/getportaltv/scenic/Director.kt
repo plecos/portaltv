@@ -38,6 +38,9 @@ class SceneState {
     val cityRaw = Strip(PixelScene.W + 16) { wx -> cityAt(wx.toDouble(), 1.0) }
     val suburbRaw = Strip(PixelScene.W + 16) { wx -> suburbAt(wx.toDouble(), 1.0) }
     val suburbCols = FloatArray(PixelScene.W + 16)
+    val parkRaw = Strip(PixelScene.W + 16) { wx -> parkAt(wx.toDouble(), 1.0) }
+    val parkCols = FloatArray(PixelScene.W + 16)
+    var anyPark = false
     var colsCam = Int.MIN_VALUE
     /** Whether any beach (within the bay's reach) or any city is on screen: when not, those parts of the picture are skipped. */
     var anyBeach = false
