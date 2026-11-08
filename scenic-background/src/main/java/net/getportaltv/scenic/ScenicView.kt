@@ -14,7 +14,7 @@ import android.view.View
 class ScenicView(
     context: Context,
     private val maxFps: () -> Int = { 30 },
-    config: () -> Config,
+    private val config: () -> Config,
     private val weather: PortalWeather? = null
 ) : View(context) {
 
@@ -70,6 +70,7 @@ class ScenicView(
         // The picture is shown on every screen refresh but only worked out again when its turn comes (a little early is fine, so
         // a refresh that comes slightly before the time doesn't cost a whole extra one): the rate is then a steady whole number
         // of refreshes apart, instead of whatever a timer happens to land on.
+        if (scene.dither != config().dither) applyQuality()
         val interval = 1_000_000_000L / steps[step]
         if (last == 0L || now - last >= interval - EARLY_NANOS) renderFrame(now)
         target.set(0, 0, width, height)
@@ -118,9 +119,9 @@ class ScenicView(
         } else if (step == 0 || ema >= 1000.0 / steps[step - 1] * 0.75) calm = 0
     }
 
-    /** The picture is plainer at a low rate: no dithering below 30 a second, and half the rain and snow at 15 or less. */
+    /** Dithering is a setting; at 15 frames a second or less there is half the rain and snow. */
     private fun applyQuality() {
-        scene.dither = steps[step] >= 30
+        scene.dither = config().dither
         scene.particleScale = if (steps[step] <= 15) 0.5f else 1f
     }
 

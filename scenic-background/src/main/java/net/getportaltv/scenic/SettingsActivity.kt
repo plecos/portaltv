@@ -49,7 +49,7 @@ class SettingsActivity : Activity() {
             .putBoolean("real_weather", config.realWeather).putString("weather", config.weather)
             .putBoolean("real_time", config.realTime).putFloat("hour", config.hour)
             .putBoolean("scroll", config.scroll).putString("environment", config.environment).putString("style", config.style)
-            .putString("season", config.season).putInt("fps", config.fps).apply() }
+            .putString("season", config.season).putInt("fps", config.fps).putBoolean("dither", config.dither).apply() }
         fun refresh() = rows.forEach { it.update() }
 
         row("Weather", { if (config.realWeather) "Follow the real weather" else "Always: ${config.weather}" }) { d ->
@@ -81,6 +81,9 @@ class SettingsActivity : Activity() {
         row("Frame rate", { "${config.fps} frames a second" + if (config.fps > 30) "  (the TV slows it if it can't keep up)" else "" }) { d ->
             val i = Settings.FRAME_RATES.indexOf(config.fps)
             config = config.copy(fps = Settings.FRAME_RATES[(i + d + Settings.FRAME_RATES.size) % Settings.FRAME_RATES.size]); save(); refresh()
+        }
+        row("Colours", { if (config.dither) "Dithered: a fine grain between colours, like an old computer" else "Clean bands of colour" }) { _ ->
+            config = config.copy(dither = !config.dither); save(); refresh()
         }
         row("Drawing style", { config.style }) { d ->
             val i = Settings.STYLES.indexOf(config.style)
