@@ -97,6 +97,7 @@ class PixelScene {
         drawBirds(s)
         drawBats(s)
         drawFireflies(s)
+        drawFrontTrees(s)
         drawForeground(s, cam)
         drawRain(s)
         drawSnow(s)
