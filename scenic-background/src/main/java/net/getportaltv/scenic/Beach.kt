@@ -647,11 +647,19 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         if (Noise.unit(i, 895) < 0.4f * crowd * crowd) {
             val sx = left + 10 + (Noise.unit(i, 896) * 70).toInt()
             val sy = SHORE - 5 - (Noise.unit(i, 897) * 6).toInt() + (sin(t * 1.3 + i) * 1).toInt()
-            val swimSkin = People.SKIN[People.skinIndex(Noise.unit(i, 917))]
-            fill(sx, sy, sx + 2, sy + 1, solid(s, People.hair(People.hairIndex(Noise.unit(i, 918))), 0.04f))
-            fill(sx, sy + 1, sx + 2, sy + 2, solid(s, swimSkin, 0.04f))
-            val arm = if ((t * 2.0).toInt() % 2 == 0) 2 else 0
-            fill(sx + 2, sy + arm, sx + 4, sy + arm + 1, solid(s, swimSkin, 0.04f))
+            val swimSkin = solid(s, People.SKIN[People.skinIndex(Noise.unit(i, 917))], 0.04f)
+            val swimHair = solid(s, People.hair(People.hairIndex(Noise.unit(i, 918))), 0.04f)
+            val foam = solid(s, rgb(250, 252, 252), 0.0f)
+            val stroke = ((t * 1.6 + i) % 2.0) < 1.0
+            // A round head with hair on top, shoulders just out of the water, and an arm that reaches up and over, stroke by stroke.
+            fill(sx, sy, sx + 4, sy + 1, swimHair)
+            fill(sx, sy + 1, sx + 4, sy + 4, swimSkin)
+            fill(sx, sy + 1, sx + 1, sy + 2, swimHair)
+            fill(sx - 1, sy + 4, sx + 5, sy + 5, swimSkin)
+            if (stroke) fill(sx + 5, sy - 2, sx + 6, sy + 3, swimSkin) else fill(sx + 5, sy + 3, sx + 8, sy + 4, swimSkin)
+            // The water closing round them, with ripples spreading out.
+            fillAlpha(sx - 3, sy + 5, sx + 9, sy + 6, foam, 0.7f)
+            fillAlpha(sx - 5, sy + 6, sx + 11, sy + 7, foam, 0.25f)
         }
         // Out of season a few people walk the sand wrapped up warm, some with a dog.
         if (crowd < 0.7f && Noise.unit(i, 906) < 0.45f * (1f - crowd)) {
