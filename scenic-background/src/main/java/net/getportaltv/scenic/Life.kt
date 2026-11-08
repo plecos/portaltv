@@ -319,6 +319,7 @@ internal fun PixelScene.drawSkyLife(s: SceneState) {
     val l = s.look
     val day = s.day()
     drawSanta(s)
+    drawFireworks(s)
     // A plane, a long way up, with a trail behind it; at night just its lights.
     if (s.cond.cloud < 0.85f) for (ev in LifeSchedule.events(s.time, 100.0, 50.0, 0.45f, 401, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1

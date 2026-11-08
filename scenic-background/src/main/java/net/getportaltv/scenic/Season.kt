@@ -25,6 +25,8 @@ class SeasonState {
     var festive = 0f
     /** True on Christmas Eve and Christmas Day (the nights in between and after): when a sleigh may cross the sky. */
     var christmas = false
+    /** 0 to 1: how close to midnight on New Year's Eve it is, within half an hour either side (0 at any other time). */
+    var newYear = 0f
     /** The two colours of the field's stripes (crops, stubble, ploughed earth, dormant grass). */
     var fieldA = rgb(92, 158, 70)
     var fieldB = rgb(80, 142, 62)
