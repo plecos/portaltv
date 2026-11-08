@@ -65,7 +65,11 @@ class ExtensionBackgroundView(context: Context) : FrameLayout(context) {
         scope.launch {
             // Checked again now: still installed, still signed by who was allowed, still allowed to draw.
             val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
-            val use = BackgroundChoice.resolve(packageName, ext?.granted.orEmpty(), ext?.backgroundService != null, kid = false)
+            // A kid profile uses it only if a parent turned it on for that kid.
+            val profile = com.portal.tv.repo.ProfileManager.getActive(context)
+            val kid = profile?.isKids == true
+            val kidAllowed = kid && profile != null && com.portal.tv.settings.BackgroundSettings.kidCanPickExtension(context, profile.id)
+            val use = BackgroundChoice.resolve(packageName, ext?.granted.orEmpty(), ext?.backgroundService != null, kid = kid, kidAllowed = kidAllowed)
             val serviceName = ext?.backgroundService
             if (!running) return@launch
             if (use !is BackgroundChoice.Use.Extension || serviceName == null) { fail((use as? BackgroundChoice.Use.Own)?.reason ?: "It can't be used."); return@launch }

@@ -568,8 +568,18 @@
                 android:textColor="@color/text_secondary"
                 android:layout_marginBottom="8dp" />
 
-            <LinearLayout
+            <HorizontalScrollView
                 android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:requiresFadingEdge="horizontal"
+                android:fadingEdgeLength="56dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+            <LinearLayout
+                android:id="@+id/bg_type_row"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
@@ -616,24 +626,8 @@
                     android:textColor="@color/text_secondary"
                     android:background="@drawable/bg_settings_tile"
                     android:focusable="true" />
-
-                <!-- Only there when an extension that may draw the background is installed -->
-                <TextView
-                    android:id="@+id/opt_bg_extension"
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:gravity="center"
-                    android:paddingStart="24dp"
-                    android:paddingEnd="24dp"
-                    android:layout_marginStart="12dp"
-                    android:text="Extension"
-                    android:textSize="18sp"
-                    android:fontFamily="@font/inter"
-                    android:textColor="@color/text_secondary"
-                    android:background="@drawable/bg_settings_tile"
-                    android:focusable="true"
-                    android:visibility="gone" />
             </LinearLayout>
+            </HorizontalScrollView>
 
             <!-- Speed: for the video and the shader -->
             <LinearLayout
