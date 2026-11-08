@@ -53,61 +53,68 @@ class PixelScene {
 
     private var scene: SceneState? = null
 
+    /** Times [block] under [name] when profiling is on (debug builds only; the clock reads are the only cost otherwise). */
+    private inline fun phase(name: String, block: () -> Unit) {
+        if (!Profile.on) { block(); return }
+        val t0 = System.nanoTime()
+        block()
+        Profile.add(name, System.nanoTime() - t0)
+    }
+
     fun render(s: SceneState) {
         scene = s
         val l = s.look
         val cam = s.cam
-        s.bridges = s.findBridges()
-        s.parks = s.findParks()
-        drawSky(s)
-        drawStars(s)
-        drawSun(s)
-        drawMoon(s)
-        drawSkyLife(s)
-        drawClouds(s, 0)
-        drawClouds(s, 1)
-        drawMountains(s, cam)
-        drawHills(s, cam, 0.10f, 124, 18f, 0.022f, 11, rgb(98, 148, 96), 0.55f, 0.62f)
-        drawTreeLine(s, cam, 0.10f, 0.10f)
-        drawHills(s, cam, 0.26f, 134, 14f, 0.028f, 29, rgb(84, 148, 78), 0.34f, 0.40f)
-        drawTreeLine(s, cam, 0.26f, 0.06f)
-        drawSkyline(s)
-        drawField(s)
-        drawCityGround(s)
-        drawBeachGround(s)
-        drawSeaLife(s)
-        drawRiverBehind(s)
-        drawRailway(s)
-        drawPonds(s)
-        drawFieldAnimals(s)
-        drawFarm(s, cam)
-        drawCityBlocks(s)
-        drawStreetLamps(s)
-        drawBeachFront(s)
-        drawSubwayEntrances(s)
-        drawCityPeople(s)
-        drawRoadsideTrees(s)
-        drawForestMist(s)
-        drawDepthFog(s)
-        drawButterflies(s)
-        drawFence(s, cam)
-        drawRoad(s, cam)
-        drawCityRoad(s)
-        drawBeachRoad(s)
-        drawRiverFront(s)
-        drawTraffic(s)
-        drawBridge(s)
-        drawWalkers(s)
-        drawBirds(s)
-        drawBats(s)
-        drawFireflies(s)
-        drawFrontTrees(s)
-        drawForeground(s, cam)
-        drawRain(s)
-        drawSnow(s)
-        drawFog(s)
-        if (s.flash > 0f) drawLightning(s)
-        finish()
+        phase("findBridgesParks") { s.bridges = s.findBridges(); s.parks = s.findParks() }
+        phase("drawSky") { drawSky(s) }
+        phase("drawStars") { drawStars(s) }
+        phase("drawSun") { drawSun(s) }
+        phase("drawMoon") { drawMoon(s) }
+        phase("drawSkyLife") { drawSkyLife(s) }
+        phase("drawClouds") { drawClouds(s, 0) }
+        phase("drawClouds") { drawClouds(s, 1) }
+        phase("drawMountains") { drawMountains(s, cam) }
+        phase("drawHills") { drawHills(s, cam, 0.10f, 124, 18f, 0.022f, 11, rgb(98, 148, 96), 0.55f, 0.62f) }
+        phase("drawTreeLine") { drawTreeLine(s, cam, 0.10f, 0.10f) }
+        phase("drawHills") { drawHills(s, cam, 0.26f, 134, 14f, 0.028f, 29, rgb(84, 148, 78), 0.34f, 0.40f) }
+        phase("drawTreeLine") { drawTreeLine(s, cam, 0.26f, 0.06f) }
+        phase("drawSkyline") { drawSkyline(s) }
+        phase("drawField") { drawField(s) }
+        phase("drawCityGround") { drawCityGround(s) }
+        phase("drawBeachGround") { drawBeachGround(s) }
+        phase("drawSeaLife") { drawSeaLife(s) }
+        phase("drawRiverBehind") { drawRiverBehind(s) }
+        phase("drawRailway") { drawRailway(s) }
+        phase("drawPonds") { drawPonds(s) }
+        phase("drawFieldAnimals") { drawFieldAnimals(s) }
+        phase("drawFarm") { drawFarm(s, cam) }
+        phase("drawCityBlocks") { drawCityBlocks(s) }
+        phase("drawStreetLamps") { drawStreetLamps(s) }
+        phase("drawBeachFront") { drawBeachFront(s) }
+        phase("drawSubwayEntrances") { drawSubwayEntrances(s) }
+        phase("drawCityPeople") { drawCityPeople(s) }
+        phase("drawRoadsideTrees") { drawRoadsideTrees(s) }
+        phase("drawForestMist") { drawForestMist(s) }
+        phase("drawDepthFog") { drawDepthFog(s) }
+        phase("drawButterflies") { drawButterflies(s) }
+        phase("drawFence") { drawFence(s, cam) }
+        phase("drawRoad") { drawRoad(s, cam) }
+        phase("drawCityRoad") { drawCityRoad(s) }
+        phase("drawBeachRoad") { drawBeachRoad(s) }
+        phase("drawRiverFront") { drawRiverFront(s) }
+        phase("drawTraffic") { drawTraffic(s) }
+        phase("drawBridge") { drawBridge(s) }
+        phase("drawWalkers") { drawWalkers(s) }
+        phase("drawBirds") { drawBirds(s) }
+        phase("drawBats") { drawBats(s) }
+        phase("drawFireflies") { drawFireflies(s) }
+        phase("drawFrontTrees") { drawFrontTrees(s) }
+        phase("drawForeground") { drawForeground(s, cam) }
+        phase("drawRain") { drawRain(s) }
+        phase("drawSnow") { drawSnow(s) }
+        phase("drawFog") { drawFog(s) }
+        if (s.flash > 0f) phase("drawLightning") { drawLightning(s) }
+        phase("finish") { finish() }
     }
 
     // ---------- colours ----------
@@ -138,11 +145,13 @@ class PixelScene {
     }
 
     internal fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
+        Profile.draws++
         paint.color = color
         canvas.drawRect(x0.toFloat(), y0.toFloat(), x1.toFloat(), y1.toFloat(), paint)
     }
 
     internal fun fillAlpha(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) {
+        Profile.draws++
         paint.color = color
         paint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt()
         canvas.drawRect(x0.toFloat(), y0.toFloat(), x1.toFloat(), y1.toFloat(), paint)
@@ -150,6 +159,7 @@ class PixelScene {
     }
 
     internal fun sprite(sp: Sprite, x: Int, bottom: Int, flip: Boolean = false) {
+        Profile.sprites++
         if (x > W || x + sp.width < 0) return
         if (flip) {
             canvas.save()

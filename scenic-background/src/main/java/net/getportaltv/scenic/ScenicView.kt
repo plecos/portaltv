@@ -49,6 +49,7 @@ class ScenicView(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         attached = true
+        Profile.on = context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
         last = 0L
         drawn = 0
         weather?.start()
@@ -70,6 +71,7 @@ class ScenicView(
         last = now
         director.step(dt)
         scene.render(director.state)
+        if (Profile.on) Profile.frame()
         target.set(0, 0, width, height)
         canvas.drawBitmap(scene.bitmap, null, target, paint)
         val took = (System.nanoTime() - now) / 1e6
@@ -79,6 +81,7 @@ class ScenicView(
         if (windowStart == 0L) windowStart = now
         if (now - windowStart > 5_000_000_000L) {
             frameMillis = spentMs / frames
+            if (Profile.on) android.util.Log.i("Scenic", Profile.report())
             if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
                 android.util.Log.i("Scenic", "frame average %.1f ms, worst %.1f ms, %d frames in %.1f s, aiming for %d fps".format(frameMillis, worstMs, frames, (now - windowStart) / 1e9, steps[step]))
             }

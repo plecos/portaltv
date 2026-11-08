@@ -19,6 +19,8 @@ data class Config(
     val dayOffset: Int = 0,
     /** For the preview only: show everything that comes and goes, all the time. Not saved. */
     val boost: Boolean = false,
+    /** For the preview only: stop the clock, so a frame is the same every time it is drawn (to compare pictures). */
+    val freeze: Boolean = false,
     /** For the preview only: the animation clock to start at, in seconds (0 for the usual start). */
     val startTime: Double = 0.0,
     val startCam: Double = 0.0,

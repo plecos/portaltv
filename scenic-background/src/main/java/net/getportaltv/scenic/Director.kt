@@ -58,8 +58,9 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
 
     init { state.time = 60.0 }
 
-    fun step(dtSeconds: Float) {
+    fun step(dtSecondsIn: Float) {
         val c = config()
+        val dtSeconds = if (c.freeze) 0f else dtSecondsIn
         val s = state
         if (!started && c.startTime > 0.0) s.time = c.startTime
         if (!started && c.startCam > 0.0) s.cam = c.startCam
