@@ -369,6 +369,20 @@ object Sprites {
         ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.72f))
     )
 
+    /** A police car: white with a dark stripe along the doors; the light bar on the roof is drawn on top, flashing. */
+    fun police(): Sprite = Sprite(
+        listOf(
+            "......LL......",
+            "....wwwwww....",
+            "...wcccccc.w..",
+            "cccccccccccccc",
+            "cCCCCCCCCCCCCc",
+            "cccccccccccccc",
+            ".kkk......kkk.",
+            ".kkk......kkk."
+        ), CAR + mapOf('c' to rgb(240, 240, 244), 'C' to rgb(40, 52, 96), 'L' to rgb(60, 60, 70))
+    )
+
     /** A city bus, 30 wide: a row of windows along the side. */
     fun bus(body: Int): Sprite {
         val w = 30

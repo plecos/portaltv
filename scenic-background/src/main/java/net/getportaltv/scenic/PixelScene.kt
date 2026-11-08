@@ -50,6 +50,7 @@ class PixelScene {
     internal val cars = carBodies.map { Sprites.car(it) }
     private val schoolBus = Sprites.schoolBus()
     private val taxi = Sprites.taxi(rgb(244, 196, 40))
+    private val police = Sprites.police()
     private val buses = intArrayOf(rgb(46, 112, 192), rgb(200, 62, 52), rgb(60, 150, 96)).map { Sprites.bus(it) }
     private val trucks = intArrayOf(rgb(236, 236, 240), rgb(200, 90, 50), rgb(60, 120, 170)).map { Sprites.truck(it) }
     private val animals = listOf(Sprites.cow, Sprites.sheep, Sprites.horse)
@@ -843,11 +844,19 @@ class PixelScene {
             val kind = Noise.unit(k, 107)
             // In the suburbs, by day, an occasional school bus.
             val school = cityCar && suburbThen > 0.5f && cityThen < 0.2f && s.look.day > 0.4f && kind < 0.12f
-            val sp = if (school) schoolBus else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            val sp = if (school) schoolBus else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9
             sprite(sp, x.toInt(), y, !movingRight)
+            if (sp === police) {
+                // The light bar flashes red and blue, a little out of step from one car to the next.
+                val flip = ((s.time * 4.0).toInt() + k) % 2 == 0
+                val bx = x.toInt() + 5
+                fill(bx, y - 8, bx + 2, y - 7, if (flip) rgb(255, 50, 50) else rgb(60, 80, 255))
+                fill(bx + 2, y - 8, bx + 4, y - 7, if (flip) rgb(60, 80, 255) else rgb(255, 50, 50))
+                if (night || s.look.day < 0.7f) fillAlpha(bx - 4, y - 11, bx + 8, y - 6, if (flip) rgb(255, 60, 60) else rgb(70, 90, 255), 0.18f)
+            }
             if (night) {
                 val front = if (movingRight) x.toInt() + sp.width else x.toInt() - 14
                 val tail = if (movingRight) x.toInt() - 1 else x.toInt() + sp.width
