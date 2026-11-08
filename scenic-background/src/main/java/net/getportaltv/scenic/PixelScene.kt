@@ -50,6 +50,9 @@ class PixelScene {
     internal val cars = carBodies.map { Sprites.car(it) }
     private val schoolBus = Sprites.schoolBus()
     private val taxi = Sprites.taxi(rgb(244, 196, 40))
+    private val police = Sprites.police()
+    private val ambulance = Sprites.ambulance()
+    private val fireEngine = Sprites.fireEngine()
     private val buses = intArrayOf(rgb(46, 112, 192), rgb(200, 62, 52), rgb(60, 150, 96)).map { Sprites.bus(it) }
     private val trucks = intArrayOf(rgb(236, 236, 240), rgb(200, 90, 50), rgb(60, 120, 170)).map { Sprites.truck(it) }
     private val animals = listOf(Sprites.cow, Sprites.sheep, Sprites.horse)
@@ -105,6 +108,7 @@ class PixelScene {
         phase("drawCityPeople") { drawCityPeople(s) }
         phase("drawSuburbPeople") { drawSuburbPeople(s) }
         phase("drawRoadsideTrees") { drawRoadsideTrees(s) }
+        phase("drawCampsites") { drawCampsites(s) }
         phase("drawForestMist") { drawForestMist(s) }
         phase("drawDepthFog") { drawDepthFog(s) }
         phase("drawButterflies") { drawButterflies(s) }
@@ -487,13 +491,16 @@ class PixelScene {
     private fun strip(name: String, mode: String, compute: (Int) -> Float): Strip = strips.getOrPut("$name/$mode") { Strip(W + 8, compute) }
 
     private fun drawMountains(s: SceneState, cam: Double) {
-        mountainRange(s, cam, factor = 0.045, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLineBase = 0.72f)
+        mountainRange(s, cam, factor = 0.045, freq = 0.0075f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLineBase = 0.72f)
         // Now and then a low cloud drifts in front of the far mountains (and behind the near ones).
         drawClouds(s, 2)
-        mountainRange(s, cam, factor = 0.08, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLineBase = 0.66f)
+        mountainRange(s, cam, factor = 0.08, freq = 0.0115f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLineBase = 0.66f)
     }
 
     /** A range of peaks: lit on the slopes that face left, shaded on the ones that face right, with snow on the highest. */
+    /** Eases the height off toward 1 instead of cutting it flat, so the tallest summits are rounded rather than plateaus. */
+    private fun softPeak(v: Float): Float = if (v < 0.6f) v else 0.6f + 0.4f * Math.tanh(((v - 0.6f) / 0.4f).toDouble()).toFloat()
+
     private fun mountainRange(s: SceneState, cam: Double, factor: Double, freq: Float, seed: Int, maxH: Float, base: Int, air: Float, snowLineBase: Float) {
         // Snow lies lower on the mountains in winter.
         val snowLine = snowLineBase - 0.3f * s.season.winter
@@ -508,7 +515,7 @@ class PixelScene {
         // What does not change as the picture slides along (the peaks, and how much range there is here) is kept from the last frame.
         val shape = strip("m$seed", s.placeMode) { wx ->
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            ((Noise.mountain(wx * freq, seed) - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt(wx.toDouble(), factor)
+            softPeak(((Noise.mountain(wx * freq, seed) - 0.18f) * 1.5f).coerceAtLeast(0f)) * mountainsAt(wx.toDouble(), factor)
         }
         val city = strip("mc$seed", s.placeMode) { wx -> s.cityAt(wx.toDouble(), factor) }
         shape.moveTo(offset.toInt() - 4)
@@ -839,11 +846,21 @@ class PixelScene {
             val kind = Noise.unit(k, 107)
             // In the suburbs, by day, an occasional school bus.
             val school = cityCar && suburbThen > 0.5f && cityThen < 0.2f && s.look.day > 0.4f && kind < 0.12f
-            val sp = if (school) schoolBus else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.36f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            val suburbRoll = cityCar && suburbThen > 0.35f && cityThen < 0.35f
+            val sp = if (school) schoolBus else if (suburbRoll && kind >= 0.12f && kind < 0.18f) ambulance else if (suburbRoll && kind >= 0.18f && kind < 0.24f) fireEngine else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9
             sprite(sp, x.toInt(), y, !movingRight)
+            if (sp === police || sp === ambulance || sp === fireEngine) {
+                // The lights flash red and blue, a little out of step from one vehicle to the next.
+                val flip = ((s.time * 4.0).toInt() + k) % 2 == 0
+                val c0 = if (sp === police) 5 else if (sp === ambulance) 12 else 20
+                val bx = x.toInt() + (if (movingRight) c0 else sp.width - c0 - 4)
+                fill(bx, y - 8, bx + 2, y - 7, if (flip) rgb(255, 50, 50) else rgb(60, 80, 255))
+                fill(bx + 2, y - 8, bx + 4, y - 7, if (flip) rgb(60, 80, 255) else rgb(255, 50, 50))
+                if (night || s.look.day < 0.7f) fillAlpha(bx - 4, y - 11, bx + 8, y - 6, if (flip) rgb(255, 60, 60) else rgb(70, 90, 255), 0.18f)
+            }
             if (night) {
                 val front = if (movingRight) x.toInt() + sp.width else x.toInt() - 14
                 val tail = if (movingRight) x.toInt() - 1 else x.toInt() + sp.width

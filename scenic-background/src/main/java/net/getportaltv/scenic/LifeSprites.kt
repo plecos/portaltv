@@ -38,7 +38,18 @@ object LifeSprites {
 
     val dog = Sprite(listOf("d...dd", "dddddd", ".d..d."), mapOf('d' to rgb(140, 96, 60)))
     val dogStep = Sprite(listOf("d...dd", "dddddd", "d....d"), mapOf('d' to rgb(140, 96, 60)))
-    val rabbit = Sprite(listOf(".rr.", "rrrw", "r..r"), mapOf('r' to rgb(176, 150, 120), 'w' to rgb(240, 236, 228)))
+    /** A rabbit in profile facing right: long ears, a round body, a white scut and a pink nose. */
+    val rabbit = Sprite(
+        listOf(
+            "....r.r.",
+            "....r.r.",
+            "...rrrrr",
+            "w.rrrrkn",
+            "wrrrrrrr",
+            ".rrrrrr.",
+            "..r..rr."
+        ), mapOf('r' to rgb(176, 150, 120), 'w' to rgb(240, 236, 228), 'k' to rgb(40, 34, 34), 'n' to rgb(232, 150, 150))
+    )
     val duck = Sprite(listOf("..gg.", "wwwwy", ".www."), mapOf('g' to rgb(40, 110, 70), 'w' to rgb(214, 196, 160), 'y' to rgb(240, 190, 60)))
 
     private val DEER = mapOf('h' to rgb(150, 100, 62), 'd' to rgb(112, 74, 46), 'w' to rgb(240, 232, 220), 'a' to rgb(196, 172, 130))
