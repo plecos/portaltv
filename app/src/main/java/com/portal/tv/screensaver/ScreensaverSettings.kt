@@ -28,6 +28,8 @@ object ScreensaverSettings {
     /** The screen saver plays videos, or shows a slowly moving shader of colors. */
     const val LOOK_VIDEO = "video"
     const val LOOK_SHADER = "shader"
+    /** The screen saver shows a picture an allowed extension draws (see [extension]). */
+    const val LOOK_EXTENSION = "extension"
 
     /** Night runs from [NIGHT_START] to [NIGHT_END] (hours, 24h clock). */
     const val NIGHT_START = 22
@@ -39,6 +41,14 @@ object ScreensaverSettings {
     /** The profile whose choices become the TV's: the first one that isn't a kid's, or the first there is. */
     internal fun ownerOf(profiles: List<Pair<Int, Boolean>>): Int? =
         (profiles.firstOrNull { !it.second } ?: profiles.firstOrNull())?.first
+
+    /** What the look picker shows as chosen: "extension:<package>" for an extension's screen saver, else the look itself. */
+    internal fun choiceOf(look: String, extension: String?): String =
+        if (look == LOOK_EXTENSION && extension != null) "$LOOK_EXTENSION:$extension" else look
+
+    /** The look and extension a picker choice made by [choiceOf] stands for. */
+    internal fun parseChoice(choice: String): Pair<String, String?> =
+        if (choice.startsWith("$LOOK_EXTENSION:")) LOOK_EXTENSION to choice.removePrefix("$LOOK_EXTENSION:") else choice to null
 
     /** The look that matches an old profile's background: a shader background gave a shader screen saver. */
     internal fun lookFor(backgroundMode: String?): String = if (backgroundMode == "shader") LOOK_SHADER else LOOK_VIDEO
@@ -96,7 +106,14 @@ object ScreensaverSettings {
         prefs(context).edit().putString("night", mode).apply()
     }
 
-    /** [LOOK_VIDEO] or [LOOK_SHADER]. */
+    /** The extension that draws the screen saver when the look is [LOOK_EXTENSION]; null until one is chosen. */
+    fun extension(context: Context): String? = prefs(context).getString("extension", null)
+
+    fun setExtension(context: Context, packageName: String?) {
+        prefs(context).edit().apply { if (packageName == null) remove("extension") else putString("extension", packageName) }.apply()
+    }
+
+    /** [LOOK_VIDEO], [LOOK_SHADER] or [LOOK_EXTENSION]. */
     fun look(context: Context): String = prefs(context).getString("look", LOOK_VIDEO) ?: LOOK_VIDEO
 
     fun setLook(context: Context, look: String) {
