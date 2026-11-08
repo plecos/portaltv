@@ -56,16 +56,17 @@ private fun SceneState.stormy() = (cond.rain * 0.7f + cond.snow * 0.5f + cond.th
 private val SHIRTS = intArrayOf(rgb(206, 70, 60), rgb(70, 110, 200), rgb(230, 190, 60), rgb(80, 160, 100), rgb(220, 120, 170), rgb(240, 240, 240))
 private val UMBRELLAS = intArrayOf(rgb(206, 60, 60), rgb(60, 100, 200), rgb(236, 190, 60), rgb(70, 150, 100))
 private val PANTS = rgb(52, 60, 96)
+private val BAGS = intArrayOf(rgb(210, 70, 70), rgb(200, 160, 100), rgb(70, 120, 210), rgb(60, 60, 66))
 private val personCache = HashMap<Int, Sprite>()
 
 /** A walker (or, with [bike], a cyclist) with this shirt, skin tone and hair; pictures are made the first time they are needed. */
-internal fun personSprite(shirt: Int, skin: Int, hair: Int, frame: Int, umbrella: Int = -1, bike: Boolean = false): Sprite {
-    val key = ((((shirt * 8 + skin) * People.HAIR_COUNT + hair) * 2 + frame) * 5 + (umbrella + 1)) * 2 + (if (bike) 1 else 0)
+internal fun personSprite(shirt: Int, skin: Int, hair: Int, frame: Int, umbrella: Int = -1, bike: Boolean = false, bag: Int = -1): Sprite {
+    val key = (((((shirt * 8 + skin) * People.HAIR_COUNT + hair) * 2 + frame) * 5 + (umbrella + 1)) * 2 + (if (bike) 1 else 0)) * 5 + (bag + 1)
     return personCache.getOrPut(key) {
         val sk = People.SKIN[skin]
         val hr = People.hair(hair)
         if (bike) LifeSprites.cyclist(SHIRTS[shirt], frame, sk, hr)
-        else LifeSprites.person(SHIRTS[shirt], PANTS, frame, if (umbrella >= 0) UMBRELLAS[umbrella] else null, sk, hr)
+        else LifeSprites.person(SHIRTS[shirt], PANTS, frame, if (umbrella >= 0) UMBRELLAS[umbrella] else null, sk, hr, if (bag >= 0) BAGS[bag] else null)
     }
 }
 
@@ -317,6 +318,7 @@ private val balloons by lazy {
 internal fun PixelScene.drawSkyLife(s: SceneState) {
     val l = s.look
     val day = s.day()
+    drawSanta(s)
     // A plane, a long way up, with a trail behind it; at night just its lights.
     if (s.cond.cloud < 0.85f) for (ev in LifeSchedule.events(s.time, 100.0, 50.0, 0.45f, 401, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1

@@ -85,6 +85,7 @@ class PixelScene {
         drawStreetLamps(s)
         drawBeachFront(s)
         drawSubwayEntrances(s)
+        drawCityPeople(s)
         drawRoadsideTrees(s)
         drawForestMist(s)
         drawDepthFog(s)
@@ -638,17 +639,25 @@ class PixelScene {
         // A car stays for as long as it takes to cross, so the look-back covers the slowest (MIN_SCREEN_SPEED) with room to spare;
         // a shorter one would drop a slow car in the middle of the road.
         // A second stream of cars, only in the city, makes it busy: each is faded in as the city comes (so none pops out of nowhere).
-        for (stream in 0..1) for (pass in 0..1) for (j in slot - 14..slot) {
-            val k = j + stream * 9973
-            val roll = Noise.unit(k, 101)
+        // Cars in our lane go the way we do, so they linger on the screen; the ones coming toward us rush past. To show about as many
+        // of each, the oncoming lane gets more cars in proportion (in steps, so the traffic does not reshuffle as the speed changes).
+        val ourMean = (0..4).map { kotlin.math.max(kotlin.math.abs(14f + 46f * it / 4f - travelV), MIN_SCREEN_SPEED) }.average().toFloat()
+        val ratio = Math.round(((55f + travelV) / ourMean).coerceIn(1f, 2f) * 2f) / 2f
+        for (stream in 0..1) for (pass in 0..1) {
+          val ourLane = pass == 1
+          val laneSlot = if (ourLane) period else period / ratio
+          val laneNow = floor(s.time / laneSlot).toInt()
+          val lookBack = kotlin.math.ceil((if (ourLane) 49.0 else 20.0) / laneSlot).toInt()
+          for (j in laneNow - lookBack..laneNow) {
+            val k = j + stream * 9973 + pass * 5003
+            // Each lane takes half of what the slot would give, so the lanes add up to the same traffic as before.
+            val roll = Noise.unit(k, 101) * 2f
             val cityCar = stream == 1 || roll > 0.30f
             if (stream == 1) {
                 if (cityNow < 0.05f || roll > 0.7f * cityNow) continue
             } else if (roll > 0.30f + 0.4f * cityNow || cityNow < 0.05f && cityCar) continue
             spritePaint.alpha = if (cityCar) (cityNow * 255f).toInt().coerceIn(0, 255) else 255
-            val spawn = j * period + Noise.unit(k, 102) * period
-            val ourLane = Noise.unit(k, 103) < 0.5f
-            if (ourLane != (pass == 1)) continue
+            val spawn = j * laneSlot + Noise.unit(k, 102) * laneSlot
             // Seen from the road: our own lane's cars go the way we do (slower or faster than us), the other lane's come toward us.
             val speed = if (ourLane) 14f + Noise.unit(k, 104) * 46f else 30f + Noise.unit(k, 104) * 50f
             val raw = if (ourLane) speed - travelV else -speed - travelV
@@ -670,6 +679,7 @@ class PixelScene {
                 fillAlpha(front, y - 4, front + 14, y - 2, rgb(255, 240, 170), 0.35f)
                 fill(tail, y - 4, tail + 1, y - 3, rgb(230, 50, 40))
             }
+          }
         }
         spritePaint.alpha = 255
         spritePaint.colorFilter = null

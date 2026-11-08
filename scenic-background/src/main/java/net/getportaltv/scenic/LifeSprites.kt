@@ -7,7 +7,7 @@ import net.getportaltv.scenic.Colors.rgb
 object LifeSprites {
 
     /** A person on foot, 5 wide: [frame] 0 or 1 is the step, [umbrella] holds one up for the rain. */
-    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int): Sprite {
+    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int? = null): Sprite {
         val body = listOf(
             "..h..",
             ".hhh.",
@@ -18,8 +18,10 @@ object LifeSprites {
             if (frame == 0) ".p.p." else "..p..",
             if (frame == 0) ".p.p." else "..p.."
         )
-        val rows = if (umbrella != null) listOf(".uuu.", "uuuuu", "..k..") + body else body
-        return Sprite(rows, mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
+        // A shopping bag swings from one hand.
+        val carried = if (bag == null) body else body.mapIndexed { y, row -> if (y == 5 || y == 6) "g" + row.substring(1) else row }
+        val rows = if (umbrella != null) listOf(".uuu.", "uuuuu", "..k..") + carried else carried
+        return Sprite(rows, mapOf('g' to (bag ?: 0), 'h' to hair, 's' to skin, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
     }
 
     /** Somebody on a bicycle, facing right. */

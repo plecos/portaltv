@@ -23,6 +23,8 @@ class SeasonState {
     var lying = 0f
     /** How much the festive lights are on, 0 to 1: from the start of December to the first week of January, everywhere (the date, not the climate). */
     var festive = 0f
+    /** True on Christmas Eve and Christmas Day (the nights in between and after): when a sleigh may cross the sky. */
+    var christmas = false
     /** The two colours of the field's stripes (crops, stubble, ploughed earth, dormant grass). */
     var fieldA = rgb(92, 158, 70)
     var fieldB = rgb(80, 142, 62)

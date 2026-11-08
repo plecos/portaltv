@@ -106,6 +106,7 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         val calendar = c.season == Seasons.CALENDAR
         val day = if (c.yearDay > 0f) c.yearDay else if (calendar) dayOfYear(s.nowMs) else Seasons.dayFor(c.season)
         Seasons.update(s.season, day, s.lat, calendar)
+        s.season.christmas = kotlin.math.floor(day).toInt() in (358 + leap)..(359 + leap)
         // Old snow lies on the ground through deep winter even on a clear day; a mild real day melts it.
         val lying = if (c.realWeather && s.cond.tempC > 8f) 0f else s.season.lying
         if (s.snowCover < lying) s.snowCover = if (!seeded) lying else minOf(lying, s.snowCover + clockNow / 600f)
@@ -113,6 +114,7 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
     }
 
     private var seeded = false
+    private var leap = 0
     private var clockNow = 0f
 
     private var dayCachedFor = Long.MIN_VALUE
@@ -125,6 +127,7 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
             val cal = java.util.Calendar.getInstance()
             cal.timeInMillis = ms
             dayCached = cal.get(java.util.Calendar.DAY_OF_YEAR).toFloat()
+            leap = if (java.util.GregorianCalendar().isLeapYear(cal.get(java.util.Calendar.YEAR))) 1 else 0
             dayCachedFor = hour
         }
         return dayCached
