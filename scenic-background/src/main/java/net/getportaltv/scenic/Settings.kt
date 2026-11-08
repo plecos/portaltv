@@ -19,6 +19,8 @@ data class Config(
     val dayOffset: Int = 0,
     /** For the preview only: show everything that comes and goes, all the time. Not saved. */
     val boost: Boolean = false,
+    /** For the preview only: stop the clock, so a frame is the same every time it is drawn (to compare pictures). */
+    val freeze: Boolean = false,
     /** For the preview only: the animation clock to start at, in seconds (0 for the usual start). */
     val startTime: Double = 0.0,
     val startCam: Double = 0.0,
@@ -26,6 +28,8 @@ data class Config(
     val speed: Float = 1f,
     /** How many frames a second to aim for (one of [Settings.FRAME_RATES]); the picture drops lower if the TV can't keep up. */
     val fps: Int = 60,
+    /** Dither the colours (a grain of two neighbouring colours, like old computers) or leave them in clean bands. */
+    val dither: Boolean = false,
     /** Follow the calendar, or always show one season. */
     val season: String = Seasons.CALENDAR,
     /** For the preview only: the day of the year to show (1 to 366), or 0 for the real one. */
@@ -55,7 +59,8 @@ object Settings {
             environment = p.getString("environment", d.environment)?.takeIf { it in ENVIRONMENTS } ?: d.environment,
             style = p.getString("style", d.style)?.takeIf { it in STYLES } ?: d.style,
             season = p.getString("season", d.season)?.takeIf { it in SEASONS } ?: d.season,
-            fps = p.getInt("fps", d.fps).takeIf { it in FRAME_RATES } ?: d.fps
+            fps = p.getInt("fps", d.fps).takeIf { it in FRAME_RATES } ?: d.fps,
+            dither = p.getBoolean("dither", d.dither)
         )
     }
 }

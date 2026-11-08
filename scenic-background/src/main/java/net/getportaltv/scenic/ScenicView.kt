@@ -14,7 +14,7 @@ import android.view.View
 class ScenicView(
     context: Context,
     private val maxFps: () -> Int = { 30 },
-    config: () -> Config,
+    private val config: () -> Config,
     private val weather: PortalWeather? = null
 ) : View(context) {
 
@@ -49,6 +49,7 @@ class ScenicView(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         attached = true
+        Profile.on = context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
         last = 0L
         drawn = 0
         weather?.start()
@@ -66,12 +67,28 @@ class ScenicView(
         // A different frame rate chosen: start again from it, and let the TV's speed pull it down from there if it has to.
         val want = maxFps()
         if (want != aim) { steps = stepsFor(want); aim = steps[0]; step = 0; ema = 0.0; calm = 0; applyQuality() }
+        // The picture is shown on every screen refresh but only worked out again when its turn comes (a little early is fine, so
+        // a refresh that comes slightly before the time doesn't cost a whole extra one): the rate is then a steady whole number
+        // of refreshes apart, instead of whatever a timer happens to land on.
+        if (scene.dither != config().dither) applyQuality()
+        val interval = 1_000_000_000L / steps[step]
+        if (last == 0L || now - last >= interval - EARLY_NANOS) renderFrame(now)
+        target.set(0, 0, width, height)
+        val t1 = System.nanoTime()
+        canvas.drawBitmap(scene.bitmap, null, target, paint)
+        if (Profile.on) Profile.add("present", System.nanoTime() - t1)
+        if (attached) postInvalidateOnAnimation()
+    }
+
+    /** Moves the scene on and draws it into the small picture, and keeps track of how long that takes. */
+    private fun renderFrame(now: Long) {
         val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceIn(0f, 0.25f)
         last = now
+        val t0 = System.nanoTime()
         director.step(dt)
+        if (Profile.on) Profile.add("director", System.nanoTime() - t0)
         scene.render(director.state)
-        target.set(0, 0, width, height)
-        canvas.drawBitmap(scene.bitmap, null, target, paint)
+        if (Profile.on) Profile.frame()
         val took = (System.nanoTime() - now) / 1e6
         frames++
         spentMs += took
@@ -79,41 +96,41 @@ class ScenicView(
         if (windowStart == 0L) windowStart = now
         if (now - windowStart > 5_000_000_000L) {
             frameMillis = spentMs / frames
+            if (Profile.on) android.util.Log.i("Scenic", Profile.report())
             if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
                 android.util.Log.i("Scenic", "frame average %.1f ms, worst %.1f ms, %d frames in %.1f s, aiming for %d fps".format(frameMillis, worstMs, frames, (now - windowStart) / 1e9, steps[step]))
             }
             frames = 0; spentMs = 0.0; worstMs = 0.0; windowStart = now
         }
         // The first moments are slow while the code warms up: they are not counted.
-        if (++drawn < 60) { if (attached) postInvalidateDelayed(1000L / steps[step]); return }
+        if (++drawn < 60) return
         ema = if (ema == 0.0) took else ema * 0.95 + took * 0.05
         val budget = 1000.0 / steps[step]
-        if (ema > budget * 0.6 && step < steps.size - 1) {
+        if (ema > budget * 0.85 && step < steps.size - 1) {
             step++
             ema = 0.0
             calm = 0
             applyQuality()
-        } else if (ema < budget * 0.18 && step > 0 && ++calm > steps[step] * 20) {
+        } else if (step > 0 && ema < 1000.0 / steps[step - 1] * 0.75 && ++calm > steps[step] * 6) {
             step--
             ema = 0.0
             calm = 0
             applyQuality()
-        } else if (ema >= budget * 0.18) calm = 0
-        if (attached) {
-            val spent = (System.nanoTime() - now) / 1_000_000L
-            postInvalidateDelayed((1000L / steps[step] - spent).coerceAtLeast(1L))
-        }
+        } else if (step == 0 || ema >= 1000.0 / steps[step - 1] * 0.75) calm = 0
     }
 
-    /** The picture is plainer at a low rate: no dithering below 30 a second, and half the rain and snow at 15 or less. */
+    /** Dithering is a setting; at 15 frames a second or less there is half the rain and snow. */
     private fun applyQuality() {
-        scene.dither = steps[step] >= 30
+        scene.dither = config().dither
         scene.particleScale = if (steps[step] <= 15) 0.5f else 1f
     }
 
     private companion object {
         /** Every rate the picture steps between, highest first. */
         val RATES = intArrayOf(120, 90, 60, 30, 20, 15, 10)
+
+        /** How much sooner than its time a frame may be drawn when the screen refreshes, in nanoseconds. */
+        const val EARLY_NANOS = 4_000_000L
 
         /** [target] first, then each lower rate to fall back to if the TV can't keep up. */
         fun stepsFor(target: Int): IntArray = (listOf(target) + RATES.filter { it < target }).toIntArray()

@@ -30,6 +30,17 @@ class SceneState {
     /** When this visit to the city's Christmas sleigh set off (-1 when none is flying), and whether it has been seen. */
     var santaAt = -1.0
     var santaSeen = false
+    /** How much beach and city there is at each screen column (with a few spare at either end), worked out once for each place the journey has reached. */
+    val beachCols = FloatArray(PixelScene.W + 16)
+    val cityCols = FloatArray(PixelScene.W + 16)
+    /** The beach and the city at each world column in reach of the screen (the bay reaches far to either side), kept as the journey slides along. */
+    val beachRaw = Strip(PixelScene.W + 2 * 150 + 16) { wx -> beachAt(wx.toDouble(), 1.0) }
+    val cityRaw = Strip(PixelScene.W + 16) { wx -> cityAt(wx.toDouble(), 1.0) }
+    var colsCam = Int.MIN_VALUE
+    /** Whether any beach (within the bay's reach) or any city is on screen: when not, those parts of the picture are skipped. */
+    var anyBeach = false
+    var anyCity = false
+    var colsMode = ""
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */
     var bridges = IntArray(0)
     /** Where the year has got to. */
@@ -58,8 +69,9 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
 
     init { state.time = 60.0 }
 
-    fun step(dtSeconds: Float) {
+    fun step(dtSecondsIn: Float) {
         val c = config()
+        val dtSeconds = if (c.freeze) 0f else dtSecondsIn
         val s = state
         if (!started && c.startTime > 0.0) s.time = c.startTime
         if (!started && c.startCam > 0.0) s.cam = c.startCam

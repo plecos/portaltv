@@ -61,6 +61,8 @@ class PreviewActivity : Activity() {
         intent.getStringExtra("season")?.let { if (it in Seasons.CHOICES) config = config.copy(season = it) }
         yearLapse = intent.getBooleanExtra("yearlapse", false)
         if (intent.hasExtra("cam")) config = config.copy(startCam = intent.getFloatExtra("cam", 0f).toDouble())
+        if (intent.hasExtra("dither")) config = config.copy(dither = intent.getBooleanExtra("dither", false))
+        if (intent.hasExtra("freeze")) config = config.copy(freeze = intent.getBooleanExtra("freeze", false))
         if (intent.hasExtra("boost")) config = config.copy(boost = intent.getBooleanExtra("boost", false))
         lapse = intent.getBooleanExtra("lapse", false)
         cycle = intent.getBooleanExtra("cycle", false)

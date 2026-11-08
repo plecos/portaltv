@@ -9,6 +9,9 @@ import net.getportaltv.scenic.Colors.rgb
  */
 class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bitmap) {
 
+    /** The picture's pixels, as colours (alpha first), for drawing it without a Canvas. */
+    val pixels: IntArray by lazy { IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) } }
+
     constructor(rows: List<String>, palette: Map<Char, Int>) : this(
         rows.maxOf { it.length }, rows.size,
         Bitmap.createBitmap(rows.maxOf { it.length }, rows.size, Bitmap.Config.ARGB_8888).also { b ->
