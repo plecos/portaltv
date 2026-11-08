@@ -88,8 +88,9 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         val cold = s.cond.tempC < 2f
         // (In the preview's fast time-lapse the snow comes and goes as fast as the day does.)
         val clock = dtSeconds * c.speed.coerceAtLeast(1f)
+        clockNow = clock
         if (s.cond.snow > 0.15f && cold) s.snowCover = (s.snowCover + s.cond.snow * clock / 150f).coerceAtMost(1f)
-        else s.snowCover = (s.snowCover - clock / (if (cold) 900f else 240f)).coerceAtLeast(0f)
+        else s.snowCover = (s.snowCover - clock / (if (cold) 900f else 240f)).coerceAtLeast(if (c.realWeather && s.cond.tempC > 8f) 0f else s.season.lying)
 
         // Sky: the real moment, or today at the hour chosen.
         s.lat = weather?.takeIf { it.known }?.latitude ?: weather?.latitude ?: 40.0
@@ -105,7 +106,14 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         val calendar = c.season == Seasons.CALENDAR
         val day = if (c.yearDay > 0f) c.yearDay else if (calendar) dayOfYear(s.nowMs) else Seasons.dayFor(c.season)
         Seasons.update(s.season, day, s.lat, calendar)
+        // Old snow lies on the ground through deep winter even on a clear day; a mild real day melts it.
+        val lying = if (c.realWeather && s.cond.tempC > 8f) 0f else s.season.lying
+        if (s.snowCover < lying) s.snowCover = if (!seeded) lying else minOf(lying, s.snowCover + clockNow / 600f)
+        seeded = true
     }
+
+    private var seeded = false
+    private var clockNow = 0f
 
     private var dayCachedFor = Long.MIN_VALUE
     private var dayCached = 196f

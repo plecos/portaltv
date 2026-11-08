@@ -19,6 +19,8 @@ class SeasonState {
     var bloom = 0f
     /** 0 in the warm months to 1 in deep winter. */
     var winter = 0f
+    /** How much old snow is lying on a clear day, 0 to 1: deep winter in cold latitudes, nothing in mild ones or the tropics. */
+    var lying = 0f
     /** The two colours of the field's stripes (crops, stubble, ploughed earth, dormant grass). */
     var fieldA = rgb(92, 158, 70)
     var fieldB = rgb(80, 142, 62)
@@ -73,7 +75,7 @@ object Seasons {
     fun update(out: SeasonState, dayOfYear: Float, lat: Double, calendar: Boolean) {
         if (calendar && kotlin.math.abs(lat) < TROPICS) {
             // Near the equator the year does not show in the trees and fields.
-            out.leaf = 1f; out.autumn = 0f; out.bloom = 0f; out.winter = 0f
+            out.leaf = 1f; out.autumn = 0f; out.bloom = 0f; out.winter = 0f; out.lying = 0f
             out.fieldA = rgb(90, 160, 66); out.fieldB = rgb(78, 144, 58)
             out.hillR = 1f; out.hillG = 1f; out.hillB = 1f
             out.day = 0f
@@ -86,6 +88,9 @@ object Seasons {
         out.autumn = smoothstep(262f, 292f, d)
         out.bloom = smoothstep(85f, 98f, d) * (1f - smoothstep(115f, 135f, d))
         out.winter = if (d < 200f) 1f - smoothstep(40f, 90f, d) else smoothstep(325f, 350f, d)
+        // Cold places keep snow on the ground through deep winter; mild ones (and a chosen Winter anywhere) only some of it.
+        val cold = if (calendar) smoothstep(25f, 42f, kotlin.math.abs(lat).toFloat()) else 1f
+        out.lying = 0.85f * smoothstep(0.45f, 0.95f, out.winter) * cold
         var i = 0
         while (i < keys.size - 2 && d > keys[i + 1].day) i++
         val a = keys[i]
