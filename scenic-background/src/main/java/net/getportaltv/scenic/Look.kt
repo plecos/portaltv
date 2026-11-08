@@ -65,11 +65,14 @@ class Look {
         // Cloud and rain turn the sky grey, darker in a storm, and it follows day and night.
         deck = (c.rain * 2f + c.snow * 2f + c.thunder).coerceIn(0f, 1f)
         val grayNight = rgb(46, 48, 54)
-        val grayDay = lerp(rgb(166, 174, 186), rgb(92, 98, 110), storm)
+        // A plain neutral grey (no blue left in it), darker in a storm.
+        val grayDay = lerp(rgb(172, 174, 178), rgb(92, 95, 102), storm)
         val gray = lerp(grayNight, grayDay, day)
+        // A cloudy day is wholly grey, not a blue sky with cloud on it: the sky closes over as the cloud passes a half.
+        val grey = maxOf(smoothstep(0.5f, 0.9f, c.cloud), deck)
         // Near the horizon the overcast keeps a hint of the sunrise colour.
-        top = lerp(top, Colors.scale(gray, 0.9f), maxOf(overcast * 0.9f, deck))
-        bottom = lerp(bottom, lerp(gray, bottom, twilight * 0.35f * (1f - deck)), maxOf(overcast * 0.85f, deck))
+        top = lerp(top, Colors.scale(gray, 0.9f), grey)
+        bottom = lerp(bottom, lerp(Colors.scale(gray, 1.06f), bottom, twilight * 0.3f * (1f - deck)), grey)
 
         // Fog: the sky fades into one flat colour.
         fogColor = lerp(rgb(30, 34, 48), lerp(rgb(196, 204, 214), rgb(240, 170, 130), twilight * 0.5f), day.coerceAtLeast(twilight * 0.6f))
@@ -86,7 +89,7 @@ class Look {
         skyBottom = bottom
 
         glow = lerp(rgb(255, 120, 70), rgb(255, 190, 120), 1f - twilight)
-        glowStrength = (twilight * (1f - overcast * 0.85f) * (1f - haze * 0.5f) * (1f - deck)).coerceIn(0f, 1f)
+        glowStrength = (twilight * (1f - grey * 0.9f) * (1f - haze * 0.5f) * (1f - deck)).coerceIn(0f, 1f)
 
         // The scenery's tint: dark and blue at night, warm at sunrise and sunset, flatter and darker in overcast.
         val nightR = 0.36f; val nightG = 0.42f; val nightB = 0.68f

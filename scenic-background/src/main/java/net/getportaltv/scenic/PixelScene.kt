@@ -358,7 +358,7 @@ class PixelScene {
             val x = i - 4
             val m = Noise.mountain((x + offset) * freq, seed)
             // In places there are no mountains at all, and they rise and sink gradually either side.
-            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - maxOf(s.cityAt((x + offset).toDouble(), factor), s.beachAt((x + offset).toDouble(), factor)))
+            heights[i] = ((m - 0.18f) * 1.5f).coerceIn(0f, 1f) * mountainsAt((x + offset).toDouble(), factor) * (1f - maxOf(s.cityAt((x + offset).toDouble(), factor), s.beachOnScreen(x)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
@@ -395,7 +395,7 @@ class PixelScene {
             // Toward the city the hills flatten and go grey, hidden behind the towers.
             val c = s.cityAt((x + offset).toDouble(), factor.toDouble())
             // Toward the sea they flatten to low dunes.
-            val b = s.beachAt((x + offset).toDouble(), factor.toDouble())
+            val b = s.beachOnScreen(x)
             val top = (base - h * amp * (1f - 0.85f * maxOf(c, b))).toInt()
             var bodyColor = if (f > 0f) lerp(body, forestBody, f) else body
             var crestColor = if (f > 0f) lerp(crest, forestCrest, f) else crest
