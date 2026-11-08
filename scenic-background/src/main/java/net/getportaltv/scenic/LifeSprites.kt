@@ -6,11 +6,8 @@ import net.getportaltv.scenic.Colors.rgb
 /** The small pictures of the people, animals, train and the rest that move through the countryside, drawn as text. */
 object LifeSprites {
 
-    private val SKIN = rgb(238, 196, 160)
-    private val HAIR = rgb(58, 42, 34)
-
     /** A person on foot, 5 wide: [frame] 0 or 1 is the step, [umbrella] holds one up for the rain. */
-    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?): Sprite {
+    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int): Sprite {
         val body = listOf(
             "..h..",
             ".hhh.",
@@ -22,11 +19,11 @@ object LifeSprites {
             if (frame == 0) ".p.p." else "..p.."
         )
         val rows = if (umbrella != null) listOf(".uuu.", "uuuuu", "..k..") + body else body
-        return Sprite(rows, mapOf('h' to HAIR, 's' to SKIN, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
+        return Sprite(rows, mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
     }
 
     /** Somebody on a bicycle, facing right. */
-    fun cyclist(shirt: Int, frame: Int): Sprite = Sprite(
+    fun cyclist(shirt: Int, frame: Int, skin: Int, hair: Int): Sprite = Sprite(
         listOf(
             "...hh...",
             "...bb.s.",
@@ -34,7 +31,7 @@ object LifeSprites {
             if (frame == 0) ".k.bb.k." else ".k.bp.k.",
             "kkk..kkk",
             ".k....k."
-        ), mapOf('h' to HAIR, 's' to SKIN, 'b' to shirt, 'p' to rgb(52, 60, 96), 'k' to rgb(40, 40, 46))
+        ), mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to rgb(52, 60, 96), 'k' to rgb(40, 40, 46))
     )
 
     val dog = Sprite(listOf("d...dd", "dddddd", ".d..d."), mapOf('d' to rgb(140, 96, 60)))

@@ -36,8 +36,6 @@ private fun Bitmap.rect(x0: Int, y0: Int, x1: Int, y1: Int, c: Int) { for (y in 
 
 private object BeachSprites {
     private val POLE = rgb(150, 120, 90)
-    private val SKIN = rgb(232, 184, 148)
-    private val SKIN2 = rgb(190, 140, 108)
     private val WHITE = rgb(246, 246, 244)
 
     val umbrellas by lazy {
@@ -51,13 +49,30 @@ private object BeachSprites {
         bm.rect(6, 4, 7, 11, POLE)
     }
 
-    val sunbathers by lazy { listOf(rgb(230, 80, 90), rgb(60, 140, 220), rgb(250, 200, 60), rgb(90, 190, 130)).map { sunbather(it) } }
+    private val SUITS = intArrayOf(rgb(230, 80, 90), rgb(60, 140, 220), rgb(250, 200, 60), rgb(90, 190, 130))
+    private val sunbatherCache = HashMap<Int, Sprite>()
 
-    private fun sunbather(suit: Int) = picture(7, 2) { bm ->
-        bm.dot(0, 0, rgb(58, 42, 34)); bm.dot(1, 0, SKIN)
-        bm.rect(2, 0, 4, 1, suit)
-        bm.rect(4, 0, 7, 1, SKIN)
-        bm.rect(1, 1, 7, 2, SKIN2)
+    /** Somebody lying on a towel, in a swimsuit [suit] (0 to 3), with their own [skin] tone and [hair]. */
+    fun sunbather(suit: Int, skin: Int, hair: Int): Sprite = sunbatherCache.getOrPut((suit * 8 + skin) * People.HAIR_COUNT + hair) {
+        val sk = People.SKIN[skin]
+        picture(7, 2) { bm ->
+            bm.dot(0, 0, People.hair(hair)); bm.dot(1, 0, sk)
+            bm.rect(2, 0, 4, 1, SUITS[suit])
+            bm.rect(4, 0, 7, 1, sk)
+            bm.rect(1, 1, 7, 2, People.tanned(sk))
+        }
+    }
+
+    private val surferCache = HashMap<Int, Sprite>()
+
+    /** Somebody on a board, in a wetsuit, with their own [skin] tone. */
+    fun surfer(skin: Int): Sprite = surferCache.getOrPut(skin) {
+        val sk = People.SKIN[skin]
+        picture(7, 6) { bm ->
+            bm.rect(0, 5, 7, 6, rgb(250, 230, 90))
+            bm.dot(3, 0, sk); bm.rect(3, 1, 4, 3, rgb(60, 130, 220)); bm.rect(3, 3, 4, 5, rgb(40, 50, 80))
+            bm.dot(2, 2, sk); bm.dot(4, 2, sk)
+        }
     }
 
     val palms by lazy { listOf(palm(0), palm(1)) }
@@ -178,11 +193,6 @@ private object BeachSprites {
     val gullUp = picture(5, 3) { bm -> bm.dot(0, 0, WHITE); bm.dot(4, 0, WHITE); bm.dot(1, 1, WHITE); bm.dot(3, 1, WHITE); bm.dot(2, 2, rgb(210, 210, 214)) }
     val gullDown = picture(5, 3) { bm -> bm.dot(2, 0, rgb(210, 210, 214)); bm.rect(1, 1, 4, 2, WHITE); bm.dot(0, 2, WHITE); bm.dot(4, 2, WHITE) }
 
-    val surfer = picture(7, 6) { bm ->
-        bm.rect(0, 5, 7, 6, rgb(250, 230, 90))
-        bm.dot(3, 0, SKIN); bm.rect(3, 1, 4, 3, rgb(60, 130, 220)); bm.rect(3, 3, 4, 5, rgb(40, 50, 80))
-        bm.dot(2, 2, SKIN); bm.dot(4, 2, SKIN)
-    }
 }
 
 // ---------- the sea and the sand ----------
@@ -447,7 +457,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
                     val umb = BeachSprites.umbrellas[(Noise.unit(i, 886 + u) * BeachSprites.umbrellas.size).toInt().coerceIn(0, BeachSprites.umbrellas.size - 1)]
                     val towel = intArrayOf(rgb(230, 90, 80), rgb(80, 150, 220), rgb(250, 210, 80), rgb(110, 190, 140))[(Noise.unit(i, 888 + u) * 4).toInt().coerceIn(0, 3)]
                     fill(x - 2, y, x + 10, y + 2, solid(s, towel, 0.04f))
-                    sprite(BeachSprites.sunbathers[(Noise.unit(i, 890 + u) * 4).toInt().coerceIn(0, 3)], x, y)
+                    sprite(BeachSprites.sunbather((Noise.unit(i, 890 + u) * 4).toInt().coerceIn(0, 3), People.skinIndex(Noise.unit(i, 912 + u)), People.hairIndex(Noise.unit(i, 914 + u))), x, y)
                     sprite(umb, x - 3, y - 1)
                 }
             }
@@ -480,9 +490,11 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         if (Noise.unit(i, 895) < 0.4f * crowd * crowd) {
             val sx = left + 10 + (Noise.unit(i, 896) * 70).toInt()
             val sy = SHORE - 5 - (Noise.unit(i, 897) * 6).toInt() + (sin(t * 1.3 + i) * 1).toInt()
-            fill(sx, sy, sx + 2, sy + 2, solid(s, rgb(232, 184, 148), 0.04f))
+            val swimSkin = People.SKIN[People.skinIndex(Noise.unit(i, 917))]
+            fill(sx, sy, sx + 2, sy + 1, solid(s, People.hair(People.hairIndex(Noise.unit(i, 918))), 0.04f))
+            fill(sx, sy + 1, sx + 2, sy + 2, solid(s, swimSkin, 0.04f))
             val arm = if ((t * 2.0).toInt() % 2 == 0) 2 else 0
-            fill(sx + 2, sy + arm, sx + 4, sy + arm + 1, solid(s, rgb(232, 184, 148), 0.04f))
+            fill(sx + 2, sy + arm, sx + 4, sy + arm + 1, solid(s, swimSkin, 0.04f))
         }
         // Out of season a few people walk the sand wrapped up warm, some with a dog.
         if (crowd < 0.7f && Noise.unit(i, 906) < 0.45f * (1f - crowd)) {
@@ -491,12 +503,9 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             val phase = ((t * 5.0 + Noise.unit(i, 908) * span) % span).toInt()
             val wx = left + 4 + (if (dir > 0) phase else span - phase)
             val wy = baseY + 4 + (Noise.unit(i, 909) * 6).toInt()
-            val coat = intArrayOf(rgb(60, 70, 110), rgb(150, 50, 50), rgb(70, 110, 80), rgb(200, 170, 60))[(Noise.unit(i, 910) * 4).toInt().coerceIn(0, 3)]
-            val step = if ((t * 4.0).toInt() % 2 == 0) 0 else 1
-            fill(wx, wy - 7, wx + 2, wy - 5, solid(s, rgb(232, 184, 148), 0.04f))
-            fill(wx, wy - 5, wx + 2, wy - 1, solid(s, coat, 0.04f))
-            fill(wx + step, wy - 1, wx + 1 + step, wy, solid(s, rgb(40, 40, 50), 0.04f))
-            fill(wx + 1 - step, wy - 1, wx + 2 - step, wy, solid(s, rgb(40, 40, 50), 0.04f))
+            val step = (t * 4.0).toInt() % 2
+            val person = personSprite((Noise.unit(i, 910) * 6).toInt().coerceIn(0, 5), People.skinIndex(Noise.unit(i, 919)), People.hairIndex(Noise.unit(i, 920)), step)
+            sprite(person, wx, wy)
             if (Noise.unit(i, 911) < 0.5f) {
                 val dx = wx + dir * 6 + (sin(t * 3.0 + i) * 2).toInt()
                 fill(dx, wy - 3, dx + 3, wy - 1, solid(s, rgb(120, 84, 52), 0.04f))
@@ -506,7 +515,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         // A surfer on the water.
         if (Noise.unit(i, 898) < 0.18f * (1f - 0.8f * (1f - crowd))) {
             val sx = left + 20 + (Noise.unit(i, 899) * 60).toInt()
-            sprite(BeachSprites.surfer, sx, SHORE - 2 + (sin(t * 1.1 + i) * 1.5).toInt())
+            sprite(BeachSprites.surfer(People.skinIndex(Noise.unit(i, 916))), sx, SHORE - 2 + (sin(t * 1.1 + i) * 1.5).toInt())
         }
     }
     // Palms along the boardwalk, swaying in the wind.

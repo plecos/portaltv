@@ -55,14 +55,19 @@ private fun SceneState.stormy() = (cond.rain * 0.7f + cond.snow * 0.5f + cond.th
 
 private val SHIRTS = intArrayOf(rgb(206, 70, 60), rgb(70, 110, 200), rgb(230, 190, 60), rgb(80, 160, 100), rgb(220, 120, 170), rgb(240, 240, 240))
 private val UMBRELLAS = intArrayOf(rgb(206, 60, 60), rgb(60, 100, 200), rgb(236, 190, 60), rgb(70, 150, 100))
-private val walkerSprites by lazy {
-    // [shirt][frame] without an umbrella, and with.
-    Array(SHIRTS.size) { c -> Array(2) { f -> LifeSprites.person(SHIRTS[c], rgb(52, 60, 96), f, null) } }
+private val PANTS = rgb(52, 60, 96)
+private val personCache = HashMap<Int, Sprite>()
+
+/** A walker (or, with [bike], a cyclist) with this shirt, skin tone and hair; pictures are made the first time they are needed. */
+internal fun personSprite(shirt: Int, skin: Int, hair: Int, frame: Int, umbrella: Int = -1, bike: Boolean = false): Sprite {
+    val key = ((((shirt * 8 + skin) * People.HAIR_COUNT + hair) * 2 + frame) * 5 + (umbrella + 1)) * 2 + (if (bike) 1 else 0)
+    return personCache.getOrPut(key) {
+        val sk = People.SKIN[skin]
+        val hr = People.hair(hair)
+        if (bike) LifeSprites.cyclist(SHIRTS[shirt], frame, sk, hr)
+        else LifeSprites.person(SHIRTS[shirt], PANTS, frame, if (umbrella >= 0) UMBRELLAS[umbrella] else null, sk, hr)
+    }
 }
-private val umbrellaSprites by lazy {
-    Array(SHIRTS.size) { c -> Array(UMBRELLAS.size) { u -> Array(2) { f -> LifeSprites.person(SHIRTS[c], rgb(52, 60, 96), f, UMBRELLAS[u]) } } }
-}
-private val cyclistSprites by lazy { Array(SHIRTS.size) { c -> Array(2) { f -> LifeSprites.cyclist(SHIRTS[c], f) } } }
 
 /** Somebody walking or cycling along the verge now and then, with an umbrella in the rain, and sometimes a dog. */
 internal fun PixelScene.drawWalkers(s: SceneState) {
@@ -81,12 +86,14 @@ internal fun PixelScene.drawWalkers(s: SceneState) {
         val x = if (vScreen < 0) W + 24 + vScreen * age else -24 + vScreen * age
         if (x < -30 || x > W + 30) continue
         val shirt = (ev.unit(4) * SHIRTS.size).toInt().coerceIn(0, SHIRTS.size - 1)
+        val skin = People.skinIndex(ev.unit(7))
+        val hair = People.hairIndex(ev.unit(8))
         val frame = (floor((age * (if (cycling) 6.0 else 3.2)).toDouble()).toInt()) % 2
         val bottom = ROAD_BOTTOM + 9
         if (cycling) {
-            sprite(cyclistSprites[shirt][frame], x.toInt(), bottom - 1, flip = dir < 0)
+            sprite(personSprite(shirt, skin, hair, frame, bike = true), x.toInt(), bottom - 1, flip = dir < 0)
         } else {
-            val sp = if (rainy) umbrellaSprites[shirt][(ev.unit(5) * UMBRELLAS.size).toInt().coerceIn(0, UMBRELLAS.size - 1)][frame] else walkerSprites[shirt][frame]
+            val sp = personSprite(shirt, skin, hair, frame, if (rainy) (ev.unit(5) * UMBRELLAS.size).toInt().coerceIn(0, UMBRELLAS.size - 1) else -1)
             sprite(sp, x.toInt(), bottom, flip = false)
             if (ev.unit(6) < 0.4f) {
                 // A dog a few steps behind.
