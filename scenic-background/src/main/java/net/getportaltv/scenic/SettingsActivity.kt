@@ -48,7 +48,8 @@ class SettingsActivity : Activity() {
         fun save() { Settings.prefs(this).edit()
             .putBoolean("real_weather", config.realWeather).putString("weather", config.weather)
             .putBoolean("real_time", config.realTime).putFloat("hour", config.hour)
-            .putBoolean("scroll", config.scroll).putString("environment", config.environment).putString("style", config.style).apply() }
+            .putBoolean("scroll", config.scroll).putString("environment", config.environment).putString("style", config.style)
+            .putString("season", config.season).apply() }
         fun refresh() = rows.forEach { it.update() }
 
         row("Weather", { if (config.realWeather) "Follow the real weather" else "Always: ${config.weather}" }) { d ->
@@ -72,6 +73,10 @@ class SettingsActivity : Activity() {
         row("Place", { if (config.environment == Places.JOURNEY) "Journey: the place changes as you go" else config.environment }) { d ->
             val i = Settings.ENVIRONMENTS.indexOf(config.environment)
             config = config.copy(environment = Settings.ENVIRONMENTS[(i + d + Settings.ENVIRONMENTS.size) % Settings.ENVIRONMENTS.size]); save(); refresh()
+        }
+        row("Season", { if (config.season == Seasons.CALENDAR) "Follow the calendar" else "Always ${config.season.lowercase()}" }) { d ->
+            val i = Settings.SEASONS.indexOf(config.season)
+            config = config.copy(season = Settings.SEASONS[(i + d + Settings.SEASONS.size) % Settings.SEASONS.size]); save(); refresh()
         }
         row("Drawing style", { config.style }) { d ->
             val i = Settings.STYLES.indexOf(config.style)

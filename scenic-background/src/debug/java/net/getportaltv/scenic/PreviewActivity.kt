@@ -21,10 +21,13 @@ class PreviewActivity : Activity() {
     private var lapse = false
     /** With the time-lapse, move on to the next weather at the end of each day. */
     private var cycle = false
+    /** Runs the year round (a few days every tick), starting at `yearday`. */
+    private var yearLapse = false
     private lateinit var view: ScenicView
     private lateinit var readout: TextView
     private val tick = object : Runnable {
         override fun run() {
+            if (yearLapse) config = config.copy(yearDay = (if (config.yearDay <= 0f) 1f else config.yearDay + 0.3f).let { if (it > 366f) 1f else it })
             if (lapse) {
                 val next = config.hour + 0.02f
                 config = if (next < 24f) config.copy(hour = next) else if (cycle) {
@@ -49,6 +52,9 @@ class PreviewActivity : Activity() {
         if (intent.hasExtra("at")) config = config.copy(startTime = intent.getFloatExtra("at", 0f).toDouble())
         intent.getStringExtra("place")?.let { if (it in Places.CHOICES) config = config.copy(environment = it) }
         if (intent.hasExtra("speed")) config = config.copy(speed = intent.getFloatExtra("speed", 1f).coerceIn(0.1f, 20f))
+        if (intent.hasExtra("yearday")) config = config.copy(yearDay = intent.getFloatExtra("yearday", 0f))
+        intent.getStringExtra("season")?.let { if (it in Seasons.CHOICES) config = config.copy(season = it) }
+        yearLapse = intent.getBooleanExtra("yearlapse", false)
         if (intent.hasExtra("cam")) config = config.copy(startCam = intent.getFloatExtra("cam", 0f).toDouble())
         if (intent.hasExtra("boost")) config = config.copy(boost = intent.getBooleanExtra("boost", false))
         lapse = intent.getBooleanExtra("lapse", false)

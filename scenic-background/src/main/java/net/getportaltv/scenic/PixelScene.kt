@@ -322,14 +322,16 @@ class PixelScene {
     private val tops = IntArray(W + 8)
 
     private fun drawMountains(s: SceneState, cam: Double) {
-        mountainRange(s, cam, factor = 0.045, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLine = 0.72f)
+        mountainRange(s, cam, factor = 0.045, freq = 0.011f, seed = 3, maxH = 44f, base = HORIZON + 3, air = 0.58f, snowLineBase = 0.72f)
         // Now and then a low cloud drifts in front of the far mountains (and behind the near ones).
         drawClouds(s, 2)
-        mountainRange(s, cam, factor = 0.08, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLine = 0.66f)
+        mountainRange(s, cam, factor = 0.08, freq = 0.017f, seed = 5, maxH = 52f, base = HORIZON + 7, air = 0.34f, snowLineBase = 0.66f)
     }
 
     /** A range of peaks: lit on the slopes that face left, shaded on the ones that face right, with snow on the highest. */
-    private fun mountainRange(s: SceneState, cam: Double, factor: Double, freq: Float, seed: Int, maxH: Float, base: Int, air: Float, snowLine: Float) {
+    private fun mountainRange(s: SceneState, cam: Double, factor: Double, freq: Float, seed: Int, maxH: Float, base: Int, air: Float, snowLineBase: Float) {
+        // Snow lies lower on the mountains in winter.
+        val snowLine = snowLineBase - 0.3f * s.season.winter
         val a = air + s.look.haze * 0.4f
         val lit = lit(s, rgb(104, 118, 156), a)
         val shade = lit(s, rgb(72, 84, 124), a)
@@ -361,8 +363,10 @@ class PixelScene {
 
     private fun drawHills(s: SceneState, cam: Double, factor: Float, base: Int, amp: Float, freq: Float, seed: Int, color: Int, air: Float, airTop: Float) {
         val a = air + s.look.haze * 0.3f
-        val body = lit(s, color, a)
-        val crest = lit(s, Colors.mul(color, 1.12f, 1.14f, 1.1f), a)
+        // The season's colour over the green: bright in spring, golden in autumn, dull in winter.
+        val tinted = Colors.mul(color, s.season.hillR, s.season.hillG, s.season.hillB)
+        val body = lit(s, tinted, a)
+        val crest = lit(s, Colors.mul(tinted, 1.12f, 1.14f, 1.1f), a)
         // Under forest the hills are darker, bluer and softer along the top.
         val forestColor = Colors.mul(color, 0.6f, 0.76f, 0.72f)
         val forestBody = lit(s, forestColor, a)
@@ -415,15 +419,15 @@ class PixelScene {
             val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
             val y = (base - h * amp).toInt() + 3
             val firs = 0.5f + 0.45f * f
-            sprite(if (Noise.unit(i, seed, 73 + extra) < firs) (if (f > 0.5f && Noise.unit(i, seed, 75) < 0.4f) Sprites.pine else Sprites.pineSmall) else Sprites.roundSmall, x, y)
+            sprite(if (Noise.unit(i, seed, 73 + extra) < firs) (if (f > 0.5f && Noise.unit(i, seed, 75) < 0.4f) Sprites.pine else Sprites.pineSmall) else Sprites.roundSmallYear.at(s.season, worldX * 3 + extra), x, y)
         }
         spritePaint.colorFilter = null
     }
 
     private fun drawField(s: SceneState) {
         // The near field: flat ground between the hills and the road, in stripes of crops and meadow.
-        val grass = lit(s, rgb(92, 158, 70), 0.10f + s.look.haze * 0.3f)
-        val dark = lit(s, rgb(80, 142, 62), 0.10f + s.look.haze * 0.3f)
+        val grass = lit(s, s.season.fieldA, 0.10f + s.look.haze * 0.3f)
+        val dark = lit(s, s.season.fieldB, 0.10f + s.look.haze * 0.3f)
         fill(0, FIELD_TOP, W, ROAD_TOP, grass)
         var y = FIELD_TOP + 2
         var k = 0
@@ -480,11 +484,11 @@ class PixelScene {
                 val swing = (sin(s.time * 1.7 + x * 0.1) * sway * 1.1).roundToInt()
                 when {
                     wood && kind < 0.5f -> sprite(Sprites.firs[(Noise.unit(i, 360 + t) * Sprites.firs.size).toInt().coerceIn(0, Sprites.firs.size - 1)], x + swing, y)
-                    wood && kind < 0.85f -> sprite(Sprites.broads[(Noise.unit(i, 360 + t) * Sprites.broads.size).toInt().coerceIn(0, Sprites.broads.size - 1)], x + swing, y)
-                    wood -> sprite(Sprites.bush, x, y)
+                    wood && kind < 0.85f -> sprite(Sprites.broadsYear[(Noise.unit(i, 360 + t) * Sprites.broads.size).toInt().coerceIn(0, Sprites.broads.size - 1)].at(s.season, i * 37 + t), x + swing, y)
+                    wood -> sprite(Sprites.bushYear.at(s.season, i * 37 + t), x, y)
                     kind < 0.4f -> sprite(Sprites.pine, x + swing, y)
-                    kind < 0.8f -> sprite(Sprites.roundTree, x + swing, y)
-                    else -> sprite(Sprites.bush, x, y)
+                    kind < 0.8f -> sprite(Sprites.roundTreeYear.at(s.season, i * 37 + t), x + swing, y)
+                    else -> sprite(Sprites.bushYear.at(s.season, i * 37 + t), x, y)
                 }
             }
             if (pass == 1 && cabin) {
@@ -725,8 +729,8 @@ class PixelScene {
             }
         }
         // Tufts of grass along the bottom.
-        val grassDark = lit(s, rgb(54, 108, 46), 0.0f)
-        val grassLight = lit(s, rgb(110, 172, 80), 0.0f)
+        val grassDark = lit(s, Colors.mul(rgb(54, 108, 46), s.season.hillR, s.season.hillG, s.season.hillB), 0.0f)
+        val grassLight = lit(s, Colors.mul(rgb(110, 172, 80), s.season.hillR, s.season.hillG, s.season.hillB), 0.0f)
         val tuftOffset = cam * 2.0
         val firstTuft = floor(tuftOffset / 13).toInt() - 1
         for (i in firstTuft..firstTuft + W / 13 + 2) {

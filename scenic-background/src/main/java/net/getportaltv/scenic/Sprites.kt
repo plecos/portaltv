@@ -24,6 +24,58 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     }
 }
 
+/**
+ * A broad-leaved tree through the year: green in summer, one of three autumn colours, bare in winter and in blossom in spring.
+ * The variants are made from the green picture by recolouring its leaves, so any tree can be given them. Each tree has its
+ * own dates (from [seed]), so the leaves come and go over weeks instead of all at once.
+ */
+class SeasonalTree(val green: Sprite) {
+    private val autumn: List<Sprite>
+    private val bare: Sprite
+    private val blossom: Sprite
+
+    init {
+        val src = green.bitmap
+        fun recolour(map: (Int, Int, Int) -> Int?): Sprite {
+            val b = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+            for (y in 0 until src.height) for (x in 0 until src.width) {
+                val c = src.getPixel(x, y)
+                if (c == 0) continue
+                val out = if (c == LEAF_D || c == LEAF_G || c == LEAF_L) map(c, x, y) else c
+                if (out != null) b.setPixel(x, y, out)
+            }
+            return Sprite.of(b)
+        }
+        fun shade(c: Int, dark: Int, mid: Int, light: Int) = if (c == LEAF_D) dark else if (c == LEAF_G) mid else light
+        autumn = listOf(
+            recolour { c, _, _ -> shade(c, rgb(150, 110, 20), rgb(206, 158, 36), rgb(236, 206, 72)) },
+            recolour { c, _, _ -> shade(c, rgb(150, 64, 24), rgb(204, 100, 36), rgb(240, 150, 60)) },
+            recolour { c, _, _ -> shade(c, rgb(120, 30, 30), rgb(176, 52, 40), rgb(220, 96, 70)) }
+        )
+        // Bare: the trunk, and a scatter of twigs where the crown was.
+        val twig = rgb(92, 64, 40)
+        bare = recolour { _, x, y -> if (Noise.unit(x, y, 77) < 0.22f) twig else null }
+        blossom = recolour { c, x, y -> if (Noise.unit(x, y, 78) < 0.12f) rgb(250, 240, 240) else shade(c, rgb(206, 120, 148), rgb(242, 172, 192), rgb(255, 216, 226)) }
+    }
+
+    /** The picture for a tree identified by [seed] on this day of the year. */
+    fun at(season: SeasonState, seed: Int): Sprite {
+        val leafDate = Noise.unit(seed, 911)
+        val turnDate = Noise.unit(seed, 912)
+        if (season.leaf < leafDate * 0.9f + 0.05f) {
+            return if (Noise.unit(seed, 914) < 0.45f && season.bloom > 0.1f + 0.8f * turnDate) blossom else bare
+        }
+        if (season.autumn > 0.05f + 0.9f * turnDate) return autumn[(Noise.unit(seed, 913) * 3).toInt().coerceIn(0, 2)]
+        return green
+    }
+
+    private companion object {
+        val LEAF_D = rgb(30, 92, 48)
+        val LEAF_G = rgb(46, 128, 62)
+        val LEAF_L = rgb(86, 168, 74)
+    }
+}
+
 object Sprites {
     private val GREEN = mapOf('d' to rgb(30, 92, 48), 'g' to rgb(46, 128, 62), 'l' to rgb(86, 168, 74), 'b' to rgb(104, 70, 40), 'B' to rgb(74, 48, 30))
 
@@ -126,6 +178,12 @@ object Sprites {
         for (t in 0 until trunk) rows += CharArray(width) { x -> if (x == radius) 'B' else if (x == radius - 1) 'b' else '.' }.concatToString()
         return Sprite(rows, GREEN)
     }
+
+    /** The broad trees through the year. */
+    val roundTreeYear by lazy { SeasonalTree(roundTree) }
+    val roundSmallYear by lazy { SeasonalTree(roundSmall) }
+    val bushYear by lazy { SeasonalTree(bush) }
+    val broadsYear by lazy { broads.map { SeasonalTree(it) } }
 
     /** Trees for the forest: tall firs and broad trees of a few sizes. */
     val firs by lazy { listOf(fir(4), fir(5), fir(7)) }

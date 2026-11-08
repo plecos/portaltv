@@ -23,12 +23,17 @@ data class Config(
     val startTime: Double = 0.0,
     val startCam: Double = 0.0,
     /** For the preview only: how many times faster than usual the journey goes. */
-    val speed: Float = 1f
+    val speed: Float = 1f,
+    /** Follow the calendar, or always show one season. */
+    val season: String = Seasons.CALENDAR,
+    /** For the preview only: the day of the year to show (1 to 366), or 0 for the real one. */
+    val yearDay: Float = 0f
 )
 
 object Settings {
     val ENVIRONMENTS = Places.CHOICES
     val STYLES = listOf("8-bit")
+    val SEASONS = Seasons.CHOICES
 
     private const val FILE = "scenic"
 
@@ -44,7 +49,8 @@ object Settings {
             hour = p.getFloat("hour", d.hour).coerceIn(0f, 24f),
             scroll = p.getBoolean("scroll", d.scroll),
             environment = p.getString("environment", d.environment)?.takeIf { it in ENVIRONMENTS } ?: d.environment,
-            style = p.getString("style", d.style)?.takeIf { it in STYLES } ?: d.style
+            style = p.getString("style", d.style)?.takeIf { it in STYLES } ?: d.style,
+            season = p.getString("season", d.season)?.takeIf { it in SEASONS } ?: d.season
         )
     }
 }

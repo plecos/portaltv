@@ -29,6 +29,8 @@ class SceneState {
     var placeMode = Places.JOURNEY
     /** Where the covered bridges are on screen (left edges), worked out once a frame. */
     var bridges = IntArray(0)
+    /** Where the year has got to. */
+    val season = SeasonState()
     /** Where the parks are on screen, as pairs of left and right edge, worked out once a frame. */
     var parks = IntArray(0)
     /** For the preview: everything that comes and goes is there, so it can be looked at. */
@@ -100,6 +102,24 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
 
         s.flash = lightning(s.time, s.cond.thunder)
         s.look.update(s.sunAlt.toFloat(), s.cond, s.snowCover, s.flash)
+        val calendar = c.season == Seasons.CALENDAR
+        val day = if (c.yearDay > 0f) c.yearDay else if (calendar) dayOfYear(s.nowMs) else Seasons.dayFor(c.season)
+        Seasons.update(s.season, day, s.lat, calendar)
+    }
+
+    private var dayCachedFor = Long.MIN_VALUE
+    private var dayCached = 196f
+
+    /** The day of the year (1 to 366) at [ms]; worked out once an hour, not every frame. */
+    private fun dayOfYear(ms: Long): Float {
+        val hour = ms / 3_600_000L
+        if (hour != dayCachedFor) {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = ms
+            dayCached = cal.get(java.util.Calendar.DAY_OF_YEAR).toFloat()
+            dayCachedFor = hour
+        }
+        return dayCached
     }
 
     /** Today's date at [hour] on the TV's clock, as a moment. */

@@ -13,7 +13,7 @@ import kotlin.math.sin
 /** Things that only the forest has: the big trees along the road and mist on the ground. */
 
 private val bigFirs by lazy { listOf(Sprites.fir(8), Sprites.fir(10), Sprites.fir(12)) }
-private val bigBroads by lazy { listOf(Sprites.broadleaf(10, 4), Sprites.broadleaf(12, 5), Sprites.broadleaf(14, 6)) }
+private val bigBroads by lazy { listOf(Sprites.broadleaf(10, 4), Sprites.broadleaf(12, 5), Sprites.broadleaf(14, 6)).map { SeasonalTree(it) } }
 
 /** The tall trees standing right beside the road, in front of the rest of the wood. */
 internal fun PixelScene.drawRoadsideTrees(s: SceneState) {
@@ -29,7 +29,7 @@ internal fun PixelScene.drawRoadsideTrees(s: SceneState) {
         val x = (worldX - offset).toInt()
         if (s.riverCovers(x, ROAD_TOP - 2, 12)) continue
         val tree = if (Noise.unit(i, 623) < 0.6f) bigFirs[(Noise.unit(i, 624) * bigFirs.size).toInt().coerceIn(0, bigFirs.size - 1)]
-        else bigBroads[(Noise.unit(i, 624) * bigBroads.size).toInt().coerceIn(0, bigBroads.size - 1)]
+        else bigBroads[(Noise.unit(i, 624) * bigBroads.size).toInt().coerceIn(0, bigBroads.size - 1)].at(s.season, i * 11)
         val sway = (sin(s.time * 1.3 + i) * minOf(1f, s.cond.wind / 30f)).toFloat().let { Math.round(it) }
         sprite(tree, x - tree.width / 2 + sway, ROAD_TOP - 1 - (Noise.unit(i, 625) * 3).toInt())
     }

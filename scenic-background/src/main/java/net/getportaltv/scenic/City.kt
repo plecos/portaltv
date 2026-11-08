@@ -218,12 +218,12 @@ private fun PixelScene.drawPark(s: SceneState, lot: Int, x0: Int, bottom: Int, a
         fill(px, FIELD_TOP + 8, px + 6, FIELD_TOP + 9, mouth)
     }
     spritePaint.colorFilter = filter(s, 0.04f + s.look.haze * 0.3f)
-    sprite(Sprites.roundTree, x0 + 4, bottom - 1)
+    sprite(Sprites.roundTreeYear.at(s.season, lot * 5), x0 + 4, bottom - 1)
     sprite(Sprites.pine, x0 + 18, bottom - 3)
-    sprite(Sprites.roundTree, x0 + LOT - 16, bottom - 1)
+    sprite(Sprites.roundTreeYear.at(s.season, lot * 5 + 1), x0 + LOT - 16, bottom - 1)
     sprite(Sprites.pine, x0 + LOT - 28, bottom - 4)
-    sprite(Sprites.bush, x0 + 34, bottom - 1)
-    sprite(Sprites.bush, x0 + LOT - 44, bottom - 1)
+    sprite(Sprites.bushYear.at(s.season, lot * 5 + 2), x0 + 34, bottom - 1)
+    sprite(Sprites.bushYear.at(s.season, lot * 5 + 3), x0 + LOT - 44, bottom - 1)
     spritePaint.colorFilter = null
     // A bench by the path, and a low railing along the front.
     val wood = solid(s, rgb(130, 94, 60), 0.04f)

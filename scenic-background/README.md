@@ -29,6 +29,15 @@ and broad trees, big trees along the road, mist, more deer, a log cabin now and 
 nothing and rise again. Each piece of scenery asks `Places` how much forest there is at its own place on the road, so nothing pops
 in or out as the change passes. In the preview, `--es place Forest` (or `Countryside`, `Journey`) picks one.
 
+## Seasons
+
+The picture follows the year. `Season.kt` turns the day of the year (turned round in the southern hemisphere, and left alone in the
+tropics) into a few smooth amounts: leaf, autumn colour, spring blossom and winter. Each broad-leaved tree has its own dates, so
+the leaves come and go over weeks: green, then yellow, orange or red, then bare, then blossom in spring. Firs stay green. The
+fields go from green crops to gold to ploughed earth to dormant grass, the hills take the season's colour, and snow lies lower on
+the mountains in winter. Settings, Season picks the calendar or one season. In the preview, `--ef yearday 285` shows a day, and
+`--ez yearlapse true` runs the year round in about two minutes.
+
 ## Settings
 
 Under Settings, Extensions, Scenic Travel (with a live preview): follow the real weather or always show one, follow the real
@@ -64,6 +73,7 @@ all the time, and `--ef cam 3000` starts the journey that many pixels along, and
 | `Bridge.kt` | The covered bridge and its river |
 | `City.kt` | The city: skyline, blocks, pavement, lamps, crossings |
 | `Beach.kt` | The beach: sea, shore, sand, boardwalk, pier and what is on them |
+| `Season.kt` | The year: leaf, autumn, blossom and winter, and the field and hill colours |
 | `Astronomy.kt` | Sun and moon positions and phase, tested against known dates |
 | `Look.kt` | The light: sky, tint, clouds and fog from the sun's height and the weather |
 | `Conditions.kt` | The weather as numbers, and how it eases from one to another |
