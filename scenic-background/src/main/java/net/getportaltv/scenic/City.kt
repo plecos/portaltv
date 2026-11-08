@@ -429,9 +429,10 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
     for (i in first..first + W / spacing + 2) {
         val wx = i * spacing + 30
         val amount = s.hardAt(wx.toDouble(), 1.0)
-        if (amount <= 0.05f) continue
-        val h = (22 * smoothstep(0.1f, 0.9f, amount)).toInt()
-        if (h < 3) continue
+        // Every lamp is full height or not there: as the town thins out they drop out one by one (each at its own point), they
+        // do not shrink away.
+        if (amount < 0.15f + 0.65f * Noise.unit(i, 1400)) continue
+        val h = 22
         val x = wx - offset
         fill(x, ROAD_TOP - h, x + 1, ROAD_TOP, post)
         fill(x, ROAD_TOP - h, x + 5, ROAD_TOP - h + 1, post)
