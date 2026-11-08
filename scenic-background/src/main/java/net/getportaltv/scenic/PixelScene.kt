@@ -130,7 +130,6 @@ class PixelScene {
         phase("drawFireflies") { drawFireflies(s) }
         phase("drawFrontTrees") { drawFrontTrees(s) }
         phase("drawForeground") { drawForeground(s, cam) }
-        phase("drawFallingLeaves") { drawFallingLeaves(s) }
         phase("drawRain") { drawRain(s) }
         phase("drawSnow") { drawSnow(s) }
         phase("drawFog") { drawFog(s) }

@@ -1,6 +1,7 @@
 package net.getportaltv.scenic
 
 import net.getportaltv.scenic.Colors.rgb
+import net.getportaltv.scenic.Colors.smoothstep
 import net.getportaltv.scenic.PixelScene.Companion.W
 import kotlin.math.cos
 import kotlin.math.exp
@@ -19,11 +20,16 @@ private val BURSTS = listOf(
 )
 
 /**
- * New Year: through the nights of 31 December and 1 January fireworks go up in every scene, few at first and thicker in the
+ * Fireworks: at the amusement park on summer nights, and New Year: through the nights of 31 December and 1 January fireworks go up in every scene, few at first and thicker in the
  * hour before and after midnight, when the finale is a sky full of them.
  */
 internal fun PixelScene.drawFireworks(s: SceneState) {
-    val strength = s.season.newYear
+    // Summer nights at the amusement park have a show too, quieter than New Year's, and not in rain, snow or fog.
+    val season = s.season
+    val summer = if (season.day <= 0f) 1f else smoothstep(140f, 165f, season.day) * (1f - smoothstep(250f, 275f, season.day))
+    val dry = (1f - maxOf(s.cond.rain * 1.5f, s.cond.snow * 1.5f, s.cond.fog, s.cond.thunder)).coerceIn(0f, 1f)
+    val park = 0.45f * summer * dry * s.parkAt(s.cam + W / 2.0, 1.0)
+    val strength = maxOf(season.newYear, park)
     if (strength <= 0.01f) return
     val night = (1f - s.look.day * 1.6f).coerceIn(0f, 1f)
     if (night < 0.3f || s.look.deck > 0.85f) return

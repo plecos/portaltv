@@ -41,6 +41,9 @@ class SceneState {
     val parkRaw = Strip(PixelScene.W + 16) { wx -> parkAt(wx.toDouble(), 1.0) }
     val parkCols = FloatArray(PixelScene.W + 16)
     var anyPark = false
+    /** The amusement park's own clock: it runs at the speed the rides turn, and stops in a storm. */
+    var rideTime = 0.0
+    var rideLast = 0.0
     var colsCam = Int.MIN_VALUE
     /** Whether any beach (within the bay's reach) or any city is on screen: when not, those parts of the picture are skipped. */
     var anyBeach = false

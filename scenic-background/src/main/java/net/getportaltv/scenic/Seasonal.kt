@@ -10,7 +10,7 @@ import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.sin
 
-/** Things the year brings to the open country: wildflowers in spring, haystacks and pumpkin fields in summer and autumn, falling leaves and migrating birds. */
+/** Things the year brings to the open country: wildflowers in spring, haystacks and pumpkin fields in summer and autumn and migrating birds. */
 
 private const val FACTOR = 0.5
 private const val CHUNK = 160
@@ -106,30 +106,6 @@ private fun PixelScene.pumpkinPatch(s: SceneState, chunk: Int, left: Int) {
         fill(px, py - 1, px + 3, py + 1, orange)
         fill(px + 2, py, px + 3, py + 1, deep)
         fill(px + 1, py - 2, px + 2, py - 1, vine)
-    }
-}
-
-/** Autumn leaves drifting down through the air wherever there are trees, red, orange and yellow, swaying as they fall. */
-internal fun PixelScene.drawFallingLeaves(s: SceneState) {
-    val amount = s.season.autumn * (1f - s.season.winter) * (1f - smoothstep(300f, 322f, s.season.day)) * (1f - (s.cond.rain * 0.7f + s.cond.snow * 0.5f + s.cond.thunder).coerceIn(0f, 1f))
-    if (s.season.day <= 0f || amount < 0.08f) return
-    val town = s.cityAt(s.cam + W / 2.0, 1.0)
-    val gate = amount * (1f - town) * (1f - s.beachAt(s.cam + W / 2.0, 1.0))
-    if (gate < 0.08f) return
-    val colors = intArrayOf(rgb(214, 80, 38), rgb(232, 150, 40), rgb(222, 190, 60), rgb(170, 70, 36), rgb(150, 110, 54))
-    val wind = min(1f, s.cond.wind / 30f)
-    val count = (64 * gate).toInt()
-    for (i in 0 until count) {
-        val fall = 7f + Noise.unit(i, 1330) * 6f
-        val cycle = (H + 20f) / fall
-        val t = ((s.time + Noise.unit(i, 1331) * cycle) % cycle).toFloat()
-        val y = -6f + t * fall
-        val drift = (4f + wind * 14f) * t + sin(t * 1.8f + i) * 5f
-        val layer = 0.5f + Noise.unit(i, 1332) * 0.5f
-        val x = Math.floorMod((Noise.unit(i, 1333) * W + drift - s.cam.toFloat() * layer).toInt(), W + 20) - 10
-        val flutter = (sin(t * 6f + i * 1.7f) > 0f)
-        val c = colors[(Noise.unit(i, 1334) * colors.size).toInt().coerceIn(0, colors.size - 1)]
-        if (flutter) fill(x, y.toInt(), x + 2, y.toInt() + 1, c) else fill(x, y.toInt(), x + 1, y.toInt() + 2, c)
     }
 }
 

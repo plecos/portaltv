@@ -2,6 +2,7 @@ package net.getportaltv.scenic
 
 import net.getportaltv.scenic.Colors.lerp
 import net.getportaltv.scenic.Colors.rgb
+import net.getportaltv.scenic.Colors.smoothstep
 import net.getportaltv.scenic.PixelScene.Companion.FIELD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.ROAD_TOP
 import net.getportaltv.scenic.PixelScene.Companion.W
@@ -38,6 +39,18 @@ private const val PARK_TO = 1500
 
 private fun SceneState.dark() = (1f - look.day * 1.6f).coerceIn(0f, 1f)
 
+/** How open the park is: the rides stop turning in a storm or a gale. */
+private fun SceneState.running(): Float = 1f - smoothstep(0.3f, 0.65f, maxOf(cond.rain, cond.thunder, cond.snow, cond.wind / 45f))
+
+private val HALLOWEEN_LIGHTS = intArrayOf(rgb(255, 140, 30), rgb(170, 80, 230))
+private val XMAS_LIGHTS = intArrayOf(rgb(235, 60, 60), rgb(70, 200, 90), rgb(250, 250, 240), rgb(250, 210, 70))
+
+/** The colour of light number [k] on the rides: orange and purple at Halloween, red, green and white at Christmas, otherwise every colour. */
+private fun SceneState.lightPal(k: Int): Int =
+    if (season.halloween > 0.3f) HALLOWEEN_LIGHTS[k % 2]
+    else if (season.festive > 0.3f) XMAS_LIGHTS[k % XMAS_LIGHTS.size]
+    else GONDOLAS[k % GONDOLAS.size]
+
 private fun SceneState.parkStretch(k: Int): Boolean = placeMode == Places.AMUSEMENT || (placeMode == Places.JOURNEY && Places.placeOf(k) == Places.AMUSEMENT)
 
 /** The tarmac of the car park under everything, in lines of bays, wherever the park reaches (more of it the nearer the middle). */
@@ -63,6 +76,9 @@ internal fun PixelScene.drawParkGround(s: SceneState) {
 internal fun PixelScene.drawParkRides(s: SceneState) {
     if (!s.anyPark) return
     if (s.placeMode != Places.JOURNEY && s.placeMode != Places.AMUSEMENT) return
+    val dt = (s.time - s.rideLast).coerceIn(0.0, 0.1)
+    s.rideLast = s.time
+    s.rideTime += dt * s.running()
     val offset = floor(s.cam * LAYER).toInt()
     val first = Math.floorDiv(offset + PARK_FROM, STRETCH_LAYER)
     val last = Math.floorDiv(offset + W + PARK_TO, STRETCH_LAYER)
@@ -129,9 +145,21 @@ private fun PixelScene.gate(s: SceneState, x: Int) {
     for (k in 0 until 10) fill(x + 12 + k * 4, BASE - 24, x + 14 + k * 4, BASE - 20, if (night > 0.2f) rgb(255, 230, 120) else c(s, rgb(250, 230, 160)))
     for (k in 0 until (GATE_W - 12) step 3) {
         val on = ((s.time * 3).toInt() + k / 3) % 2 == 0
-        val color = if (night > 0.2f && on) rgb(255, 240, 160) else c(s, rgb(220, 200, 150))
+        val color = if (night > 0.2f && on && s.running() > 0.3f) s.lightPal(k / 3).let { if (s.season.halloween > 0.3f || s.season.festive > 0.3f) it else rgb(255, 240, 160) } else c(s, rgb(220, 200, 150))
         fill(x + 6 + k, BASE - 28, x + 7 + k, BASE - 27, color)
         fill(x + 6 + k, BASE - 17, x + 7 + k, BASE - 16, color)
+    }
+    // Seasonal touches: pumpkins at Halloween, lit trees at Christmas, and snow along the sign when it lies.
+    if (s.season.halloween > 0.3f) for (k in 0 until 4) pumpkin(s, x + 14 + k * 9, BASE + 3 + (k % 2), night, 0.04f)
+    if (s.season.festive > 0.3f) for (side in 0..1) {
+        val tx = if (side == 0) x - 14 else x + GATE_W + 3
+        sprite(Sprites.pine, tx, BASE + 3)
+        treeLights(s, tx, BASE + 3, Sprites.pine.width, Sprites.pine.height, 40 + side, night)
+    }
+    if (s.snowCover > 0.03f) {
+        fillAlpha(x + 5, BASE - 29, x + GATE_W - 5, BASE - 28, rgb(240, 244, 252), s.snowCover)
+        fillAlpha(x, BASE - 31, x + 12, BASE - 30, rgb(240, 244, 252), s.snowCover)
+        fillAlpha(x + GATE_W - 12, BASE - 31, x + GATE_W, BASE - 30, rgb(240, 244, 252), s.snowCover)
     }
     // A walkway of paving between the towers.
     fill(x + 12, BASE, x + GATE_W - 12, BASE + 2, c(s, rgb(196, 176, 140)))
@@ -147,11 +175,11 @@ private fun PixelScene.carousel(s: SceneState, x: Int) {
     // The back horses, then the roof's poles, then the front horses.
     for (pass in 0..1) {
         for (i in 0 until 6) {
-            val a = s.time * 0.8 + i * PI / 3
+            val a = s.rideTime * 0.8 + i * PI / 3
             val front = sin(a) > 0
             if (front != (pass == 1)) continue
             val hx = cx + (cos(a) * 19).toInt()
-            val bob = (sin(s.time * 2.2 + i * 1.7) * 2).toInt()
+            val bob = (sin(s.rideTime * 2.2 + i * 1.7) * 2).toInt()
             val hy = BASE - 9 + bob
             val coat = if (i % 2 == 0) c(s, rgb(240, 236, 230)) else c(s, rgb(140, 96, 60))
             fill(hx, BASE - 4, hx + 1, hy + 1, c(s, rgb(236, 210, 120)))
@@ -174,11 +202,12 @@ private fun PixelScene.carousel(s: SceneState, x: Int) {
             fill(px, y, px + 1, y + 1, if (stripe) c(s, rgb(220, 56, 60)) else c(s, rgb(246, 246, 240)))
         }
     }
+    if (s.snowCover > 0.03f) fillAlpha(cx - 4, BASE - 29, cx + 5, BASE - 27, rgb(240, 244, 252), s.snowCover)
     fill(cx, BASE - 33, cx + 1, BASE - 28, c(s, rgb(240, 200, 60)))
     fill(cx + 1, BASE - 33, cx + 4, BASE - 31, c(s, rgb(226, 60, 60)))
     for (k in 0 until 11) {
         val bx = cx - 26 + k * 5
-        fill(bx, BASE - 18, bx + 2, BASE - 17, if (night > 0.2f && ((s.time * 2).toInt() + k) % 2 == 0) rgb(255, 240, 160) else c(s, rgb(240, 200, 60)))
+        fill(bx, BASE - 18, bx + 2, BASE - 17, if (night > 0.2f && ((s.time * 2).toInt() + k) % 2 == 0) s.lightPal(k).let { if (s.season.halloween > 0.3f || s.season.festive > 0.3f) it else rgb(255, 240, 160) } else c(s, rgb(240, 200, 60)))
     }
 }
 
@@ -195,7 +224,7 @@ private fun PixelScene.ferris(s: SceneState, x: Int) {
         line((cx + side * 13).toFloat(), BASE.toFloat(), cx.toFloat(), cy.toFloat(), dark)
         line((cx + side * 13 + 1).toFloat(), BASE.toFloat(), (cx + 1).toFloat(), cy.toFloat(), dark)
     }
-    val turn = s.time * 0.16
+    val turn = s.rideTime * 0.16
     // Rim, inner ring and spokes.
     for (k in 0 until 96) {
         val a = k * 2 * PI / 96
@@ -220,8 +249,8 @@ private fun PixelScene.ferris(s: SceneState, x: Int) {
     // At night the rim is a ring of coloured lights, chasing round.
     if (night > 0.15f) for (k in 0 until 48) {
         val a = k * 2 * PI / 48
-        val on = ((s.time * 4).toInt() + k) % 3 == 0
-        val color = if (on) GONDOLAS[k % GONDOLAS.size] else rgb(90, 80, 70)
+        val on = ((s.rideTime * 4).toInt() + k) % 3 == 0
+        val color = if (on) s.lightPal(k) else rgb(90, 80, 70)
         fill((cx + cos(a) * (r + 1)).toInt(), (cy + sin(a) * (r + 1)).toInt(), (cx + cos(a) * (r + 1)).toInt() + 1, (cy + sin(a) * (r + 1)).toInt() + 1, lerp(rgb(40, 40, 50), color, night))
     }
 }
@@ -339,7 +368,7 @@ private fun PixelScene.coaster(s: SceneState, x: Int) {
     // The train: waits in the station, climbs, runs the whole track, and is gone for a moment before the next.
     val travel = CoasterTrack.times.last()
     val cycle = 3f + travel + 2f
-    val t = ((s.time + Noise.unit(x / 7, 1500) * 0).toFloat() % cycle) - 3f
+    val t = if (s.running() < 0.15f) -1f else (s.rideTime.toFloat() % cycle) - 3f
     val head = if (t < 0f) 9f else minOf(CoasterTrack.distanceAt(t), xs.size - 1f) + 9f
     if (t <= travel) {
         val trainColors = intArrayOf(rgb(250, 210, 70), rgb(70, 140, 230), rgb(230, 70, 60), rgb(90, 200, 120))
@@ -358,7 +387,7 @@ private fun PixelScene.coaster(s: SceneState, x: Int) {
         val px = x + xs[i].toInt()
         if (px !in 0 until W) continue
         val on = ((s.time * 3).toInt() + i / 9) % 3 == 0
-        fill(px, BASE - hs[i].toInt() - 2, px + 1, BASE - hs[i].toInt() - 1, lerp(rgb(60, 50, 50), GONDOLAS[(i / 9) % GONDOLAS.size], if (on) night else night * 0.3f))
+        fill(px, BASE - hs[i].toInt() - 2, px + 1, BASE - hs[i].toInt() - 1, lerp(rgb(60, 50, 50), s.lightPal(i / 9), if (on) night else night * 0.3f))
     }
 }
 
@@ -371,7 +400,7 @@ private fun PixelScene.dropTower(s: SceneState, x: Int) {
     for (y in BASE - 58 until BASE step 6) fill(x + 4, y, x + 10, y + 2, stripe)
     fill(x + 2, BASE - 64, x + 12, BASE - 60, c(s, rgb(220, 60, 60)))
     // The seat ring climbs slowly, hangs a moment, then drops and bounces.
-    val p = ((s.time) % 14.0).toFloat()
+    val p = ((s.rideTime) % 14.0).toFloat()
     val f = when {
         p < 6f -> p / 6f
         p < 8f -> 1f
@@ -383,7 +412,7 @@ private fun PixelScene.dropTower(s: SceneState, x: Int) {
     fill(x, y, x + 14, y + 4, c(s, rgb(250, 200, 60)))
     for (k in 0 until 4) fill(x + 1 + k * 3, y - 2, x + 2 + k * 3, y, c(s, rgb(240, 200, 170)))
     if (night > 0.2f) {
-        val on = (s.time * 4).toInt() % 2 == 0
+        val on = (s.rideTime * 4).toInt() % 2 == 0
         fill(x + 6, BASE - 66, x + 8, BASE - 64, if (on) rgb(255, 80, 70) else rgb(120, 40, 40))
         fillAlpha(x - 2, y - 3, x + 16, y + 5, rgb(255, 230, 150), night * 0.18f)
     }
@@ -396,8 +425,8 @@ private fun PixelScene.swings(s: SceneState, x: Int) {
     val steel = c(s, rgb(150, 150, 170))
     fill(cx - 2, BASE - 34, cx + 3, BASE, steel)
     // The ring at the top turns, and the chairs swing out on their chains: further out the faster it spins.
-    val spin = s.time * 1.3
-    val flare = (0.35 + 0.65 * (0.5 + 0.5 * sin(s.time * 0.25))).toFloat()
+    val spin = s.rideTime * 1.3
+    val flare = (0.35 + 0.65 * (0.5 + 0.5 * sin(s.rideTime * 0.25))).toFloat()
     val topY = BASE - 36
     fill(cx - 20, topY, cx + 21, topY + 3, c(s, rgb(220, 60, 90)))
     fill(cx - 17, topY - 2, cx + 18, topY, c(s, rgb(250, 200, 60)))
@@ -446,7 +475,10 @@ internal fun PixelScene.drawParkFront(s: SceneState) {
     if (s.placeMode == Places.JOURNEY || s.placeMode == Places.AMUSEMENT) for (k in first..last) {
         if (!s.parkStretch(k)) continue
         val left = k * STRETCH_LAYER - offset
-        for (g in 0 until 36) {
+        val storm = maxOf(s.cond.rain, s.cond.snow * 0.7f, s.cond.thunder)
+        val rainy = s.cond.rain > 0.2f || s.cond.snow > 0.3f
+        val crowd = (36 * (1f - 0.75f * storm)).toInt()
+        for (g in 0 until crowd) {
             val home = GATE_X + 20 + (Noise.unit(k, g, 1520) * (SWING_X + 40 - GATE_X - 20)).toInt()
             val sway = sin(s.time * 0.25 + g * 1.9) * 14
             val x = left + home + sway.toInt()
@@ -455,7 +487,7 @@ internal fun PixelScene.drawParkFront(s: SceneState) {
             val shirt = (Noise.unit(k, g, 1521) * 6).toInt().coerceIn(0, 5)
             val skin = People.skinIndex(Noise.unit(k, g, 1522))
             val hair = People.hairIndex(Noise.unit(k, g, 1523))
-            sprite(personSprite(shirt, skin, hair, frame), x, BASE + 3 + (Noise.unit(k, g, 1524) * 4).toInt(), flip = cos(s.time * 0.25 + g * 1.9) < 0)
+            sprite(personSprite(shirt, skin, hair, frame, if (rainy) g % 4 else -1), x, BASE + 3 + (Noise.unit(k, g, 1524) * 4).toInt(), flip = cos(s.time * 0.25 + g * 1.9) < 0)
         }
     }
     spritePaint.colorFilter = null
