@@ -28,9 +28,10 @@ import kotlinx.coroutines.withContext
  * and sends Portal the picture), so none of its code runs inside Portal; this view only displays what comes back. It is
  * behind the home screen's other views, can't take the remote or a touch, and stays hidden until the first picture
  * arrives. If the extension doesn't answer in time, goes away, or is no longer allowed, [onFailed] runs once and Portal
- * puts its own background back.
+ * puts its own background back. [followsProfile] is true for the home screen's background, which a kid profile may only use
+ * if a parent allowed it; the screen saver belongs to the TV, so it passes false and whoever is signed in makes no difference.
  */
-class ExtensionBackgroundView(context: Context) : FrameLayout(context) {
+class ExtensionBackgroundView(context: Context, private val followsProfile: Boolean = true) : FrameLayout(context) {
 
     private val surface = SurfaceView(context)
     private val handler = Handler(Looper.getMainLooper())
@@ -66,7 +67,7 @@ class ExtensionBackgroundView(context: Context) : FrameLayout(context) {
             // Checked again now: still installed, still signed by who was allowed, still allowed to draw.
             val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
             // A kid profile uses it only if a parent turned it on for that kid.
-            val profile = com.portal.tv.repo.ProfileManager.getActive(context)
+            val profile = if (followsProfile) com.portal.tv.repo.ProfileManager.getActive(context) else null
             val kid = profile?.isKids == true
             val kidAllowed = kid && profile != null && com.portal.tv.settings.BackgroundSettings.kidCanPickExtension(context, profile.id)
             val use = BackgroundChoice.resolve(packageName, ext?.granted.orEmpty(), ext?.backgroundService != null, kid = kid, kidAllowed = kidAllowed)

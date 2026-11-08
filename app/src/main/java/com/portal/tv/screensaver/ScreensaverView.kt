@@ -192,7 +192,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
      */
     private fun startExtension(packageName: String) {
         val scope = scope ?: return
-        val bg = com.portal.tv.ui.ExtensionBackgroundView(context)
+        val bg = com.portal.tv.ui.ExtensionBackgroundView(context, followsProfile = false)
         bg.onReady = { if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }
         bg.onFailed = { reason ->
             android.util.Log.w("Portal", "Extension screen saver $packageName not used: $reason")
