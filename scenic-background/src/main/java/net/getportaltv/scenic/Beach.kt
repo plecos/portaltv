@@ -209,11 +209,14 @@ private object BeachSprites {
 
 /** Where the sun or the moon is across the sea (for the glitter path), as a screen column, or null. */
 private fun SceneState.glitterX(): Pair<Float, Float>? {
+    // Under thick cloud, rain or fog the light is not a point and there is no path on the water.
+    val clear = (1f - smoothstep(0.4f, 0.85f, cond.cloud)) * (1f - cond.rain) * (1f - cond.fog)
+    if (clear < 0.03f) return null
     val sunUp = sunAlt > 1.5
-    if (sunUp) return (((sunAz - 90.0) / 180.0 * W).toFloat()) to smoothstep(1.5f, 12f, sunAlt.toFloat())
+    if (sunUp) return (((sunAz - 90.0) / 180.0 * W).toFloat()) to smoothstep(1.5f, 12f, sunAlt.toFloat()) * clear
     val m = moon ?: return null
     if (m.altDeg < 2 || look.day > 0.5f) return null
-    return (((m.azDeg - 90.0) / 180.0 * W).toFloat()) to (m.illumination.toFloat() * 0.8f)
+    return (((m.azDeg - 90.0) / 180.0 * W).toFloat()) to (m.illumination.toFloat() * 0.8f * clear)
 }
 
 private fun smoothstep(a: Float, b: Float, x: Float): Float = Colors.smoothstep(a, b, x)
@@ -629,7 +632,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             }
             r < 0.82f -> if (open) {
                 val x = left + 14 + (Noise.unit(i, 893) * 60).toInt()
-                if (clear(x)) sprite(BeachSprites.castle, x, baseY + 3 + (Noise.unit(i, 894) * 4).toInt())
+                if (clear(x)) sprite(BeachSprites.castle, x, baseY - (Noise.unit(i, 894) * 4).toInt())
             }
         }
         // Swimmers: a head and an arm showing above the water, now and then.

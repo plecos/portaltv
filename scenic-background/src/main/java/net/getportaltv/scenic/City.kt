@@ -126,9 +126,18 @@ private const val TOWER = 3
 private const val LOT = 120
 private const val NEAR_FACTOR = 0.5
 
-private fun lotKind(lot: Int): Int {
+/**
+ * The clock tower stands once in every city, in the lot at its middle: for a stretch of the journey that is the city, the lot
+ * halfway along it (the city's layer moves at [NEAR_FACTOR] of the journey).
+ */
+private fun lotKind(lot: Int, mode: String): Int {
+    if (mode == Places.JOURNEY || mode == Places.CITY) {
+        val stretch = Math.floorDiv(lot * LOT, (Places.STRETCH * NEAR_FACTOR).toInt())
+        val middle = Math.floorDiv(((stretch * Places.STRETCH + Places.STRETCH / 2) * NEAR_FACTOR).toInt(), LOT)
+        if (lot == middle && (mode == Places.CITY || Places.placeOf(stretch) == Places.CITY)) return TOWER
+    }
     val u = Noise.unit(lot, 840)
-    return if (u < 0.07f) PARK else if (u < 0.12f) SCHOOL else if (u < 0.155f) TOWER else NORMAL
+    return if (u < 0.07f) PARK else if (u < 0.12f) SCHOOL else NORMAL
 }
 
 /** Works out where the parks are on screen (once a frame, in [SceneState.parks]): the subway comes up into daylight in them. */
@@ -137,7 +146,7 @@ internal fun SceneState.findParks(): IntArray {
     val first = Math.floorDiv(offset, LOT) - 1
     var out = IntArray(0)
     for (lot in first..first + W / LOT + 2) {
-        if (lotKind(lot) != PARK || cityAt((lot * LOT + LOT / 2).toDouble(), NEAR_FACTOR) < 0.85f) continue
+        if (lotKind(lot, placeMode) != PARK || cityAt((lot * LOT + LOT / 2).toDouble(), NEAR_FACTOR) < 0.85f) continue
         out += intArrayOf(lot * LOT - offset, lot * LOT - offset + LOT)
     }
     return out
@@ -154,7 +163,7 @@ internal fun PixelScene.drawCityBlocks(s: SceneState) {
         val amount = s.cityAt((lot * LOT + LOT / 2).toDouble(), NEAR_FACTOR)
         if (amount <= 0.02f) continue
         val growth = smoothstep(0.05f, 0.95f, amount)
-        when (lotKind(lot)) {
+        when (lotKind(lot, s.placeMode)) {
             PARK -> drawPark(s, lot, x0, bottom, amount)
             SCHOOL -> drawSchool(s, lot, x0, bottom, growth, night)
             TOWER -> {
@@ -420,9 +429,10 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
     for (i in first..first + W / spacing + 2) {
         val wx = i * spacing + 30
         val amount = s.hardAt(wx.toDouble(), 1.0)
-        if (amount <= 0.05f) continue
-        val h = (22 * smoothstep(0.1f, 0.9f, amount)).toInt()
-        if (h < 3) continue
+        // Every lamp is full height or not there: as the town thins out they drop out one by one (each at its own point), they
+        // do not shrink away.
+        if (amount < 0.15f + 0.65f * Noise.unit(i, 1400)) continue
+        val h = 22
         val x = wx - offset
         fill(x, ROAD_TOP - h, x + 1, ROAD_TOP, post)
         fill(x, ROAD_TOP - h, x + 5, ROAD_TOP - h + 1, post)

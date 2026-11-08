@@ -103,7 +103,7 @@ internal fun PixelScene.drawWalkers(s: SceneState) {
         }
     }
     // A rabbit hops across now and then, in the day.
-    if (s.stormy() < 0.4f) for (ev in LifeSchedule.events(s.time, 16.0, 70.0, 0.22f, 211, s.boost)) {
+    if (s.stormy() < 0.4f && !s.anyBeach) for (ev in LifeSchedule.events(s.time, 16.0, 70.0, 0.22f, 211, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
         val vScreen = dir * 14f - travelV
         val age = (s.time - ev.spawn).toFloat()
