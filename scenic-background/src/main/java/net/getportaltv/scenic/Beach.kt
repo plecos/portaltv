@@ -133,6 +133,15 @@ private object BeachSprites {
         bm.rect(1, 1, 17, 2, post)
     }
 
+    private val playerCache = HashMap<Int, Sprite>()
+
+    /** A beach volleyball player in swimwear, standing ready or (with [up]) jumping with both arms up to hit the ball. */
+    fun player(skin: Int, hair: Int, suit: Int, up: Boolean): Sprite = playerCache.getOrPut(((skin * People.HAIR_COUNT + hair) * 4 + suit) * 2 + (if (up) 1 else 0)) {
+        val rows = if (up) listOf("s.h.s", "shhhs", ".sss.", ".bbb.", ".bbb.", ".ppp.", ".p.p.", "..p..")
+        else listOf("..h..", ".hhh.", ".sss.", ".bbb.", "sbbbs", ".ppp.", ".p.p.", ".p.p.")
+        Sprite(rows, mapOf('s' to People.SKIN[skin], 'h' to People.hair(hair), 'b' to SUITS[suit], 'p' to rgb(60, 70, 110)))
+    }
+
     val sailboat = picture(10, 11) { bm ->
         bm.rect(4, 0, 5, 8, rgb(120, 100, 80))
         for (r in 1..7) bm.rect(5, r, 5 + (r + 1) / 2, r + 1, WHITE)
@@ -569,6 +578,18 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
                     val bx = x + 9 + (kotlin.math.cos(phase * Math.PI) * 14).toInt()
                     val by = baseY - 4 - (abs(sin(phase * Math.PI)) * 9).toInt()
                     fill(bx, by, bx + 2, by + 2, solid(s, rgb(250, 250, 240), 0.0f))
+                    // A player each side, jumping with both arms up each time the ball comes down to them: the ball is at the
+                    // right-hand end of its flight when the phase is a whole number of cycles, and at the left-hand end halfway.
+                    val toRight = minOf(phase, 2.0 - phase)
+                    val toLeft = abs(phase - 1.0)
+                    for (side in 0..1) {
+                        val hits = if (side == 1) toRight < 0.14 else toLeft < 0.14
+                        val skin = People.skinIndex(Noise.unit(i, 930 + side))
+                        val hair = People.hairIndex(Noise.unit(i, 932 + side))
+                        val suit = (Noise.unit(i, 934 + side) * 4).toInt().coerceIn(0, 3)
+                        val px = if (side == 0) x - 7 else x + 21
+                        sprite(BeachSprites.player(skin, hair, suit, hits), px, baseY + 5 - (if (hits) 2 else 0))
+                    }
                 }
             }
             r < 0.69f -> {
