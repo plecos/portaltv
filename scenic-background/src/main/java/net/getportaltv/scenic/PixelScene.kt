@@ -406,7 +406,7 @@ class PixelScene {
         }
         // Fields on the slopes: a darker band, so the hills read as farmland.
         if (airTop < 0.5f) for (x in 0 until W step 2) {
-            if (s.forestAt((x + offset).toDouble(), factor.toDouble()) > 0.5f || s.hardAt((x + offset).toDouble(), factor.toDouble()) > 0.2f) continue
+            if (s.forestAt((x + offset).toDouble(), factor.toDouble()) > 0.5f || s.hardOnScreen(x) > 0.2f) continue
             val h = Noise.ridge((x + offset) * freq, seed, 3)
             val top = (base - h * amp).toInt() + 4
             if (Noise.unit(Math.floorDiv((x + offset).toInt(), 24), seed, 5) < 0.4f) fillAlpha(x, top, x + 2, top + 5, lit(s, Colors.mul(color, 0.82f, 0.9f, 0.78f), a), 0.55f)
@@ -428,10 +428,11 @@ class PixelScene {
             val f = s.forestAt(worldX.toDouble(), factor.toDouble())
             if (extra == 1 && Noise.unit(i, seed, 74) > f * 0.9f) continue
             if (Noise.unit(i, seed, 71 + extra * 40) > 0.55f + 0.4f * f) continue
-            if (Noise.unit(i, seed, 76 + extra) < s.hardAt(worldX.toDouble(), factor.toDouble()) * 1.2f) continue
             val x = (worldX - offset).toInt()
+            if (Noise.unit(i, seed, 76 + extra) < s.hardOnScreen(x) * 1.2f) continue
             val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
-            val y = (base - h * amp).toInt() + 3
+            // They stand on the hill as drawn: lower where it sinks toward the city or the sea.
+            val y = (base - h * amp * (1f - 0.85f * maxOf(s.cityAt(worldX.toDouble(), factor.toDouble()), s.beachOnScreen(x)))).toInt() + 3
             val firs = 0.5f + 0.45f * f
             sprite(if (Noise.unit(i, seed, 73 + extra) < firs) (if (f > 0.5f && Noise.unit(i, seed, 75) < 0.4f) Sprites.pine else Sprites.pineSmall) else Sprites.roundSmallYear.at(s.season, worldX * 3 + extra), x, y)
         }
@@ -477,7 +478,7 @@ class PixelScene {
             val open = openCountry(Math.floorDiv(i, 6), 90)
             // How much of this stretch is forest: it brings more trees, and takes the farms away.
             val forest = s.forestAt(i * chunk + chunk / 2.0, factor)
-            val city = s.hardAt(i * chunk + chunk / 2.0, factor)
+            val city = s.hardOnScreen(left + chunk / 2)
             // Trees: 3 to 6 a chunk, at their own depths (fewer in open country), and in forest up to eleven more, each there once the forest is thick enough for it.
             // A log cabin in a clearing, very rarely, deep in the forest.
             val cabin = forest > 0.6f && Noise.unit(i, 700) < 0.08f
@@ -487,10 +488,12 @@ class PixelScene {
             for (t in 0 until trees) {
                 val wood = t >= farmTrees
                 if (wood && Noise.unit(i, 400 + t) > forest * 1.1f) continue
-                if (!wood && Noise.unit(i, 500 + t) < city * 1.3f) continue
                 val depth = Noise.unit(i, if (t < 7) 10 + t else 300 + t)
                 if ((depth > 0.5f) != (pass == 1)) continue
                 val x = left + (Noise.unit(i, if (t < 7) 20 + t else 320 + t) * chunk).toInt()
+                // Judged where the tree itself stands, not the middle of the stretch it belongs to, so none is left on the sand or the water.
+                val hard = s.hardOnScreen(x)
+                if (hard > 0.5f || !wood && Noise.unit(i, 500 + t) < hard * 1.3f) continue
                 val y = FIELD_TOP + 6 + (depth * 12f).toInt()
                 if (cabin && kotlin.math.abs(x - cabinX - 10) < 30) continue
                 if (wood && s.riverCovers(x, y, 8)) continue
@@ -589,7 +592,7 @@ class PixelScene {
         val y = ROAD_TOP - 1
         val first = floor(offset / 160).toInt() - 1
         for (i in first..first + W / 160 + 2) {
-            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f || s.hardAt(i * 160 + 80.0, 1.0) > 0.2f) continue
+            if (Noise.unit(i, 80) < 0.28f || openCountry(Math.floorDiv(i, 6), 91) || s.forestAt(i * 160 + 80.0, 1.0) > 0.3f || s.hardOnScreen((i * 160 - offset).toInt() + 80) > 0.2f) continue
             val x0 = (i * 160 - offset).toInt()
             val len = 90 + (Noise.unit(i, 81) * 60).toInt()
             fill(x0, y - 4, x0 + len, y - 3, rail)
@@ -765,7 +768,7 @@ class PixelScene {
         val firstTuft = floor(tuftOffset / 13).toInt() - 1
         for (i in firstTuft..firstTuft + W / 13 + 2) {
             val x = (i * 13 + Noise.unit(i, 90) * 9 - tuftOffset).toInt()
-            if (s.riverCovers(x, H - 3, 2) || s.hardAt(i * 13.0 + 6.0, 2.0) > 0.3f) continue
+            if (s.riverCovers(x, H - 3, 2) || s.hardOnScreen(x + 6) > 0.3f) continue
             val h = 2 + (Noise.unit(i, 91) * 4).toInt()
             val sway = (sin(s.time * 2.0 + i) * min(1f, s.cond.wind / 25f)).roundToInt()
             fill(x + sway, H - h - 1, x + 1 + sway, H - 1, grassDark)
