@@ -65,6 +65,7 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
         val roofLine = lerp(body, rgb(255, 255, 255), 0.12f)
         val side = lerp(body, rgb(0, 0, 20), 0.12f)
         val glass = lerp(body, s.look.skyBottom, 0.3f)
+        val paleGlass = lerp(glass, rgb(255, 255, 255), 0.14f)
         for (i in first..first + W / layer.cell + 4) {
             val x0 = i * layer.cell + (Noise.unit(i, layer.seed, 1) * 8).toInt() - 4
             val w = layer.cell - 4 + (Noise.unit(i, layer.seed, 2) * layer.cell * 0.5f).toInt()
@@ -110,9 +111,8 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
                         val wc = if (on) lerp(glass, WARM, night) else glass
                         if (hiRes) {
                             // A narrower, taller pane with a lighter top, like a real window, and a faint glow when lit.
-                            fillPhys(wx * sc + 1, wy * sc, wx * sc + 4, wy * sc + 4, wc)
-                            if (!on || night < 0.2f) fillAlphaPhys(wx * sc + 1, wy * sc, wx * sc + 4, wy * sc + 1, white, 0.20f)
-                            else fillAlphaPhys(wx * sc, wy * sc - 1, wx * sc + 5, wy * sc + 5, WARM, 0.07f * night)
+                            // One fill for each (a lighter pane when dark inside, so there is a hint of sky in the glass).
+                            fillPhys(wx * sc + 1, wy * sc, wx * sc + 4, wy * sc + 4, if (on) wc else paleGlass)
                         } else fill(wx, wy, wx + 1, wy + 1, wc)
                         wx += 3
                         col++
