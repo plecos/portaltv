@@ -59,7 +59,7 @@ class PixelScene {
     var particleScale = 1f
 
     // The pictures that are drawn many times, made once.
-    private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> Sprite.of(Sprites.cloud(w, h, 100 + i)) }
+    private val clouds = listOf(34 to 12, 50 to 16, 70 to 20, 96 to 26, 130 to 32).mapIndexed { i, (w, h) -> HiSky.cloud(Sprite.of(Sprites.cloud(w, h, 100 + i)), 100 + i) }
     private val carBodies = intArrayOf(rgb(214, 56, 56), rgb(60, 110, 200), rgb(236, 200, 60), rgb(240, 240, 240), rgb(70, 74, 84), rgb(70, 160, 96))
     internal val cars = carBodies.map { Sprites.car(it) }
     private val schoolBus = Sprites.schoolBus()
@@ -546,7 +546,9 @@ class PixelScene {
                 val bmp = clouds[index]
                 val left = centerX - bmp.width / 2
                 if (left > W || left + bmp.width < 0) continue
-                blit(bmp.pixels, bmp.width, bmp.height, left, centerY - bmp.height / 2, false, (baseAlpha * fade * weight * 255).toInt().coerceIn(0, 255))
+                val a = (baseAlpha * fade * weight * 255).toInt().coerceIn(0, 255)
+                if (scale > 1) blit(bmp.pixelsHi, bmp.width * 2, bmp.height * 2, left * 2, (centerY - bmp.height / 2) * 2, false, a)
+                else blit(bmp.pixels, bmp.width, bmp.height, left, centerY - bmp.height / 2, false, a)
             }
         }
         spritePaint.colorFilter = null

@@ -43,7 +43,7 @@ private object SantaSprites {
             draw(ROWS, DEER_FAR, x + 2, 2)
             draw(ROWS, if (p == 3) DEER_RED else DEER, x, 5)
         }
-        Sprite.of(bm)
+        HiSky.team(Sprite.of(bm))
     }
 }
 

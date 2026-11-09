@@ -201,7 +201,7 @@ private object BeachSprites {
         for (x in 8 until 40 step 6) bm.dot(x, 13, rgb(230, 120, 40))
     })
 
-    val gullUp = picture(5, 3) { bm -> bm.dot(0, 0, WHITE); bm.dot(4, 0, WHITE); bm.dot(1, 1, WHITE); bm.dot(3, 1, WHITE); bm.dot(2, 2, rgb(210, 210, 214)) }
+    val gullUp = HiSky.gull(picture(5, 3) { bm -> bm.dot(0, 0, WHITE); bm.dot(4, 0, WHITE); bm.dot(1, 1, WHITE); bm.dot(3, 1, WHITE); bm.dot(2, 2, rgb(210, 210, 214)) }, true)
     private val PELICAN_BODY = rgb(122, 106, 92)
     private val PELICAN_WING = rgb(88, 78, 70)
     private val PELICAN_HEAD = rgb(238, 232, 206)
@@ -233,7 +233,7 @@ private object BeachSprites {
         bm.rect(11, 2, 13, 3, PELICAN_BILL)
         bm.dot(11, 3, PELICAN_BILL)
     }, 2)
-    val gullDown = picture(5, 3) { bm -> bm.dot(2, 0, rgb(210, 210, 214)); bm.rect(1, 1, 4, 2, WHITE); bm.dot(0, 2, WHITE); bm.dot(4, 2, WHITE) }
+    val gullDown = HiSky.gull(picture(5, 3) { bm -> bm.dot(2, 0, rgb(210, 210, 214)); bm.rect(1, 1, 4, 2, WHITE); bm.dot(0, 2, WHITE); bm.dot(4, 2, WHITE) }, false)
 
 }
 

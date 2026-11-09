@@ -439,8 +439,8 @@ object Sprites {
     ))
 
     private val BIRD = mapOf('k' to rgb(38, 40, 52))
-    val birdUp = Sprite(listOf("k...k", ".k.k.", "..k.."), BIRD)
-    val birdDown = Sprite(listOf("..k..", ".kkk.", "k...k"), BIRD)
+    val birdUp = HiSky.bird(Sprite(listOf("k...k", ".k.k.", "..k.."), BIRD), true)
+    val birdDown = HiSky.bird(Sprite(listOf("..k..", ".kkk.", "k...k"), BIRD), false)
 
     private val CAR = mapOf('c' to rgb(220, 60, 60), 'C' to rgb(160, 40, 44), 'w' to rgb(170, 214, 240), 'k' to rgb(28, 28, 34), 'h' to rgb(255, 244, 180))
 
