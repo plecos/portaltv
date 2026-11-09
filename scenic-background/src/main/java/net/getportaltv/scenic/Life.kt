@@ -111,6 +111,8 @@ internal fun PixelScene.drawWalkers(s: SceneState) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
         val vScreen = dir * 14f - travelV
         val age = (s.time - ev.spawn).toFloat()
+        // No rabbits in the city: decided by the city where it came in, so it never vanishes part way across.
+        if (s.cityAt(s.cam - travelV.toDouble() * age + W / 2.0, 1.0) > 0.1f || s.cityOnScreen(W / 2) > 0.1f) continue
         val x = if (vScreen < 0) W + 10 + vScreen * age else -10 + vScreen * age
         if (x < -10 || x > W + 10) continue
         val hop = abs(sin(age * 6.0)).toFloat() * 4f
