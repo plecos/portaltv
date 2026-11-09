@@ -22,6 +22,7 @@ object LifeSprites {
         val carried = if (bag == null) body else body.mapIndexed { y, row -> if (y == 5 || y == 6) "g" + row.substring(1) else row }
         val rows = if (umbrella != null) listOf(".uuu.", "uuuuu", "..k..") + carried else carried
         return Sprite(rows, mapOf('g' to (bag ?: 0), 'h' to hair, 's' to skin, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
+            .let { s -> HiSprites.person(shirt, pants, frame, umbrella, skin, hair, bag).let { (r, p) -> s.detail(r, p) } }
     }
 
     /** Somebody on a bicycle, facing right. */
@@ -34,7 +35,7 @@ object LifeSprites {
             "kkk..kkk",
             ".k....k."
         ), mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to rgb(52, 60, 96), 'k' to rgb(40, 40, 46))
-    )
+    ).let { s -> HiSprites.cyclist(shirt, frame, skin, hair).let { (r, p) -> s.detail(r, p) } }
 
     val dog = Sprite(listOf("d...dd", "dddddd", ".d..d."), mapOf('d' to rgb(140, 96, 60)))
     val dogStep = Sprite(listOf("d...dd", "dddddd", "d....d"), mapOf('d' to rgb(140, 96, 60)))
