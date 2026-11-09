@@ -60,8 +60,9 @@ internal fun PixelScene.drawSuburbBlocks(s: SceneState) {
     if (s.placeMode != Places.JOURNEY && s.placeMode != Places.SUBURBIA) return
     val offset = floor(s.cam * NEAR).toInt()
     val first = Math.floorDiv(offset, DISTRICT) - 1
-    secondRow(s)
+    // The tower is farther off than the second row of houses, so it is drawn first and they stand in front of its feet.
     waterTower(s)
+    secondRow(s)
     spritePaint.colorFilter = filter(s, 0.04f + s.look.haze * 0.3f)
     for (d in first..first + W / DISTRICT + 2) {
         val x0 = d * DISTRICT - offset
@@ -707,10 +708,76 @@ private fun PixelScene.waterTower(s: SceneState) {
         if (s.suburbAt(wx.toDouble(), factor) < 0.6f || s.cityAt(wx.toDouble(), factor) > 0.3f) continue
         val x = wx - offset
         if (x < -20 || x > W + 20) continue
-        val base = FIELD_TOP - 5
+        // Standing on the ground: the field begins at FIELD_TOP, so the feet are set just inside it (they used to stop short of it and
+        // leave the tower hanging in the air).
+        val base = FIELD_TOP + 3
         val legs = lit(s, rgb(120, 124, 134), haze)
         val tank = lit(s, rgb(214, 220, 228), haze)
         val band = lit(s, rgb(196, 60, 56), haze)
+        if (hiRes) {
+            // The tower on the finer grid: splayed legs braced with crosses, footings, a ribbed cylindrical tank lit on the left and
+            // shaded on the right with a red band and rivets, a catwalk with a rail and ladder, a conical roof and a blinking beacon.
+            val sc = scale
+            val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+            val brace = Colors.scale(legs, 0.8f)
+            fillOval(x - 4f, base - 0.8f, x + 15f, base + 1.6f, ink, 0.30f)
+            val feet = floatArrayOf(x - 0.8f, x + 3.6f, x + 7.4f, x + 11.8f)
+            val tops = floatArrayOf(x + 1.5f, x + 4.2f, x + 6.8f, x + 9.5f)
+            for (k in 0 until 4) {
+                line(tops[k], base - 12f, feet[k], base.toFloat(), legs)
+                fillPhys((feet[k] * sc).toInt() - 1, base * sc - 1, (feet[k] * sc).toInt() + 4, base * sc + 2, Colors.mul(legs, 1.15f, 1.15f, 1.15f))
+            }
+            // Cross braces between the legs at two heights, and a ring beam.
+            for (hy in floatArrayOf(base - 9f, base - 4.5f)) {
+                val u0 = (base - 12f - hy) / -12f
+                for (k in 0 until 3) {
+                    val xa = tops[k] + (feet[k] - tops[k]) * (hy - (base - 12f)) / 12f
+                    val xb = tops[k + 1] + (feet[k + 1] - tops[k + 1]) * (hy - (base - 12f)) / 12f
+                    val h2 = hy + 4.5f
+                    val xa2 = tops[k] + (feet[k] - tops[k]) * (h2 - (base - 12f)) / 12f
+                    val xb2 = tops[k + 1] + (feet[k + 1] - tops[k + 1]) * (h2 - (base - 12f)) / 12f
+                    if (h2 <= base) { line(xa, hy, xb2, h2, brace, 200); line(xb, hy, xa2, h2, brace, 200) }
+                }
+            }
+            fillPhys(x * sc, (base - 7) * sc, (x + 11) * sc, (base - 7) * sc + 2, brace)
+            // The tank: a ribbed cylinder, light on the left and dark on the right, with a red band round the middle and rivets below.
+            fillPhys(x * sc, (base - 22) * sc, (x + 11) * sc, (base - 12) * sc, tank)
+            fillAlphaPhys(x * sc, (base - 22) * sc, x * sc + 4, (base - 12) * sc, white, 0.30f)
+            fillAlphaPhys((x + 11) * sc - 6, (base - 22) * sc, (x + 11) * sc, (base - 12) * sc, ink, 0.30f)
+            fillAlphaPhys((x + 11) * sc - 2, (base - 22) * sc, (x + 11) * sc, (base - 12) * sc, ink, 0.18f)
+            var rb = (base - 22) * sc + 3
+            while (rb < (base - 12) * sc) { fillAlphaPhys(x * sc, rb, (x + 11) * sc, rb + 1, ink, 0.13f); rb += 4 }
+            fillPhys(x * sc, (base - 18) * sc, (x + 11) * sc, (base - 16) * sc, band)
+            fillAlphaPhys(x * sc, (base - 18) * sc, (x + 11) * sc, (base - 18) * sc + 1, white, 0.25f)
+            fillAlphaPhys(x * sc, (base - 16) * sc - 1, (x + 11) * sc, (base - 16) * sc, ink, 0.25f)
+            var rv = x * sc + 2
+            while (rv < (x + 11) * sc - 1) { fillAlphaPhys(rv, (base - 13) * sc, rv + 1, (base - 13) * sc + 1, ink, 0.4f); rv += 3 }
+            // The catwalk under the tank with a rail, and a ladder down the side.
+            fillPhys((x - 2) * sc, (base - 12) * sc, (x + 13) * sc, (base - 12) * sc + 2, brace)
+            fillAlphaPhys((x - 2) * sc, (base - 14) * sc, (x + 13) * sc, (base - 14) * sc + 1, legs, 0.9f)
+            var rp = (x - 2) * sc
+            while (rp <= (x + 13) * sc) { fillAlphaPhys(rp, (base - 14) * sc, rp + 1, (base - 12) * sc, legs, 0.9f); rp += 5 }
+            line(x + 10.6f, base - 12f, x + 11.6f, base.toFloat(), brace, 255)
+            var lr = (base - 11) * sc
+            while (lr < base * sc) { fillAlphaPhys((x + 10) * sc + 1 + (lr - (base - 11) * sc) / 14, lr, (x + 12) * sc + 1 + (lr - (base - 11) * sc) / 14, lr + 1, brace, 0.9f); lr += 4 }
+            // A conical roof, lit on its left half, with a finial and the beacon.
+            val roofTop = (base - 28) * sc
+            val roofBase = (base - 22) * sc
+            for (ry in 0 until roofBase - roofTop) {
+                val half = (ry * (6.2f * sc) / (roofBase - roofTop)).toInt() + 1
+                val mid = (x * sc) + (11 * sc) / 2
+                fillPhys(mid - half, roofTop + ry, mid, roofTop + ry + 1, Colors.mul(tank, 1.05f, 1.05f, 1.08f))
+                fillPhys(mid, roofTop + ry, mid + half, roofTop + ry + 1, Colors.scale(tank, 0.82f))
+            }
+            fillPhys(x * sc + (11 * sc) / 2 - 1, (base - 31) * sc, x * sc + (11 * sc) / 2 + 1, roofTop, legs)
+            if (s.dark() > 0.2f && (s.time * 0.9).toInt() % 2 == 0) {
+                fillGlow(x + 5.5f, base - 31.5f, 6f, rgb(255, 60, 50), 0.6f)
+                fillOval(x + 4.6f, base - 32.3f, x + 6.4f, base - 30.7f, rgb(255, 90, 80), 1f)
+            } else fillOval(x + 4.8f, base - 32.1f, x + 6.2f, base - 30.9f, Colors.scale(rgb(200, 70, 66), 0.7f), 1f)
+            continue
+        }
+        // (The footings and a pad on the ground for the 8-bit style.)
+        fill(x - 1, base, x + 12, base + 1, legs)
         fill(x + 1, base - 12, x + 2, base, legs); fill(x + 9, base - 12, x + 10, base, legs)
         fill(x + 3, base - 12, x + 4, base, legs); fill(x + 7, base - 12, x + 8, base, legs)
         fill(x, base - 22, x + 11, base - 12, tank)
