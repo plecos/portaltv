@@ -202,6 +202,37 @@ private object BeachSprites {
     }
 
     val gullUp = picture(5, 3) { bm -> bm.dot(0, 0, WHITE); bm.dot(4, 0, WHITE); bm.dot(1, 1, WHITE); bm.dot(3, 1, WHITE); bm.dot(2, 2, rgb(210, 210, 214)) }
+    private val PELICAN_BODY = rgb(122, 106, 92)
+    private val PELICAN_WING = rgb(88, 78, 70)
+    private val PELICAN_HEAD = rgb(238, 232, 206)
+    private val PELICAN_BILL = rgb(204, 166, 112)
+
+    /** A brown pelican facing right, wings out flat for the glide: broad wings, white head and a long pouched bill. */
+    val pelicanGlide = picture(13, 5) { bm ->
+        bm.rect(0, 1, 9, 2, PELICAN_WING)
+        bm.rect(2, 2, 9, 3, PELICAN_BODY)
+        bm.rect(3, 3, 7, 4, PELICAN_BODY)
+        bm.rect(9, 1, 11, 3, PELICAN_HEAD)
+        bm.rect(11, 2, 13, 3, PELICAN_BILL)
+        bm.dot(11, 3, PELICAN_BILL)
+        bm.dot(10, 1, PELICAN_WING)
+    }
+    val pelicanUp = picture(13, 6) { bm ->
+        bm.dot(0, 0, PELICAN_WING); bm.rect(1, 1, 3, 2, PELICAN_WING); bm.rect(3, 2, 8, 3, PELICAN_WING)
+        bm.rect(3, 3, 9, 4, PELICAN_BODY)
+        bm.rect(4, 4, 8, 5, PELICAN_BODY)
+        bm.rect(9, 2, 11, 4, PELICAN_HEAD)
+        bm.rect(11, 3, 13, 4, PELICAN_BILL)
+        bm.dot(11, 4, PELICAN_BILL)
+    }
+    val pelicanDown = picture(13, 6) { bm ->
+        bm.rect(2, 1, 8, 2, PELICAN_BODY)
+        bm.rect(1, 2, 9, 3, PELICAN_BODY)
+        bm.rect(0, 3, 3, 4, PELICAN_WING); bm.dot(0, 4, PELICAN_WING); bm.rect(3, 3, 8, 4, PELICAN_WING)
+        bm.rect(9, 1, 11, 3, PELICAN_HEAD)
+        bm.rect(11, 2, 13, 3, PELICAN_BILL)
+        bm.dot(11, 3, PELICAN_BILL)
+    }
     val gullDown = picture(5, 3) { bm -> bm.dot(2, 0, rgb(210, 210, 214)); bm.rect(1, 1, 4, 2, WHITE); bm.dot(0, 2, WHITE); bm.dot(4, 2, WHITE) }
 
 }
@@ -498,6 +529,23 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         sprite(if (flap) BeachSprites.gullUp else BeachSprites.gullDown, x.toInt(), y)
         spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
     }
+    // Pelicans: a line of two or three gliding low over the water, flapping a few slow beats now and then.
+    if (s.stormy() < 0.5f) for (ev in LifeSchedule.events(s.time, 30.0, 70.0, 0.5f, 825, s.boost)) {
+        val dir = if (ev.unit(1) < 0.5f) 1 else -1
+        val v = dir * (9f + ev.unit(2) * 4f) - travelV * 0.4f
+        val age = (s.time - ev.spawn).toFloat()
+        val n = 1 + (ev.unit(7) * 3).toInt()
+        val y0 = 124 + (ev.unit(3) * 14).toInt()
+        for (b in 0 until n) {
+            val x = (if (v > 0) -16f + v * age else W + 16f + v * age) - dir * b * 15
+            if (x < -16 || x > W + 16) continue
+            val beat = (age + b * 0.4f + ev.unit(5) * 5f) % 6f
+            val sprite = if (beat < 1.4f) (if ((beat * 3f).toInt() % 2 == 0) BeachSprites.pelicanUp else BeachSprites.pelicanDown) else BeachSprites.pelicanGlide
+            val y = y0 + (b % 2) * 2 + (sin(age * 0.7 + b) * 1.5).toInt()
+            spritePaint.colorFilter = filter(s, 0.06f)
+            sprite(sprite, x.toInt(), y, flip = dir < 0)
+        }
+    }
     spritePaint.alpha = 255
     spritePaint.colorFilter = null
 }
@@ -725,73 +773,139 @@ internal fun PixelScene.drawBeachRoad(s: SceneState) {
     }
 }
 
-/** A whale leaping clear of the water out at sea and falling back with a splash, once now and then. */
+/** How wide a humpback is at fraction [k] of its length from the blunt head (0) to the tail stock (1): half-width in pixels. */
+private fun humpbackWidth(k: Float): Float = when {
+    k < 0.1f -> 2.2f + k * 10f
+    k < 0.4f -> 3.2f + (k - 0.1f) * 1.6f
+    k < 0.75f -> 3.7f - (k - 0.4f) * 6.5f
+    else -> 1.4f - (k - 0.75f) * 2.4f
+}
+
+/**
+ * A humpback whale breaching: it heaves up out of the water at a steep angle, rolls over as it climbs so the pale throat shows,
+ * and crashes back on its side in a burst of spray, then lifts its tail flukes high and slides under. Once now and then.
+ */
 private fun PixelScene.drawWhale(s: SceneState) {
     if (s.whaleAt < 0.0) return
     val age = (s.time - s.whaleAt).toFloat()
-    if (age < 0f || age > 4.4f) return
+    if (age < 0f || age > 6.6f) return
     val v = s.beachVisit
     val dir = if (Noise.unit(v, 1605) < 0.5f) 1 else -1
     val travelV = if (s.travelling) s.speed else 0f
     val x0 = 90f + Noise.unit(v, 1606) * 140f - travelV * 0.08f * age
     val ySea = SEA_TOP + 17 + (Noise.unit(v, 1607) * 3).toInt()
-    if (!seaOn(s, x0.toInt(), ySea) || !seaOn(s, (x0 + dir * 26).toInt(), ySea)) return
+    val reach = 18f
+    val xl = x0 + dir * reach
+    if (!seaOn(s, x0.toInt(), ySea) || !seaOn(s, xl.toInt(), ySea)) return
     val foam = solid(s, rgb(250, 252, 252), 0.0f)
-    val back = solid(s, rgb(46, 64, 90), 0.15f)
-    val belly = solid(s, rgb(196, 206, 216), 0.15f)
-    val jump = 2.6f
-    val len = 14
-    val height = 14f
+    val back = solid(s, rgb(40, 54, 78), 0.12f)
+    val belly = solid(s, rgb(206, 214, 224), 0.12f)
+    val groove = solid(s, rgb(176, 190, 206), 0.12f)
+    val jump = 2.8f
+    val len = 22f
+    val height = 15f
     if (age < jump) {
         val u = age / jump
-        val hx = x0 + dir * 26f * u
+        val hx = x0 + dir * reach * u
         val hy = ySea - 4f * height * u * (1f - u)
-        var tx = dir * 26f
+        var tx = dir * reach
         var ty = -4f * height * (1f - 2f * u)
         val n = sqrt(tx * tx + ty * ty)
         tx /= n; ty /= n
-        // The belly is on the lower side of the body as it turns over.
+        // The throat side is the lower one, and the whale rolls over as it goes: the pale belly takes up more of the side we see.
         var px = -ty
         var py = tx
         if (py < 0f) { px = -px; py = -py }
-        for (k in 0..len + 2) {
-            val cx = hx - tx * k
-            val cy = hy - ty * k
-            val half = when { k < 2 -> 0; k > len - 3 -> 0; else -> 1 }
-            for (w in -half..half) {
-                val x = (cx + px * w).toInt()
-                val y = (cy + py * w).toInt()
-                if (y > ySea) continue
-                fill(x, y, x + 1, y + 1, if (w == 1 || (w == 0 && half == 0 && k < 3)) belly else back)
+        val bellyLine = 0.7f - 1.7f * u
+        var k = 0f
+        while (k <= len) {
+            val f = k / len
+            val hw = humpbackWidth(f)
+            var j = -hw
+            while (j <= hw) {
+                val cx = hx - tx * k + px * j
+                val cy = hy - ty * k + py * j
+                val y = cy.toInt()
+                if (y <= ySea) {
+                    val side = j / hw
+                    val color = when {
+                        side > bellyLine && f < 0.6f && (k.toInt() % 3 == 0) && f > 0.15f -> groove
+                        side > bellyLine -> belly
+                        else -> back
+                    }
+                    fill(cx.toInt(), y, cx.toInt() + 1, y + 1, color)
+                }
+                j += 0.5f
             }
-            // The flukes at the tail: a flat tail, wider than the body.
-            if (k >= len) for (w in intArrayOf(-3, -2, 2, 3)) {
-                val x = (cx + px * w).toInt()
-                val y = (cy + py * w).toInt()
-                if (y <= ySea) fill(x, y, x + 1, y + 1, back)
-            }
+            k += 0.5f
+        }
+        // The small hump of the back fin two thirds of the way along, the knobbly head, and an eye.
+        val fx = hx - tx * len * 0.66f - px * (humpbackWidth(0.66f) + 1f)
+        val fy = hy - ty * len * 0.66f - py * (humpbackWidth(0.66f) + 1f)
+        if (fy <= ySea) fill(fx.toInt(), fy.toInt(), fx.toInt() + 2, fy.toInt() + 1, back)
+        val ex = hx - tx * 3f + px * 0.5f
+        val ey = hy - ty * 3f + py * 0.5f
+        if (ey <= ySea) fill(ex.toInt(), ey.toInt(), ex.toInt() + 1, ey.toInt() + 1, rgb(10, 12, 20))
+        val kx = hx + tx * 0.5f - px * 1.5f
+        val ky = hy + ty * 0.5f - py * 1.5f
+        if (ky <= ySea) fill(kx.toInt(), ky.toInt(), kx.toInt() + 1, ky.toInt() + 1, groove)
+        // The long pale pectoral flipper, held out and waving.
+        val bx = hx - tx * len * 0.3f + px * humpbackWidth(0.3f) * 0.8f
+        val by = hy - ty * len * 0.3f + py * humpbackWidth(0.3f) * 0.8f
+        val wave = sin(age * 7f) * 1.5f
+        val tipX = bx + px * (4f + wave) - tx * 6f
+        val tipY = by + py * (4f + wave) - ty * 6f
+        if (tipY <= ySea) line(bx, by, tipX, tipY, belly)
+        // The flukes trail from the tail: broad, notched.
+        val tailX = hx - tx * (len + 1f)
+        val tailY = hy - ty * (len + 1f)
+        for (w in intArrayOf(-5, -4, -3, 3, 4, 5)) {
+            val x = (tailX + px * w).toInt()
+            val y = (tailY + py * w).toInt()
+            if (y <= ySea) fill(x, y, x + 1, y + 1, back)
         }
         // Spray where it leaves the water.
-        if (u < 0.25f) for (j in 0 until 10) {
-            val sx = (x0 + (Noise.unit(j, v, 1610) - 0.5f) * 12f).toInt()
-            val sy = (ySea - Noise.unit(j, v, 1611) * 9f * (u * 4f + 0.2f)).toInt()
-            fillAlpha(sx, sy, sx + 1, sy + 1, foam, 0.8f * (1f - u * 3f).coerceAtLeast(0.2f))
+        if (u < 0.3f) for (j in 0 until 14) {
+            val sx = (x0 + (Noise.unit(j, v, 1610) - 0.5f) * 16f).toInt()
+            val sy = (ySea - Noise.unit(j, v, 1611) * 10f * (u * 3f + 0.2f)).toInt()
+            fillAlpha(sx, sy, sx + 1, sy + 1, foam, 0.85f * (1f - u * 2.5f).coerceAtLeast(0.2f))
         }
     }
-    // The splash where it comes down, a column of spray and rings spreading across the water.
+    // The crash back down: a wall of spray and rings spreading over the water.
     val a = age - jump
-    if (a >= 0f && a < 1.8f) {
-        val xl = x0 + dir * 26f
-        val f = 1f - a / 1.8f
-        for (j in 0 until 14) {
-            val sx = (xl + (Noise.unit(j, v, 1612) - 0.5f) * (6f + a * 14f)).toInt()
-            val rise = Noise.unit(j, v, 1613) * 12f
-            val sy = (ySea - rise * sin(Math.PI * (a / 1.8f)).toFloat()).toInt()
-            fillAlpha(sx, sy, sx + 1, sy + 1, foam, 0.85f * f)
+    if (a >= 0f && a < 2.2f) {
+        val f = 1f - a / 2.2f
+        for (j in 0 until 26) {
+            val sx = (xl + (Noise.unit(j, v, 1612) - 0.5f) * (8f + a * 18f)).toInt()
+            val rise = Noise.unit(j, v, 1613) * 16f
+            val sy = (ySea - rise * sin(Math.PI * (a / 2.2f)).toFloat()).toInt()
+            fillAlpha(sx, sy, sx + 1 + (j % 2), sy + 1, foam, 0.9f * f)
         }
-        val r = (3f + a * 8f).toInt()
-        fillAlpha((xl - r).toInt(), ySea, (xl + r).toInt(), ySea + 1, foam, 0.45f * f)
-        fillAlpha((xl - r * 0.7f).toInt(), ySea + 1, (xl + r * 0.7f).toInt(), ySea + 2, foam, 0.25f * f)
+        val r = (4f + a * 9f).toInt()
+        fillAlpha((xl - r).toInt(), ySea, (xl + r).toInt(), ySea + 1, foam, 0.5f * f)
+        fillAlpha((xl - r * 0.7f).toInt(), ySea + 1, (xl + r * 0.7f).toInt(), ySea + 2, foam, 0.3f * f)
+    }
+    // Then it lifts its tail high, flukes spread and dripping, holds a moment and slides under.
+    val d = age - jump - 0.7f
+    if (d >= 0f && d < 3.6f) {
+        val h = (when { d < 0.9f -> d / 0.9f; d < 2.4f -> 1f; else -> (3.6f - d) / 1.2f }.coerceIn(0f, 1f) * 10f).toInt()
+        if (h > 1) {
+            val cx = xl.toInt()
+            // The stem of the tail, narrowing, with the flukes across the top.
+            fill(cx - 1, ySea - h, cx + 2, ySea, back)
+            fill(cx - 5, ySea - h - 2, cx, ySea - h, back)
+            fill(cx + 1, ySea - h - 2, cx + 6, ySea - h, back)
+            fill(cx - 6, ySea - h - 3, cx - 3, ySea - h - 2, back)
+            fill(cx + 4, ySea - h - 3, cx + 7, ySea - h - 2, back)
+            // The pale underside of the flukes, and drips falling from them.
+            fill(cx - 4, ySea - h - 1, cx - 1, ySea - h, belly)
+            fill(cx + 2, ySea - h - 1, cx + 5, ySea - h, belly)
+            for (j in 0 until 5) {
+                val dy = ((d * 14f + j * 5f) % 12f).toInt()
+                if (ySea - h + dy < ySea) fillAlpha(cx - 5 + j * 2, ySea - h + dy, cx - 4 + j * 2, ySea - h + dy + 1, foam, 0.7f)
+            }
+            fillAlpha(cx - 5, ySea, cx + 6, ySea + 1, foam, 0.5f)
+        }
     }
 }
 
