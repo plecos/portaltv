@@ -1212,8 +1212,14 @@ class PixelScene {
                     val endP = minOf(nx * sc, W * sc)
                     while (ppx < endP) {
                         val t = (ppx - x * sc).toFloat() / (spacing * sc)
-                        val sag = (sin(t * Math.PI) * 14f * sc).toInt()
-                        fillPhys(ppx, w * sc + sag, ppx + 1, w * sc + sag + 1 + (if (sc > 1) 1 else 0), wire)
+                        // A thin wire smoothed in height: its colour is shared between the two rows it falls across, so a shallow slope
+                        // is a smooth line instead of long steps.
+                        val yf = w * sc + (sin(t * Math.PI) * 14f * sc).toFloat()
+                        val y0 = floor(yf).toInt()
+                        val frac = yf - y0
+                        fillAlphaPhys(ppx, y0, ppx + 1, y0 + 1, wire, 0.95f * (1f - frac))
+                        fillAlphaPhys(ppx, y0 + 1, ppx + 1, y0 + 2, wire, 0.95f * frac)
+                        fillAlphaPhys(ppx, y0 + 1, ppx + 1, y0 + 2, wire, 0.3f * (1f - frac))
                         ppx++
                     }
                 }
