@@ -657,11 +657,24 @@ private fun PixelScene.clockTower(s: SceneState, lot: Int, x: Int, bottom: Int, 
     for (k in 0 until count) {
         val c = text[k]
         if (c == 10) {
-            if (colon) { fill(dx + 1, faceTop + 4, dx + 3, faceTop + 6, lit); fill(dx + 1, faceTop + 8, dx + 3, faceTop + 10, lit) }
+            if (colon) {
+                if (hiRes) { fillOval(dx + 0.9f, faceTop + 4.2f, dx + 2.9f, faceTop + 6.2f, lit, 1f); fillOval(dx + 0.9f, faceTop + 8.2f, dx + 2.9f, faceTop + 10.2f, lit, 1f) }
+                else { fill(dx + 1, faceTop + 4, dx + 3, faceTop + 6, lit); fill(dx + 1, faceTop + 8, dx + 3, faceTop + 10, lit) }
+            }
             dx += 4
         } else {
             val rows = DIGITS[c]
-            for (r in 0 until 5) for (q in 0 until 3) if (rows[r * 3 + q] == '1') fill(dx + q * 2, faceTop + 2 + r * 2, dx + q * 2 + 2, faceTop + 4 + r * 2, lit)
+            for (r in 0 until 5) for (q in 0 until 3) {
+                if (hiRes) {
+                    // A dot-matrix display on the finer grid: each lit cell a round dot with a glow, the unlit ones faint.
+                    val ox = dx + q * 2f; val oy = faceTop + 2f + r * 2f
+                    if (rows[r * 3 + q] == '1') {
+                        fillOval(ox - 0.2f, oy - 0.2f, ox + 2.2f, oy + 2.2f, lit, 0.22f)
+                        fillOval(ox + 0.1f, oy + 0.1f, ox + 1.9f, oy + 1.9f, lit, 1f)
+                        fillOval(ox + 0.5f, oy + 0.5f, ox + 1.4f, oy + 1.4f, rgb(255, 240, 200), 0.8f)
+                    } else fillOval(ox + 0.3f, oy + 0.3f, ox + 1.7f, oy + 1.7f, lit, 0.07f)
+                } else if (rows[r * 3 + q] == '1') fill(dx + q * 2, faceTop + 2 + r * 2, dx + q * 2 + 2, faceTop + 4 + r * 2, lit)
+            }
             dx += 8
         }
     }
@@ -675,6 +688,7 @@ private fun PixelScene.clockTower(s: SceneState, lot: Int, x: Int, bottom: Int, 
         while (wx + 3 < x + w - 4) {
             val on = Noise.unit(lot * 17 + col, wy, 851) < 0.4f
             fill(wx, wy, wx + 3, wy + 5, if (on && night > 0f) lerp(dark, WARM, night) else dark)
+            if (hiRes) windowDetail(wx, wy, 3, 5, shade, if (on) night else 0f, WARM, s.look.day)
             wx += 7
             col++
         }
@@ -682,4 +696,32 @@ private fun PixelScene.clockTower(s: SceneState, lot: Int, x: Int, bottom: Int, 
     }
     fill(x + w / 2 - 3, bottom - 10, x + w / 2 + 3, bottom, lerp(body, rgb(40, 30, 30), 0.55f))
     fill(x + w / 2 - 4, bottom - 11, x + w / 2 + 4, bottom - 10, shade)
+    if (hiRes) {
+        val sc = scale
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        // Cut stone in courses, a falling off of the light, a shadow under the cornice, and corner stones.
+        brickTexture(x + 1, top + 1, x + w - 2, bottom, lot * 7)
+        wallFalloff(x + 1, top + 1, x + w - 2, bottom)
+        eaveShadow(x - 2, x + w + 2, top + 1)
+        for (cy in top + 2 until bottom step 6) { fillAlphaPhys(x * sc + 1, cy * sc, x * sc + 4, cy * sc + 5, white, 0.10f); fillAlphaPhys((x + w) * sc - 5, cy * sc, (x + w) * sc - 1, cy * sc + 5, ink, 0.10f) }
+        // A pointed spire in tiles with a gold ball, and a ledge under the clock.
+        val spTop = (top - 13) * sc
+        val spBase = (top - 2) * sc
+        val mid = (x + w / 2) * sc
+        for (ry in 0 until spBase - spTop) {
+            val half = (ry * (4.6f * sc) / (spBase - spTop)).toInt() + 1
+            fillPhys(mid - half, spTop + ry, mid, spTop + ry + 1, Colors.mul(shade, 1.15f, 1.15f, 1.15f))
+            fillPhys(mid, spTop + ry, mid + half, spTop + ry + 1, Colors.scale(shade, 0.85f))
+            if (ry % 5 == 4) fillAlphaPhys(mid - half, spTop + ry, mid + half, spTop + ry + 1, ink, 0.25f)
+        }
+        fillOval(x + w / 2f - 0.9f, top - 14.3f, x + w / 2f + 0.9f, top - 12.5f, rgb(255, 224, 120), 1f)
+        // The clock face: a bezel round the glass with rivets in the corners, and a diagonal glint.
+        fillAlphaPhys((x + 3) * sc, (faceTop - 1) * sc, (x + w - 3) * sc, (faceTop - 1) * sc + 1, white, 0.4f)
+        fillAlphaPhys((x + 3) * sc, (faceTop + 15) * sc - 1, (x + w - 3) * sc, (faceTop + 15) * sc, ink, 0.4f)
+        for (rx in intArrayOf(x + 3, x + w - 4)) for (ry in intArrayOf(faceTop - 1, faceTop + 14)) fillOval(rx + 0.2f, ry + 0.2f, rx + 1.2f, ry + 1.2f, rgb(214, 196, 150), 1f)
+        for (k in 0 until 10) fillAlphaPhys((x + 6) * sc + k * 2, (faceTop + 1) * sc + 8 - k, (x + 6) * sc + k * 2 + 2, (faceTop + 1) * sc + 9 - k, white, 0.07f * (1f - night))
+        // The doorway: an arch over the door, and its lit frame.
+        fillOval(x + w / 2f - 3.2f, bottom - 13.2f, x + w / 2f + 3.2f, bottom - 8f, lerp(body, rgb(40, 30, 30), 0.55f), 1f)
+        fillAlphaPhys((x + w / 2 - 3) * sc, (bottom - 10) * sc, (x + w / 2 - 3) * sc + 1, bottom * sc, white, 0.30f)
+    }
 }

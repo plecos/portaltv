@@ -2,6 +2,21 @@ package net.getportaltv.scenic
 
 import net.getportaltv.scenic.Colors.rgb
 
+/** The kinds of palm along the boardwalk: how tall, how the trunk bends, which way and how far the fronds reach. */
+internal class PalmSpec(
+    val w: Int, val h: Int, val top: Int, val cx0: Int,
+    /** How far the top of the trunk is bent to the right (negative: to the left). */
+    val bend: Float,
+    /** If above 0 the trunk curves in an S of this size instead. */
+    val s: Float,
+    /** Each frond's direction (x, y) with y negative up. */
+    val dirs: List<FloatArray>,
+    val len: Float, val droop: Float, val thick: Int, val nuts: Boolean
+) {
+    /** How far left or right of its foot the trunk is, [t] of the way up (0 at the foot, 1 at the crown), in the scene's pixels. */
+    fun trunkAt(t: Float): Float = if (s > 0f) s * kotlin.math.sin(t * Math.PI).toFloat() else bend * t
+}
+
 /** Finer versions of the beach's pictures for the 16-bit style (see [Fine]). */
 internal object HiBeach {
     private val CLEAR = 0
@@ -30,26 +45,25 @@ internal object HiBeach {
         px(12, 0, pole); px(13, 0, pole)
     }.done()
 
-    /** A palm: a curved ringed trunk, and seven fronds each with leaflets drooping either side of its spine; 38 by 50. */
-    fun palm(sp: Sprite, lean: Int) = Fine(sp, blank = true).apply {
+    /** A palm on the finer grid: a ringed trunk, and fronds each with leaflets drooping either side of its spine. */
+    fun palm(sp: Sprite, spec: PalmSpec) = Fine(sp, blank = true).apply {
         val trunk = rgb(132, 96, 62); val ring = rgb(96, 68, 44); val light = rgb(158, 120, 80)
-        val top = 18
-        val dir = if (lean == 0) 1 else -1
-        for (y in 49 downTo top) {
-            val bend = dir * ((49 - y) * 4 / 31)
-            val x = 18 + bend
-            val wide = if (y > 40) 4 else 3
-            for (k in 0 until wide) px(x + k - 1, y, if (y % 4 == 0) ring else if (k == 0) light else trunk)
+        val top = spec.top * 2
+        val heightP = (spec.h - 1 - spec.top) * 2
+        val thickP = spec.thick * 2
+        for (y in spec.h * 2 - 1 downTo top) {
+            val x = spec.cx0 * 2 + Math.round(spec.trunkAt(((spec.h * 2 - 1 - y) / heightP.toFloat())) * 2f)
+            val wide = thickP + (if (y > spec.h * 2 - 10) 1 else 0)
+            for (k in 0 until wide) px(x + k - wide / 2 + 1, y, if (y % 4 == 0) ring else if (k == 0) light else trunk)
         }
-        val cx = 18f + dir * 4 + 0.5f
+        val cx = spec.cx0 * 2f + spec.trunkAt(1f) * 2f + 1f
         val leaf = rgb(46, 138, 60); val leafLight = rgb(104, 192, 86); val leafDark = rgb(30, 100, 46)
-        val dirs = arrayOf(floatArrayOf(-1f, 0.6f), floatArrayOf(-1f, 0.05f), floatArrayOf(-0.7f, -0.6f), floatArrayOf(0f, -1f), floatArrayOf(0.7f, -0.6f), floatArrayOf(1f, 0.05f), floatArrayOf(1f, 0.6f))
-        for ((k, d) in dirs.withIndex()) {
-            val len = if (k == 3) 14f else 17f
+        for ((k, d) in spec.dirs.withIndex()) {
+            val len = spec.len * 2f * (if (d[1] < -0.9f) 0.85f else 1f)
             var t = 0f
             while (t < len) {
                 val x = cx + d[0] * t
-                val y = top + d[1] * t + t * t * 0.05f
+                val y = top + d[1] * t + t * t * spec.droop / 2f
                 px(x.toInt(), y.toInt(), if (k % 2 == 0) leaf else leafLight)
                 // Leaflets droop down either side of the spine.
                 if (t > 2f && ((t * 2).toInt() % 2 == 0)) {
@@ -60,8 +74,10 @@ internal object HiBeach {
                 t += 0.5f
             }
         }
-        val nut = rgb(110, 76, 44)
-        disc(cx - 1.5f, top + 2.2f, 1.2f, nut); disc(cx + 1.5f, top + 2.2f, 1.2f, nut); disc(cx, top + 3.2f, 1.2f, Colors.scale(nut, 0.8f))
+        if (spec.nuts) {
+            val nut = rgb(110, 76, 44)
+            disc(cx - 1.5f, top + 2.2f, 1.2f, nut); disc(cx + 1.5f, top + 2.2f, 1.2f, nut); disc(cx, top + 3.2f, 1.2f, Colors.scale(nut, 0.8f))
+        }
     }.done()
 
     fun tower(sp: Sprite) = Fine(sp).apply {

@@ -279,6 +279,28 @@ private fun PixelScene.commercialDistrict(s: SceneState, d: Int, x0: Int, offset
 
 /** Some pretend lettering: little blocks along a sign, since a few pixels can't spell anything. */
 private fun PixelScene.lettering(x: Int, y: Int, w: Int, h: Int, seed: Int, color: Int) {
+    if (hiRes) {
+        // Little glyphs of strokes on the finer grid (three real pixels wide, a gap between) that read as writing, and spaces between words.
+        val sc = scale
+        val top = y * sc
+        val hp = (h * sc).coerceAtLeast(4)
+        var gx = x * sc
+        var g = 0
+        while (gx < (x + w) * sc - 3) {
+            if (Noise.unit(seed, g, 975) < 0.18f) { gx += 4; g++; continue }
+            val bits = Noise.hash(seed, g, 311)
+            val mid = top + hp / 2
+            if (bits and 1 != 0) fillPhys(gx, top, gx + 3, top + 1, color)
+            if (bits and 2 != 0) fillPhys(gx, top + hp - 1, gx + 3, top + hp, color)
+            if (bits and 4 != 0) fillPhys(gx, top, gx + 1, top + hp, color)
+            if (bits and 8 != 0) fillPhys(gx + 2, top, gx + 3, top + hp, color)
+            if (bits and 16 != 0) fillPhys(gx, mid, gx + 3, mid + 1, color)
+            if (bits and 31 == 0) fillPhys(gx + 1, top, gx + 2, top + hp, color)
+            gx += 5
+            g++
+        }
+        return
+    }
     var lx = x
     var k = 0
     while (lx < x + w - 2) {
@@ -313,6 +335,25 @@ private fun PixelScene.grocery(s: SceneState, seed: Int, x: Int, w: Int, night: 
     while (mx < x + w - 3) { fill(mx, BASE - 9, mx + 1, BASE, shade); mx += 9 }
     fill(x + w / 2 - 9, BASE - 11, x + w / 2 + 9, BASE - 9, solid(s, rgb(196, 60, 52), haze))
     fill(x + w / 2 - 6, BASE - 9, x + w / 2 + 6, BASE, lerp(glass, rgb(20, 20, 30), 0.35f))
+    if (hiRes) {
+        val sc = scale
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        // The sign band framed in white, a proper leaf with a vein, and the roof edge lit with a shadow below.
+        fillAlphaPhys((x + 3) * sc, (BASE - h + 3) * sc, (x + w - 3) * sc, (BASE - h + 3) * sc + 1, white, 0.45f)
+        fillAlphaPhys((x + 3) * sc, (BASE - h + 9) * sc - 1, (x + w - 3) * sc, (BASE - h + 9) * sc, ink, 0.35f)
+        fillOval(x + 5f, BASE - h + 4f, x + 8.6f, BASE - h + 8f, rgb(150, 220, 120), 1f)
+        line(x + 5.4f, BASE - h + 7.6f, x + 8.2f, BASE - h + 4.4f, green, 255)
+        fillAlphaPhys((x - 1) * sc, (BASE - h - 1) * sc, (x + w + 1) * sc, (BASE - h - 1) * sc + 1, white, 0.3f)
+        eaveShadow(x + 1, x + w - 2, BASE - h + 1)
+        // The canopy over the doors with a scalloped edge, and double doors with handles.
+        val red = solid(s, rgb(196, 60, 52), haze)
+        var cx = x + w / 2 - 9
+        while (cx < x + w / 2 + 9) { fillOval(cx.toFloat(), BASE - 9.7f, cx + 3f, BASE - 8.3f, red, 1f); cx += 3 }
+        eaveShadow(x + w / 2 - 9, x + w / 2 + 9, BASE - 8)
+        val doorX = (x + w / 2) * sc
+        fillAlphaPhys(doorX - 1, (BASE - 9) * sc + 2, doorX + 1, BASE * sc, white, 0.35f)
+        fillPhys(doorX - 4, (BASE - 4) * sc, doorX - 3, (BASE - 2) * sc, rgb(230, 230, 236)); fillPhys(doorX + 3, (BASE - 4) * sc, doorX + 4, (BASE - 2) * sc, rgb(230, 230, 236))
+    }
 }
 
 private fun PixelScene.restaurant(s: SceneState, seed: Int, x: Int, w: Int, night: Float, haze: Float) {
@@ -341,6 +382,26 @@ private fun PixelScene.restaurant(s: SceneState, seed: Int, x: Int, w: Int, nigh
     fill(px - 6, BASE - 22, px + 7, BASE - 21, red)
     lettering(px - 4, BASE - 26, 9, 2, seed, red)
     if (night > 0.2f) fillAlpha(px - 8, BASE - 31, px + 9, BASE - 19, rgb(255, 236, 170), night * 0.2f)
+    if (hiRes) {
+        val sc = scale
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        // Shingles on the red roof, a door with a window and handle, and bulbs chasing round the sign.
+        for (r in 0 until 4) shingleRow(x - 1 + r * 2, x + w + 1 - r * 2, BASE - h - 1 - r, seed + r)
+        eaveShadow(x, x + w, BASE - h)
+        wallFalloff(x + 1, BASE - h, x + w - 2, BASE)
+        fillAlphaPhys((x + 34) * sc, (BASE - 7) * sc, (x + 36) * sc, (BASE - 4) * sc, glass, 0.85f)
+        fillPhys((x + 36) * sc - 2, (BASE - 3) * sc, (x + 36) * sc - 1, (BASE - 2) * sc, rgb(255, 244, 190))
+        sidingTexture(x + 1, BASE - 3, x + w - 2, BASE)
+        var bx = px - 6
+        while (bx <= px + 6) {
+            val on = ((s.time * 3).toInt() + bx) % 2 == 0
+            val c = if (night > 0.2f && on) rgb(255, 236, 160) else rgb(236, 226, 196)
+            fillOval(bx.toFloat(), BASE - 29.6f, bx + 1.2f, BASE - 28.4f, c, 1f); fillOval(bx.toFloat(), BASE - 21.6f, bx + 1.2f, BASE - 20.4f, c, 1f)
+            bx += 2
+        }
+        fillAlphaPhys((px - 6) * sc, (BASE - 28) * sc, (px - 6) * sc + 1, (BASE - 21) * sc, white, 0.3f)
+        fillAlphaPhys((px + 7) * sc - 1, (BASE - 28) * sc, (px + 7) * sc, (BASE - 21) * sc, ink, 0.3f)
+    }
 }
 
 private fun PixelScene.department(s: SceneState, seed: Int, x: Int, w: Int, night: Float, haze: Float) {
@@ -371,6 +432,36 @@ private fun PixelScene.department(s: SceneState, seed: Int, x: Int, w: Int, nigh
     while (gx < x + w - 6) { fill(gx, BASE - 9, gx + 1, BASE, shade); gx += 12 }
     fill(x + w / 2 - 10, BASE - 12, x + w / 2 + 10, BASE - 9, shade)
     fill(x + w / 2 - 7, BASE - 9, x + w / 2 + 7, BASE, lerp(glass, rgb(20, 20, 30), 0.35f))
+    if (hiRes) {
+        val sc = scale
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        // Texture and light on the wall, a framed sign with a bulb border, banners with a pattern, vents on the roof units, revolving doors.
+        wallFalloff(x + 1, BASE - h + 1, x + w - 2, BASE)
+        eaveShadow(x, x + w, BASE - h + 1)
+        sidingTexture(x + 1, BASE - h + 10, x + w - 2, BASE - 10)
+        fillAlphaPhys((x + w / 2 - 28) * sc, (BASE - h + 3) * sc, (x + w / 2 + 28) * sc, (BASE - h + 3) * sc + 1, white, 0.45f)
+        fillAlphaPhys((x + w / 2 - 28) * sc, (BASE - h + 10) * sc - 1, (x + w / 2 + 28) * sc, (BASE - h + 10) * sc, ink, 0.35f)
+        var bb = x + w / 2 - 27
+        while (bb < x + w / 2 + 27) {
+            val on = ((s.time * 2).toInt() + bb) % 2 == 0
+            val c = if (night > 0.2f && on) rgb(255, 236, 160) else rgb(244, 232, 196)
+            fillOval(bb.toFloat(), BASE - h + 3.2f, bb + 1.2f, BASE - h + 4.4f, c, 1f); fillOval(bb.toFloat(), BASE - h + 8.6f, bb + 1.2f, BASE - h + 9.8f, c, 1f)
+            bb += 3
+        }
+        var bx = x + 8
+        while (bx < x + w - 10) {
+            if (abs(bx - (x + w / 2)) > 22) {
+                for (yy in (BASE - h + 4) * sc until (BASE - 11) * sc step 6) fillAlphaPhys(bx * sc + 1, yy, bx * sc + 5, yy + 2, white, 0.30f)
+                fillAlphaPhys(bx * sc, (BASE - h + 4) * sc, bx * sc + 1, (BASE - 11) * sc, white, 0.25f)
+            }
+            bx += 14
+        }
+        for (ux in intArrayOf(x + 12, x + w - 28)) for (vx in 0 until 8 step 2) fillAlphaPhys((ux + vx) * sc, (BASE - h - 3) * sc, (ux + vx) * sc + 1, (BASE - h - 1) * sc, ink, 0.4f)
+        val dx = (x + w / 2) * sc
+        fillAlphaPhys(dx - 1, (BASE - 9) * sc, dx + 1, BASE * sc, white, 0.35f)
+        fillAlphaPhys(dx - 7 * sc, (BASE - 9) * sc, dx - 7 * sc + 1, BASE * sc, white, 0.25f)
+        fillAlphaPhys(dx + 7 * sc - 1, (BASE - 9) * sc, dx + 7 * sc, BASE * sc, white, 0.25f)
+    }
 }
 
 // ---------- people ----------

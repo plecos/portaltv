@@ -77,34 +77,47 @@ private object BeachSprites {
         })
     }
 
-    val palms by lazy { listOf(palm(0), palm(1)) }
+    private fun fronds(vararg d: Pair<Float, Float>) = d.map { floatArrayOf(it.first, it.second) }
 
-    private fun palm(lean: Int) = HiBeach.palm(picture(19, 25) { bm ->
+    private val PALM_SPECS = listOf(
+        // The two first palms: leaning left or right, seven fronds.
+        PalmSpec(19, 25, 9, 9, 2f, 0f, fronds(-1f to 0.6f, -1f to 0.05f, -0.7f to -0.6f, 0f to -1f, 0.7f to -0.6f, 1f to 0.05f, 1f to 0.6f), 8f, 0.09f, 2, true),
+        PalmSpec(19, 25, 9, 9, -2f, 0f, fronds(-1f to 0.6f, -1f to 0.05f, -0.7f to -0.6f, 0f to -1f, 0.7f to -0.6f, 1f to 0.05f, 1f to 0.6f), 8f, 0.09f, 2, true),
+        // A tall slender palm with five long drooping fronds.
+        PalmSpec(17, 31, 10, 8, 1f, 0f, fronds(-1f to 0.8f, -0.8f to -0.15f, 0f to -1f, 0.8f to -0.15f, 1f to 0.8f), 10f, 0.12f, 2, false),
+        // A short bushy palm with nine fronds.
+        PalmSpec(21, 19, 7, 10, -1f, 0f, fronds(-1f to 0.8f, -1f to 0.3f, -0.8f to -0.4f, -0.4f to -0.9f, 0f to -1f, 0.4f to -0.9f, 0.8f to -0.4f, 1f to 0.3f, 1f to 0.8f), 9f, 0.12f, 3, true),
+        // A palm whose trunk curves in an S, with a heavy cluster of coconuts.
+        PalmSpec(19, 27, 9, 8, 0f, 3f, fronds(-1f to 0.7f, -1f to 0.1f, -0.6f to -0.7f, 0.1f to -1f, 0.7f to -0.6f, 1f to 0.1f, 1f to 0.7f, 0.4f to 0.9f), 8f, 0.1f, 2, true),
+        // A fan palm: fronds all fanning up and outward.
+        PalmSpec(17, 23, 9, 8, 0.5f, 0f, fronds(-0.95f to -0.1f, -0.65f to -0.7f, -0.25f to -1f, 0.25f to -1f, 0.65f to -0.7f, 0.95f to -0.1f), 7f, 0.05f, 3, false)
+    )
+
+    val palms by lazy { PALM_SPECS.map { palm(it) } }
+
+    private fun palm(spec: PalmSpec) = HiBeach.palm(picture(spec.w, spec.h) { bm ->
         val trunk = rgb(132, 96, 62)
         val ring = rgb(96, 68, 44)
-        val cx0 = 9
-        val top = 9
-        for (y in 24 downTo top) {
-            val x = cx0 + (if (lean == 0) 1 else -1) * ((24 - y) * 2 / 15)
-            bm.dot(x, y, if ((y % 3) == 0) ring else trunk)
-            bm.dot(x + 1, y, if ((y % 3) == 0) trunk else ring)
+        val height = spec.h - 1 - spec.top
+        for (y in spec.h - 1 downTo spec.top) {
+            val x = spec.cx0 + Math.round(spec.trunkAt((spec.h - 1 - y) / height.toFloat()))
+            for (k in 0 until spec.thick) bm.dot(x + k - (spec.thick - 2).coerceAtLeast(0) / 2, y, if (k == 0) (if ((y % 3) == 0) ring else trunk) else if ((y % 3) == 0) trunk else ring)
         }
-        val cx = cx0 + (if (lean == 0) 1 else -1) * 2
-        val dirs = arrayOf(floatArrayOf(-1f, 0.6f), floatArrayOf(-1f, 0.05f), floatArrayOf(-0.7f, -0.6f), floatArrayOf(0f, -1f), floatArrayOf(0.7f, -0.6f), floatArrayOf(1f, 0.05f), floatArrayOf(1f, 0.6f))
+        val cx = spec.cx0 + Math.round(spec.trunkAt(1f))
         val leaf = rgb(52, 150, 66)
         val leafLight = rgb(104, 190, 84)
-        for ((k, d) in dirs.withIndex()) {
+        for ((k, d) in spec.dirs.withIndex()) {
             var t = 0f
-            while (t < 8f) {
+            while (t < spec.len) {
                 val x = (cx + 1 + d[0] * t).toInt()
-                val y = (top + d[1] * t + t * t * 0.09f).toInt()
+                val y = (spec.top + d[1] * t + t * t * spec.droop).toInt()
                 bm.dot(x, y, if (k % 2 == 0) leaf else leafLight)
                 bm.dot(x, y + 1, leaf)
                 t += 0.5f
             }
         }
-        bm.dot(cx, top + 1, rgb(110, 76, 44)); bm.dot(cx + 2, top + 1, rgb(110, 76, 44))
-    }, lean)
+        if (spec.nuts) { bm.dot(cx, spec.top + 1, rgb(110, 76, 44)); bm.dot(cx + 2, spec.top + 1, rgb(110, 76, 44)) }
+    }, spec)
 
     val tower = HiBeach.tower(picture(14, 17) { bm ->
         val wood = rgb(160, 118, 80)
@@ -486,7 +499,7 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
     }
     // A cruise ship now and then, a little nearer than the cargo ships and bigger, lit up at night.
     val night = (1f - s.look.day * 1.6f).coerceIn(0f, 1f)
-    for (ev in LifeSchedule.events(s.time, 600.0, 330.0, 0.5f, 831, s.boost)) {
+    for (ev in LifeSchedule.events(s.time, 300.0, 330.0, 0.8f, 831, s.boost)) {
         if (ev.unit(6) < s.offSeason() * 0.7f) continue
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
         val v = dir * 3f - travelV * 0.06f
@@ -560,11 +573,11 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
 private fun PixelScene.drawLighthouse(s: SceneState, night: Float) {
     val factor = 0.12
     val offset = floor(s.cam * factor).toInt()
-    val cell = 900
+    val cell = 380
     val first = Math.floorDiv(offset, cell) - 1
     for (i in first..first + W / cell + 2) {
-        if (Noise.unit(i, 840) > 0.3f) continue
-        val wx = i * cell + 120 + (Noise.unit(i, 841) * 600).toInt()
+        if (Noise.unit(i, 840) > 0.85f) continue
+        val wx = i * cell + 60 + (Noise.unit(i, 841) * 240).toInt()
         val x = wx - offset
         if (x < -20 || x > W + 20) continue
         if (!s.seaAt(x - 6, SEA_TOP + 6) || !s.seaAt(x + 14, SEA_TOP + 6)) continue
@@ -655,7 +668,8 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         val left = i * CELL - offset
         if (s.beachAt(s.cam + left + CELL / 2.0, 1.0) < 0.75f) continue
         val r = Noise.unit(i, 880)
-        val baseY = SHORE + 8
+        // On the sand, between the water's edge and the boardwalk.
+        val baseY = SHORE + 2
         fun clear(x: Int) = piers.none { abs(x - it - 4) < 16 }
         val open = Noise.unit(i, 905) < crowd
         when {
@@ -665,7 +679,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
                 for (u in 0 until n) {
                     val x = left + 6 + (Noise.unit(i, 882 + u) * (CELL - 24)).toInt()
                     if (!clear(x)) continue
-                    val y = baseY + (Noise.unit(i, 884 + u) * 5).toInt()
+                    val y = baseY + 1 + (Noise.unit(i, 884 + u) * 4).toInt()
                     val umb = BeachSprites.umbrellas[(Noise.unit(i, 886 + u) * BeachSprites.umbrellas.size).toInt().coerceIn(0, BeachSprites.umbrellas.size - 1)]
                     val towel = intArrayOf(rgb(230, 90, 80), rgb(80, 150, 220), rgb(250, 210, 80), rgb(110, 190, 140))[(Noise.unit(i, 888 + u) * 4).toInt().coerceIn(0, 3)]
                     fill(x - 2, y, x + 10, y + 2, solid(s, towel, 0.04f))
@@ -707,7 +721,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             }
             r < 0.82f -> if (open) {
                 val x = left + 14 + (Noise.unit(i, 893) * 60).toInt()
-                if (clear(x)) sprite(BeachSprites.castle, x, baseY - (Noise.unit(i, 894) * 4).toInt())
+                if (clear(x)) sprite(BeachSprites.castle, x, baseY + 4 - (Noise.unit(i, 894) * 3).toInt())
             }
         }
         // Swimmers: a head and an arm showing above the water, now and then.
@@ -768,7 +782,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
         if (s.beachAt(s.cam + x, 1.0) < 0.75f || Noise.unit(i, 901) > 0.45f) continue
         if (piers.any { abs(x - it - 4) < 18 }) continue
         val sway = (sin(t * 1.4 + i) * (0.4f + wind * 1.4f)).toInt()
-        sprite(BeachSprites.palms[(Noise.unit(i, 902) * 2).toInt().coerceIn(0, 1)], x - 9 + sway, BOARD_TOP + 3)
+        sprite(BeachSprites.palms[(Noise.unit(i, 902) * BeachSprites.palms.size).toInt().coerceIn(0, BeachSprites.palms.size - 1)].let { it }, x - 9 + sway, BOARD_TOP + 3)
     }
     spritePaint.colorFilter = null
 }
