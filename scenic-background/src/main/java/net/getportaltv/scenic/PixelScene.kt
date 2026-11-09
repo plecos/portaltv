@@ -737,6 +737,7 @@ class PixelScene {
     private val hiSnow = IntArray(W * 2)
     private val hiFace = BooleanArray(W * 2)
     private val hiInner = IntArray(W)
+    private val hiVar = IntArray(W * 2)
     private val hiBody = IntArray(W * 2 * 5)
     private val hiCrest = IntArray(W * 2)
 
@@ -792,13 +793,20 @@ class PixelScene {
                 val frac = (px - x * sc) / sc.toFloat()
                 val h = if (frac == 0f) heights[i] else heights[i] + (heights[i + 1] - heights[i]) * frac
                 val top = if (h < 0.02f) H * sc else ((base - h * maxH) * sc).toInt()
-                tp[px] = top
-                if (top < minTop) minTop = top
+                // A rocky edge: the outline is roughened by a pixel here and there, fixed to the land so it does not shimmer as it scrolls.
+                val wcol = offset.toInt() * sc + px
+                val rough = if (top >= H * sc) 0 else (Noise.hash(wcol shr 1, seed, 23) and 1)
+                tp[px] = top - rough
+                if (tp[px] < minTop) minTop = tp[px]
+                // Gullies and buttresses: slightly darker and lighter streaks running down the slope, in widths of a few real pixels.
+                hiVar[px] = if (Noise.hash(wcol, seed, 33) % 47 == 0) 3 else when (Noise.hash(wcol / 9, seed, 29) % 7) { 0 -> 0; 6 -> 2; else -> 1 }
                 fc[px] = heights[i + 3] >= heights[i - 3]
                 sn[px] = if (h > snowLine) (((h - snowLine) * 34f).toInt() + 1 + (Noise.hash((x + offset.toInt()) / 2, seed, 9) and 1)) * sc else 0
             }
-            val litB = IntArray(6) { OPAQUE or (Colors.scale(lit, 1.06f - 0.028f * it) and 0xFFFFFF) }
-            val shadeB = IntArray(6) { OPAQUE or (Colors.scale(shade, 1.06f - 0.028f * it) and 0xFFFFFF) }
+            val tone = floatArrayOf(0.95f, 1.0f, 1.04f, 0.86f)
+            val litSets = Array(4) { v -> IntArray(6) { OPAQUE or (Colors.scale(lit, (1.06f - 0.028f * it) * tone[v]) and 0xFFFFFF) } }
+            val shadeSets = Array(4) { v -> IntArray(6) { OPAQUE or (Colors.scale(shade, (1.06f - 0.028f * it) * tone[v]) and 0xFFFFFF) } }
+            val rim = OPAQUE or (Colors.mul(lit, 1.16f, 1.16f, 1.2f) and 0xFFFFFF)
             val snowC = OPAQUE or (snow and 0xFFFFFF); val snowShadeC = OPAQUE or (snowShade and 0xFFFFFF)
             // Which of the six shades a depth below the summit gets, looked up (a division for every pixel is slow on a TV).
             val bandLut = IntArray(H * 2) { minOf(5, it / (14 * sc)) }
@@ -821,7 +829,9 @@ class PixelScene {
                 var i = y * pw + px
                 while (y < end) {
                     val d = y - t0
-                    fb[i] = if (d < sn[px]) (if (fc[px]) snowC else snowShadeC) else (if (fc[px]) litB else shadeB)[bandLut[d]]
+                    fb[i] = if (d < sn[px]) (if (d > 1 && Noise.hash(px, y, 31) % 480 == 0) 0xFFFFFFFF.toInt() else if (fc[px]) snowC else snowShadeC)
+                    else if (d < 2 && fc[px]) rim
+                    else (if (fc[px]) litSets else shadeSets)[hiVar[px]][bandLut[d]]
                     y++; i += pw
                 }
             }
@@ -835,10 +845,43 @@ class PixelScene {
                         if (y < inner[lx]) continue
                         val px = lx * sc
                         val d = y - tp[px]
-                        val c = (if (fc[px]) litB else shadeB)[bandLut[d]]
+                        val c = (if (fc[px]) litSets else shadeSets)[hiVar[px]][bandLut[d]]
                         fb[r0 + px] = c; fb[r0 + px + 1] = c; fb[r1 + px] = c; fb[r1 + px + 1] = c
                     }
                     y += 2
+                }
+            }
+            // Ridges and spurs running down from each summit, a dark line with a lit one beside it, so the face reads as folds of rock.
+            run {
+                val ridgeDark = Colors.scale(shade, 0.78f); val ridgeLight = Colors.mul(lit, 1.12f, 1.12f, 1.16f)
+                var cx = 12
+                while (cx < n - 12) {
+                    val t0 = tp[cx]
+                    var isPeak = t0 < H * sc - 30
+                    if (isPeak) { var k = -24; while (k <= 24) { val xx = cx + k; if (xx in 0 until n && tp[xx] < t0) { isPeak = false; break }; k += 3 } }
+                    if (isPeak && t0 > 6) {
+                        val wc = offset.toInt() * sc + cx
+                        for (side in intArrayOf(-1, 1)) for (rr in 0 until 3) {
+                            val h1 = Noise.hash(wc, side * 7 + rr, 41)
+                            var rx = cx + side * (4 + (h1 and 7) * 2 + rr * 3).toFloat().toInt()
+                            var ry = t0 + 2f
+                            var ax = rx.toFloat(); var ay = t0 + 3f
+                            val len = 40 + (h1 shr 3 and 31)
+                            var step = 0
+                            var px0 = cx + side * (rr * 3 + 1).toFloat(); var py0 = t0.toFloat() + 2f
+                            while (step < len && py0 < limit - 4) {
+                                val nx = px0 + side * (1.1f + 0.5f * Noise.unit(wc, step / 6, 43 + rr))
+                                val ny = py0 + 1.5f
+                                val ix = nx.toInt()
+                                if (ix in 0 until n && ny.toInt() < limit) {
+                                    fillAlphaPhys(ix, ny.toInt(), ix + 1, ny.toInt() + 1, ridgeDark, 0.34f)
+                                    fillAlphaPhys(ix + side * -1, ny.toInt(), ix + side * -1 + 1, ny.toInt() + 1, ridgeLight, 0.26f)
+                                }
+                                px0 = nx; py0 = ny; step++
+                            }
+                        }
+                    }
+                    cx += 4
                 }
             }
             return
