@@ -112,6 +112,6 @@ class Look {
         cloudLit = lerp(rgb(70, 78, 112), litTwilight, day.coerceAtLeast(twilight * 0.5f))
         cloudShade = Colors.scale(lerp(cloudLit, rgb(120, 128, 150), 0.5f), 0.72f - 0.12f * grim)
 
-        starVisibility = ((1f - smoothstep(-14f, -3f, sunAltDeg)) * (1f - c.cloud * 0.9f) * (1f - c.fog) * (1f - deck)).coerceIn(0f, 1f)
+        starVisibility = ((1f - smoothstep(-14f, -3f, sunAltDeg)) * (1f - c.cloud * 0.9f) * (1f - c.fog) * (1f - grey)).coerceIn(0f, 1f)
     }
 }
