@@ -14,6 +14,7 @@ import com.portal.tv.R
 import com.portal.tv.extensions.Capability
 import com.portal.tv.extensions.Catalog
 import com.portal.tv.extensions.CatalogClient
+import com.portal.tv.extensions.ExtensionUpdates
 import com.portal.tv.extensions.CatalogLabels
 import com.portal.tv.extensions.Extension
 import com.portal.tv.extensions.ExtensionAccess
@@ -39,7 +40,7 @@ class ExtensionsPage(
     private val scope: CoroutineScope,
     private val startActivity: (Intent) -> Unit,
     /** Told how many extensions were found and how many have something allowed, for the category's summary. */
-    private val onCounted: (found: Int, allowed: Int) -> Unit,
+    private val onCounted: (found: Int, allowed: Int, updates: Int) -> Unit,
     /** Opens the full-screen catalog. */
     private val onBrowse: () -> Unit
 ) {
@@ -47,6 +48,8 @@ class ExtensionsPage(
     private lateinit var list: LinearLayout
     /** The catalog kept from the last time it was fetched, if any; read with the scan, so drawing a page never waits on it. */
     private var catalog: Catalog? = null
+    /** Package to the newer version name the catalog offers. */
+    private var updates: Map<String, String> = emptyMap()
     private val d get() = context.resources.displayMetrics.density
     private fun px(v: Int) = (v * d).toInt()
 
@@ -59,8 +62,9 @@ class ExtensionsPage(
         scope.launch {
             val all = withContext(Dispatchers.IO) { ExtensionRegistry.scan(context) }
             catalog = withContext(Dispatchers.IO) { CatalogClient.cached(context)?.catalog }
+            updates = catalog?.takeIf { !CatalogLabels.expired(it, System.currentTimeMillis()) }?.let { ExtensionUpdates.offered(it, all) } ?: emptyMap()
             render(all, focusPackage)
-            onCounted(all.size, all.count { it.granted.isNotEmpty() })
+            onCounted(all.size, all.count { it.granted.isNotEmpty() }, updates.size)
         }
     }
 
@@ -176,7 +180,7 @@ class ExtensionsPage(
         }
         all.forEach { ext ->
             val row = TextView(context).apply {
-                text = ext.name + (ext.versionName?.let { "  ·  $it" } ?: "") + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
+                text = ext.name + (ext.versionName?.let { "  ·  $it" } ?: "") + (if (updates.containsKey(ext.packageName)) "  ·  Update available" else "") + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
                 textSize = 18f
                 typeface = context.resources.getFont(R.font.inter)
                 setTextColor(context.resources.getColor(R.color.text_primary, null))
@@ -217,7 +221,23 @@ class ExtensionsPage(
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
         }
-        ext.versionName?.let { box.addView(text("Version $it", 15f, soft)) }
+        ext.versionName?.let { box.addView(text("Version $it" + (updates[ext.packageName]?.let { n -> "  ·  $n is available" } ?: ""), 15f, soft)) }
+        var shown: PortalDialog? = null
+        updates[ext.packageName]?.let { newer ->
+            box.addView(TextView(context).apply {
+                text = "Update to $newer"
+                textSize = 18f
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(Color.WHITE)
+                setPadding(px(20), px(10), px(20), px(10))
+                setBackgroundResource(R.drawable.bg_settings_tile)
+                isFocusable = true
+                isClickable = true
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(12); bottomMargin = px(8) }
+                contentDescription = "Update ${ext.name} to $newer. Select to open the catalog."
+                setOnClickListener { shown?.dismiss(); onBrowse() }
+            })
+        }
         // One line says whether to trust it. Verified: one of ours, or the one the catalog lists (same signer). Otherwise a warning.
         // Only judged once the catalog has been loaded.
         val listing = catalog?.let { CatalogLabels.listing(it, ext.packageName, ext.signer) }
@@ -328,7 +348,6 @@ class ExtensionsPage(
         }
         ext.problems.forEach { box.addView(text("\n⚠ $it", 14f, Color.rgb(255, 200, 100))) }
 
-        var shown: PortalDialog? = null
         // Taking it off the TV: Android asks to confirm, and Portal forgets what was allowed once it is gone.
         val system = runCatching {
             context.packageManager.getApplicationInfo(ext.packageName, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0

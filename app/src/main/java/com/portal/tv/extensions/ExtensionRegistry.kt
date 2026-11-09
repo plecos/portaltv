@@ -30,7 +30,8 @@ data class Extension(
     /** Signed with the same key as Portal itself, so it is one of ours. */
     val madeByPortal: Boolean = false,
     /** The version the app shows for itself (for example 1.2), if it has one. */
-    val versionName: String? = null
+    val versionName: String? = null,
+    val versionCode: Long? = null
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
     /**
@@ -225,8 +226,8 @@ object ExtensionRegistry {
         val (state, effective) = ExtensionAccess.withRevocation(ExtensionAccess.state(parsed, allowance, matches), granted, revocation)
         // Signed with Portal's own key: one of ours (a reserved name is only ever usable by these).
         val ours = f.signers.any { it in ownSigners(context, pm) }
-        return if (reserved) Extension(pkg, f.appLabel, parsed, emptyList(), null, emptyList(), null, f.problems, signer, state, effective, revocation?.reason, madeByPortal = false, versionName = f.versionName)
-        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason, madeByPortal = ours, versionName = f.versionName)
+        return if (reserved) Extension(pkg, f.appLabel, parsed, emptyList(), null, emptyList(), null, f.problems, signer, state, effective, revocation?.reason, madeByPortal = false, versionName = f.versionName, versionCode = f.versionCode)
+        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason, madeByPortal = ours, versionName = f.versionName, versionCode = f.versionCode)
     }
 
     @Volatile private var ownSignersMemo: Set<String>? = null

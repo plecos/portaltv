@@ -48,9 +48,12 @@ object ExtensionLabels {
     }
 
     /** One line for the Settings category: how many are installed and how many allowed. */
-    fun summary(found: Int, allowed: Int): String = when {
-        found == 0 -> "None installed"
-        allowed == 0 -> if (found == 1) "1 found, needs your permission" else "$found found, need your permission"
-        else -> "$found found, $allowed allowed"
+    fun summary(found: Int, allowed: Int, updates: Int = 0): String {
+        val base = when {
+            found == 0 -> "None installed"
+            allowed == 0 -> if (found == 1) "1 found, needs your permission" else "$found found, need your permission"
+            else -> "$found found, $allowed allowed"
+        }
+        return if (updates > 0) "$base · " + (if (updates == 1) "1 update" else "$updates updates") else base
     }
 }
