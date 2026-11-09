@@ -400,7 +400,7 @@ class PixelScene {
         val x = skyX(s.sunAz)
         val y = skyY(s.sunAlt)
         if (x < -20 || x > W + 20) return
-        val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f) * (1f - l.deck)).coerceIn(0f, 1f)
+        val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f) * (1f - l.grey)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val core = lerp(rgb(255, 238, 170), rgb(255, 150, 80), l.twilight)
         for (i in 4 downTo 1) fillCircle(x, y, 8f + i * 5f, core, shine * 0.07f)
@@ -414,7 +414,7 @@ class PixelScene {
         val cx = skyX(m.azDeg)
         val cy = skyY(m.altDeg)
         if (cx < -20 || cx > W + 20) return
-        val shine = ((1f - l.gloom * 0.85f) * (1f - l.haze * 0.8f) * (1f - l.deck)).coerceIn(0f, 1f)
+        val shine = ((1f - l.gloom * 0.85f) * (1f - l.haze * 0.8f) * (1f - l.grey)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val night = 1f - l.day
         val r = 6
