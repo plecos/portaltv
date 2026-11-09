@@ -1310,13 +1310,17 @@ class PixelScene {
             // A pole off the left edge still has wires running on to the next one, so keep it until the whole span is gone.
             if (x + spacing < -10 || x > W + 10) continue
             // The line runs in stretches of a few spans with none between: a pole stands wherever a span starts or ends.
-            val wired = powerSpan(i)
-            if (!wired && !powerSpan(i - 1)) continue
             // City streets and the seafront have their own lamps; a country pole and its wires would cut across the skyline,
-            // the sea and the road.
-            val a = i * spacing.toDouble()
-            val b = (i + 1) * spacing.toDouble()
-            if (s.cityAt(a, 1.7) > 0.3f || s.cityAt(b, 1.7) > 0.3f || s.beachAt(a, 1.7) > 0.3f || s.beachAt(b, 1.7) > 0.3f || s.parkAt(a, 1.7) > 0.3f || s.parkAt(b, 1.7) > 0.3f) continue
+            // the sea and the road. Each span is judged on its own, and a pole stands if either span it ends or starts is
+            // wired and clear: the last pole of a run has no span going on from it, and must not be dropped because of what lies
+            // beyond it (the wires coming in would stop at nothing).
+            fun spanClear(k: Int): Boolean {
+                val a = k * spacing.toDouble()
+                val b = (k + 1) * spacing.toDouble()
+                return !(s.cityAt(a, 1.7) > 0.3f || s.cityAt(b, 1.7) > 0.3f || s.beachAt(a, 1.7) > 0.3f || s.beachAt(b, 1.7) > 0.3f || s.parkAt(a, 1.7) > 0.3f || s.parkAt(b, 1.7) > 0.3f)
+            }
+            val wired = powerSpan(i) && spanClear(i)
+            if (!wired && !(powerSpan(i - 1) && spanClear(i - 1))) continue
             if (hiRes) {
                 // The 16-bit style: a pole with grain and a lit edge, crossarms with insulators, and wires that sag in a smooth curve.
                 val sc = scale
