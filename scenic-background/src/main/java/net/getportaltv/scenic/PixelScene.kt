@@ -526,7 +526,7 @@ class PixelScene {
         shape.moveTo(offset.toInt() - 4)
         city.moveTo(offset.toInt() - 4)
         for (i in 0 until W + 8) {
-            heights[i] = shape[i] * (1f - maxOf(city[i], s.beachOnScreen(i - 4)))
+            heights[i] = shape[i] * (1f - maxOf(city[i], s.seaCut(i - 4)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
@@ -567,7 +567,7 @@ class PixelScene {
             // Toward the city the hills flatten and go grey, hidden behind the towers.
             val c = cityShare[x + 4]
             // Toward the sea they flatten to low dunes.
-            val b = s.beachOnScreen(x)
+            val b = s.seaCut(x)
             val top = (base - h * amp * (1f - 0.85f * maxOf(c, b))).toInt()
             var bodyColor = if (f > 0f) lerp(body, forestBody, f) else body
             var crestColor = if (f > 0f) lerp(crest, forestCrest, f) else crest
@@ -604,7 +604,7 @@ class PixelScene {
             if (Noise.unit(i, seed, 76 + extra) < s.hardOnScreen(x) * 1.2f) continue
             val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
             // They stand on the hill as drawn: lower where it sinks toward the city or the sea.
-            val y = (base - h * amp * (1f - 0.85f * maxOf(s.cityAt(worldX.toDouble(), factor.toDouble()), s.beachOnScreen(x)))).toInt() + 3
+            val y = (base - h * amp * (1f - 0.85f * maxOf(s.cityAt(worldX.toDouble(), factor.toDouble()), s.seaCut(x)))).toInt() + 3
             val firs = 0.5f + 0.45f * f
             sprite(if (Noise.unit(i, seed, 73 + extra) < firs) (if (f > 0.5f && Noise.unit(i, seed, 75) < 0.4f) Sprites.pine else Sprites.pineSmall) else Sprites.roundSmallYear.at(s.season, worldX * 3 + extra), x, y)
         }

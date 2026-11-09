@@ -276,6 +276,13 @@ internal fun SceneState.beachOnScreen(x: Int): Float {
     return maxOf(beachAt((c + x - BAY).toDouble(), 1.0), beachAt((c + x).toDouble(), 1.0), beachAt((c + x + BAY).toDouble(), 1.0))
 }
 
+/**
+ * How much the far land (mountains, hills and the trees on them) has been taken by the sea at screen column [x]: 0 on land, 1 where the
+ * sea reaches the horizon, with a short slope between. The beach itself comes in slowly over a long stretch of road; the land should
+ * not shrink along with it but stay whole up to the edge of the bay and be gone beyond it.
+ */
+internal fun SceneState.seaCut(x: Int): Float = Colors.smoothstep(0.4f, 0.6f, beachOnScreen(x))
+
 /** How much of the land is built or sand (city or beach) at screen column [x]: where there is no room for wild country (trees, fences, farms). */
 internal fun SceneState.hardOnScreen(x: Int): Float =
     if (x >= -SCREEN_PAD && x < W + SCREEN_PAD) maxOf(cityCols[x + SCREEN_PAD], beachCols[x + SCREEN_PAD])
