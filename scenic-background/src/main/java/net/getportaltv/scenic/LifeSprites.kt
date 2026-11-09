@@ -163,8 +163,8 @@ object LifeSprites {
         ), mapOf('b' to rgb(60, 60, 66), 'g' to rgb(46, 128, 62), 'c' to rgb(206, 60, 48), 'r' to rgb(206, 60, 48), 'w' to rgb(170, 214, 240), 'k' to rgb(28, 28, 34))
     ))
 
-    val bat1 = Sprite(listOf("k...k", ".kkk.", "..k.."), mapOf('k' to rgb(30, 28, 40)))
-    val bat2 = Sprite(listOf("..k..", ".kkk.", "k...k"), mapOf('k' to rgb(30, 28, 40)))
+    val bat1 = HiSky.bat(Sprite(listOf("k...k", ".kkk.", "..k.."), mapOf('k' to rgb(30, 28, 40))), true)
+    val bat2 = HiSky.bat(Sprite(listOf("..k..", ".kkk.", "k...k"), mapOf('k' to rgb(30, 28, 40))), false)
 
     /** A hot air balloon in stripes of two colours, drawn once. */
     fun balloon(a: Int, b: Int): Sprite {
@@ -185,11 +185,11 @@ object LifeSprites {
         val rope = rgb(90, 70, 50)
         for (y in 15..17) { bmp.setPixel(5 + (y - 15), y, rope); bmp.setPixel(9 - (y - 15), y, rope) }
         for (x in 6..8) for (y in 18..20) bmp.setPixel(x, y, rgb(140, 100, 60))
-        return SpriteFromBitmap(bmp).sprite
+        return HiSky.balloon(SpriteFromBitmap(bmp).sprite, a, b)
     }
 
     /** A plane seen from the side, tiny, heading right. */
-    val plane = Sprite(listOf("..ww....", "wwwwwwww", "..ww...."), mapOf('w' to rgb(240, 240, 246)))
+    val plane = HiSky.plane(Sprite(listOf("..ww....", "wwwwwwww", "..ww...."), mapOf('w' to rgb(240, 240, 246))))
 }
 
 /** Wraps a ready-made bitmap as a [Sprite]. */
