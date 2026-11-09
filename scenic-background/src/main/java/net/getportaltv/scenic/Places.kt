@@ -82,7 +82,7 @@ object Places {
      * the other way round: the ramp is spread along the land, so it scrolls in from the right and out to the left like everything else.
      */
     fun mountains(journey: Double): Float =
-        along(journey, 8000.0, 3500.0) { k -> if (k <= 0 || Noise.unit(k, 618) < 0.65f) 1f else 0f }
+        along(journey, 8000.0, 3500.0) { k -> if (k <= 0 || Noise.unit(k, 618) < 0.35f) 1f else 0f }
 
     private fun mix(a: Float, b: Float, t: Float) = a + (b - a) * t
 

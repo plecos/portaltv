@@ -852,7 +852,7 @@ class PixelScene {
             // In the suburbs, by day, an occasional school bus.
             val school = cityCar && suburbThen > 0.5f && cityThen < 0.2f && s.look.day > 0.4f && kind < 0.12f
             val suburbRoll = cityCar && suburbThen > 0.35f && cityThen < 0.35f
-            val sp = if (school) schoolBus else if (suburbRoll && kind >= 0.12f && kind < 0.18f) ambulance else if (suburbRoll && kind >= 0.18f && kind < 0.24f) fireEngine else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            val sp = if (school) schoolBus else if (suburbRoll && kind >= 0.12f && kind < 0.135f) ambulance else if (suburbRoll && kind >= 0.18f && kind < 0.195f) fireEngine else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9
