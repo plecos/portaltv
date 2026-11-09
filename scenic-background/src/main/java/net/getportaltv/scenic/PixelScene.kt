@@ -481,6 +481,43 @@ class PixelScene {
 
     // ---------- sun and moon ----------
 
+    private val glowTables = HashMap<Int, ByteArray>()
+
+    /**
+     * A soft round glow: brightest in the middle and fading smoothly to nothing at radius [r] (in the scene's pixels), [strength] 0 to 1 at
+     * its heart. Worked out from a table of how bright each point of a circle that size is, made once, so a big glow is one cheap pass.
+     */
+    internal fun fillGlow(cx: Float, cy: Float, r: Float, color: Int, strength: Float) {
+        val sc = scale
+        val rad = (r * sc).toInt()
+        if (rad < 2 || strength <= 0.005f) return
+        val side = 2 * rad + 1
+        val table = glowTables.getOrPut(rad) {
+            ByteArray(side * side).also { t ->
+                for (yy in 0 until side) for (xx in 0 until side) {
+                    val d = Math.hypot((xx - rad).toDouble(), (yy - rad).toDouble()).toFloat() / rad
+                    if (d < 1f) { val k = 1f - d; t[yy * side + xx] = (k * k * 255f).toInt().toByte() }
+                }
+            }
+        }
+        val x0 = (cx * sc).toInt() - rad
+        val y0 = (cy * sc).toInt() - rad
+        val s256 = (strength.coerceIn(0f, 1f) * 256f).toInt()
+        val sr = (color shr 16) and 0xFF; val sg = (color shr 8) and 0xFF; val sb = color and 0xFF
+        for (yy in maxOf(0, y0)..minOf(ph - 1, y0 + side - 1)) {
+            var i = yy * pw + maxOf(0, x0)
+            for (xx in maxOf(0, x0)..minOf(pw - 1, x0 + side - 1)) {
+                val a = ((table[(yy - y0) * side + (xx - x0)].toInt() and 0xFF) * s256) shr 8
+                if (a > 0) {
+                    val ia = 255 - a
+                    val d = fb[i]
+                    fb[i] = OPAQUE or ((d255(sr * a + ((d shr 16) and 0xFF) * ia)) shl 16) or ((d255(sg * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255(sb * a + (d and 0xFF) * ia))
+                }
+                i++
+            }
+        }
+    }
+
     private fun drawSun(s: SceneState) {
         if (s.sunAlt < -4) return
         val l = s.look
@@ -491,7 +528,15 @@ class PixelScene {
         if (shine < 0.03f) return
         val core = lerp(rgb(255, 238, 170), rgb(255, 150, 80), l.twilight)
         // (Two wide glows in the 16-bit style, four in the 8-bit: the big circles are costly on the finer grid.)
-        if (scale > 1) { fillCircle(x, y, 28f, core, shine * 0.10f); fillCircle(x, y, 18f, core, shine * 0.12f) }
+        if (scale > 1) {
+            // A smooth glow, a tighter corona, and a disc with a slightly darker rim and a paler heart.
+            fillGlow(x, y, 34f, core, shine * 0.34f)
+            fillGlow(x, y, 15f, core, shine * 0.45f)
+            fillCircle(x, y, 8f, Colors.scale(core, 0.94f), shine)
+            fillCircle(x, y, 7.2f, core, shine)
+            fillCircle(x, y, 4.6f, lerp(core, rgb(255, 255, 255), 0.5f), shine * 0.7f)
+            return
+        }
         else for (i in 4 downTo 1) fillCircle(x, y, 8f + i * 5f, core, shine * 0.07f)
         fillCircle(x, y, 8f, core, shine)
     }
@@ -512,6 +557,33 @@ class PixelScene {
         val lx = sinI * m.litX.toFloat()
         val ly = sinI * m.litY.toFloat()
         val lz = cosI
+        if (scale > 1) {
+            // On the finer grid: a smooth halo, then the disc worked out for every real pixel, with a soft shadow line, darker plains,
+            // craters and a dimmer edge.
+            if (night > 0.05f) fillGlow(cx, cy, r + 12f, rgb(180, 196, 240), night * 0.30f * shine * m.illumination.toFloat())
+            val sc = scale
+            val R = r * sc + 1
+            for (py in -R..R) for (px in -R..R) {
+                val nx = px / (R + 0.5f)
+                val nyUp = -py / (R + 0.5f)
+                val d2 = nx * nx + nyUp * nyUp
+                if (d2 > 1f) continue
+                val nz = sqrt(1f - d2)
+                val dot = nx * lx + nyUp * ly + nz * lz
+                val litAmt = Colors.smoothstep(-0.07f, 0.07f, dot)
+                val plains = Noise.unit((px + 40) shr 2, (py + 40) shr 2, 9)
+                val crater = Noise.unit(px + 99, py + 99, 7)
+                var litCol = rgb(244, 242, 220)
+                if (plains < 0.4f) litCol = Colors.scale(litCol, 0.90f)
+                if (crater < 0.07f) litCol = Colors.scale(litCol, 0.84f)
+                litCol = Colors.scale(litCol, 0.78f + 0.22f * nz)
+                val darkCol = lerp(rgb(34, 40, 62), rgb(120, 130, 160), l.day)
+                val col = lerp(darkCol, litCol, litAmt)
+                val a = (shine * (0.55f * night + 0.15f) + litAmt * (shine - shine * (0.55f * night + 0.15f))) * (0.22f + 0.78f * night)
+                fillAlphaPhys((cx * sc).toInt() + px, (cy * sc).toInt() + py, (cx * sc).toInt() + px + 1, (cy * sc).toInt() + py + 1, col, a)
+            }
+            return
+        }
         if (night > 0.05f) fillCircle(cx, cy, r + 7f, rgb(180, 196, 240), night * 0.07f * shine * m.illumination.toFloat())
         for (py in -r..r) for (px in -r..r) {
             val nx = px / (r + 0.5f)
@@ -1063,7 +1135,31 @@ class PixelScene {
         var x = -shift
         while (x < W) {
             fill(x, mid, x + 10, mid + 1, line)
+            if (hiRes) {
+                // Worn dashes: a few flecks of asphalt showing through, and a lit top edge.
+                val sc = scale
+                for (f in 0 until 3) fillPhys((x + 1) * sc + Noise.hash(x + (cam.toInt() / 20) * 20, f, 61) % (8 * sc), mid * sc + (f % 2), (x + 1) * sc + Noise.hash(x + (cam.toInt() / 20) * 20, f, 61) % (8 * sc) + 1, mid * sc + (f % 2) + 1, asphalt)
+                fillAlphaPhys(x * sc, mid * sc, (x + 10) * sc, mid * sc + 1, rgb(255, 255, 255), 0.18f)
+            }
             x += 20
+        }
+        if (hiRes) {
+            // The surface: scattered lighter and darker grains that slide by with the journey, and a gloss on the lane lines.
+            val sc = scale
+            val span = (W + 40) * sc
+            for (n in 0 until 150) {
+                val gx = Math.floorMod(Noise.hash(n, 1, 71) - (cam * sc).toInt(), span) - 20 * sc
+                val gy = (ROAD_TOP + 3) * sc + Math.floorMod(Noise.hash(n, 2, 71), (ROAD_BOTTOM - ROAD_TOP - 5) * sc)
+                fillAlphaPhys(gx, gy, gx + 1 + (n % 3), gy + 1, if (n % 2 == 0) rgb(255, 255, 255) else rgb(8, 10, 24), 0.08f)
+            }
+            fillAlphaPhys(0, (ROAD_TOP + 2) * sc, pw, (ROAD_TOP + 2) * sc + 1, rgb(255, 255, 255), 0.12f)
+            fillAlphaPhys(0, (ROAD_BOTTOM - 1) * sc - 1, pw, (ROAD_BOTTOM - 1) * sc, rgb(8, 10, 24), 0.18f)
+            // Gravel along the shoulders.
+            for (n in 0 until 90) {
+                val gx = Math.floorMod(Noise.hash(n, 3, 71) - (cam * sc).toInt(), span) - 20 * sc
+                fillAlphaPhys(gx, ROAD_TOP * sc + (n % 2), gx + 1, ROAD_TOP * sc + (n % 2) + 1, rgb(8, 10, 24), 0.2f)
+                fillAlphaPhys(gx + 3, ROAD_BOTTOM * sc + (n % 3), gx + 4, ROAD_BOTTOM * sc + (n % 3) + 1, rgb(255, 255, 255), 0.18f)
+            }
         }
         // Below the road: the verge in front.
         fill(0, ROAD_BOTTOM + 2, W, H, lit(s, rgb(70, 128, 58), 0.0f))
@@ -1354,6 +1450,14 @@ class PixelScene {
         val color = s.look.fogColor
         val far = (fog * 1.2f).coerceAtMost(1f)
         fillAlpha(0, 0, W, FIELD_TOP + 2, color, far)
+        if (scale > 1) {
+            // Thicker with distance, in steps of one real row so the thinning toward the road is smooth.
+            for (py in (FIELD_TOP + 2) * scale until ROAD_TOP * scale) {
+                val t = (py / scale.toFloat() - FIELD_TOP) / (ROAD_TOP - FIELD_TOP).toFloat()
+                fillAlphaPhys(0, py, pw, py + 1, color, fog * (1f - 0.6f * t) * 0.95f)
+            }
+            return
+        }
         var y = FIELD_TOP + 2
         while (y < ROAD_TOP) {
             val t = (y - FIELD_TOP) / (ROAD_TOP - FIELD_TOP).toFloat()
@@ -1370,7 +1474,20 @@ class PixelScene {
         for (i in 0 until 7) {
             val y = HORIZON + 8 + i * 9
             val wave = 0.75f + 0.25f * sin(s.time * 0.25 + i * 1.7).toFloat()
-            fillAlpha(0, y, W, y + 9, color, fog * 0.22f * wave)
+            if (scale > 1) {
+                // Each bank is soft top and bottom (a smooth profile across its height) and patchy along its length as it drifts.
+                val sc = scale
+                val rows = 9 * sc
+                for (r in 0 until rows step 2) {
+                    val profile = sin(Math.PI * (r + 1f) / (rows + 1f)).toFloat()
+                    var sx = 0
+                    while (sx < pw) {
+                        val patch = 0.7f + 0.3f * sin(sx * 0.012 + s.time * 0.2 + i * 2.3 + r * 0.03).toFloat()
+                        fillAlphaPhys(sx, y * sc + r, minOf(sx + 40, pw), y * sc + r + 2, color, fog * 0.34f * wave * profile * patch)
+                        sx += 40
+                    }
+                }
+            } else fillAlpha(0, y, W, y + 9, color, fog * 0.22f * wave)
         }
         fillAlpha(0, 0, W, H, color, fog * 0.10f)
     }
@@ -1388,6 +1505,17 @@ class PixelScene {
             while (y < ROAD_TOP - 4) {
                 val nx = x + (Noise.unit(slot, 94, step) - 0.5f) * 14f
                 val ny = y + 7f + Noise.unit(slot, 95, step) * 5f
+                if (scale > 1) {
+                    // A glowing bolt: a pale core inside two see-through halos, with now and then a short fork.
+                    line(x, y, nx, ny, rgb(160, 180, 255), 70); line(x + 1f, y, nx + 1f, ny, rgb(160, 180, 255), 70); line(x - 1f, y, nx - 1f, ny, rgb(160, 180, 255), 70)
+                    line(x + 0.5f, y, nx + 0.5f, ny, rgb(210, 220, 255), 130)
+                    line(x, y, nx, ny, bolt)
+                    if (Noise.unit(slot, 96, step) < 0.32f) {
+                        val fx = nx + (Noise.unit(slot, 97, step) - 0.5f) * 26f
+                        val fy = ny + 6f + Noise.unit(slot, 98, step) * 8f
+                        line(nx, ny, (nx + fx) / 2f + 2f, (ny + fy) / 2f, rgb(235, 240, 255), 200); line((nx + fx) / 2f + 2f, (ny + fy) / 2f, fx, fy, rgb(200, 214, 255), 150)
+                    }
+                } else
                 line(x, y, nx, ny, bolt)
                 x = nx; y = ny; step++
             }
