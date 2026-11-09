@@ -342,7 +342,7 @@ object Sprites {
 
     private val BARN = mapOf('r' to rgb(158, 48, 40), 'R' to rgb(118, 34, 32), 'w' to rgb(232, 226, 210), 'k' to rgb(70, 52, 44), 'o' to rgb(96, 84, 80), 'y' to rgb(60, 52, 70))
 
-    val barn = Sprite(
+    val barn = HiFarm.barn(Sprite(
         listOf(
             "......oooooooo......",
             "....oooooooooooo....",
@@ -357,11 +357,11 @@ object Sprites {
             "rRRRRRRwkkkkwRRRRRRr",
             "rRRRRRRwkkkkwRRRRRRr"
         ), BARN
-    )
+    ))
 
     private val HOUSE = mapOf('s' to rgb(228, 222, 204), 'S' to rgb(190, 184, 168), 'r' to rgb(120, 68, 56), 'R' to rgb(90, 50, 44), 'k' to rgb(84, 62, 48), 'c' to rgb(150, 96, 80), 'y' to rgb(74, 86, 110))
 
-    val house = Sprite(
+    val house = HiFarm.house(Sprite(
         listOf(
             "......cc........",
             "......cc.rr.....",
@@ -375,13 +375,13 @@ object Sprites {
             "ssSSssskkssSSss",
             "ssssssskkssssss"
         ), HOUSE
-    )
+    ))
 
     /** Where the lit windows of the house and barn are (x, y, width, height), counted from each picture's top left. */
     private val CABIN = mapOf('R' to rgb(86, 56, 44), 'r' to rgb(118, 78, 56), 'L' to rgb(154, 108, 66), 'l' to rgb(112, 76, 48), 'k' to rgb(64, 42, 30), 'y' to rgb(74, 86, 110), 'c' to rgb(124, 120, 116))
 
     /** A log cabin with a stone chimney. */
-    val cabin = Sprite(
+    val cabin = HiFarm.cabin(Sprite(
         listOf(
             "...............cc...",
             "......RRRRRRRR.cc...",
@@ -396,7 +396,7 @@ object Sprites {
             ".LLLLLLLLLLLLkkLLLL.",
             ".llllllllllllkkllll."
         ), CABIN
-    )
+    ))
     val cabinWindows = listOf(intArrayOf(4, 8, 2, 2))
 
     val houseWindows = listOf(intArrayOf(2, 7, 2, 2), intArrayOf(10, 7, 2, 2))
@@ -404,7 +404,7 @@ object Sprites {
 
     private val ANIMAL = mapOf('w' to rgb(238, 236, 230), 'k' to rgb(40, 36, 36), 'p' to rgb(232, 168, 156), 'g' to rgb(170, 164, 150), 'h' to rgb(120, 82, 56), 'd' to rgb(86, 58, 40))
 
-    val cow = Sprite(
+    val cow = HiFarm.cow(Sprite(
         listOf(
             "..........kk.",
             "..wwwwwww.kwk",
@@ -414,9 +414,9 @@ object Sprites {
             "wwwwwwwwwwww.",
             ".w.w....w.w.."
         ), ANIMAL
-    )
+    ))
 
-    val sheep = Sprite(
+    val sheep = HiFarm.sheep(Sprite(
         listOf(
             ".wwwww..",
             "wwwwwwwk",
@@ -424,9 +424,9 @@ object Sprites {
             "wwwwwww.",
             ".k.k.k.k"
         ), ANIMAL
-    )
+    ))
 
-    val horse = Sprite(
+    val horse = HiFarm.horse(Sprite(
         listOf(
             ".........hh.",
             "........hhhh",
@@ -436,7 +436,7 @@ object Sprites {
             ".h.h...h.h..",
             ".d.d...d.d.."
         ), ANIMAL
-    )
+    ))
 
     private val BIRD = mapOf('k' to rgb(38, 40, 52))
     val birdUp = Sprite(listOf("k...k", ".k.k.", "..k.."), BIRD)

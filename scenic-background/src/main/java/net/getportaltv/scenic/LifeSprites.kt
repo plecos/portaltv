@@ -52,10 +52,10 @@ object LifeSprites {
         ), mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to rgb(52, 60, 96), 'k' to rgb(40, 40, 46))
     ).let { s -> HiSprites.cyclist(shirt, frame, skin, hair, style).let { (r, p) -> s.detail(r, p) } }
 
-    val dog = Sprite(listOf("d...dd", "dddddd", ".d..d."), mapOf('d' to rgb(140, 96, 60)))
-    val dogStep = Sprite(listOf("d...dd", "dddddd", "d....d"), mapOf('d' to rgb(140, 96, 60)))
+    val dog = HiFarm.dog(Sprite(listOf("d...dd", "dddddd", ".d..d."), mapOf('d' to rgb(140, 96, 60))))
+    val dogStep = HiFarm.dog(Sprite(listOf("d...dd", "dddddd", "d....d"), mapOf('d' to rgb(140, 96, 60))))
     /** A rabbit in profile facing right: long ears, a round body, a white scut and a pink nose. */
-    val rabbit = Sprite(
+    val rabbit = HiFarm.rabbit(Sprite(
         listOf(
             "....r.r.",
             "....r.r.",
@@ -65,12 +65,12 @@ object LifeSprites {
             ".rrrrrr.",
             "..r..rr."
         ), mapOf('r' to rgb(176, 150, 120), 'w' to rgb(240, 236, 228), 'k' to rgb(40, 34, 34), 'n' to rgb(232, 150, 150))
-    )
-    val duck = Sprite(listOf("..gg.", "wwwwy", ".www."), mapOf('g' to rgb(40, 110, 70), 'w' to rgb(214, 196, 160), 'y' to rgb(240, 190, 60)))
+    ))
+    val duck = HiFarm.duck(Sprite(listOf("..gg.", "wwwwy", ".www."), mapOf('g' to rgb(40, 110, 70), 'w' to rgb(214, 196, 160), 'y' to rgb(240, 190, 60))))
 
     private val DEER = mapOf('h' to rgb(150, 100, 62), 'd' to rgb(112, 74, 46), 'w' to rgb(240, 232, 220), 'a' to rgb(196, 172, 130))
 
-    val deerUp = Sprite(
+    val deerUp = HiFarm.deerUp(Sprite(
         listOf(
             "......a.a.",
             ".......hh.",
@@ -82,9 +82,9 @@ object LifeSprites {
             ".h.h..h.h.",
             ".d.d..d.d."
         ), DEER
-    )
+    ))
 
-    val deerGraze = Sprite(
+    val deerGraze = HiFarm.deerGraze(Sprite(
         listOf(
             "..........",
             "...hhhhhh.",
@@ -94,7 +94,7 @@ object LifeSprites {
             ".h.h..hhhh",
             ".d.d..d.dd"
         ), DEER
-    )
+    ))
 
     private val TRAIN = mapOf(
         'k' to rgb(34, 34, 40), 'o' to rgb(96, 84, 76), 'd' to rgb(72, 56, 46), 'w' to rgb(190, 222, 240), 'h' to rgb(255, 240, 170),
@@ -102,7 +102,7 @@ object LifeSprites {
     )
 
     /** The engine, facing right. */
-    val locomotive = Sprite(
+    val locomotive = HiFarm.locomotive(Sprite(
         listOf(
             "...kk...........",
             "..rrrrrrrrrrrrr.",
@@ -111,9 +111,9 @@ object LifeSprites {
             "..rrrrrrrrrrrrrr",
             ".ykkykkykkykkykk"
         ), TRAIN
-    )
+    ))
 
-    fun boxcar(body: Int): Sprite = Sprite(
+    fun boxcar(body: Int): Sprite = HiFarm.boxcar(Sprite(
         listOf(
             ".oooooooooo.",
             "cccccccccccc",
@@ -122,9 +122,9 @@ object LifeSprites {
             "cccccccccccc",
             ".kk......kk."
         ), TRAIN + mapOf('c' to body)
-    )
+    ))
 
-    val tanker = Sprite(
+    val tanker = HiFarm.tanker(Sprite(
         listOf(
             "..gggggggg..",
             ".gggggggggg.",
@@ -133,9 +133,9 @@ object LifeSprites {
             "..gggggggg..",
             ".kk......kk."
         ), mapOf('g' to rgb(150, 156, 164), 'k' to rgb(34, 34, 40))
-    )
+    ))
 
-    fun coach(body: Int): Sprite = Sprite(
+    fun coach(body: Int): Sprite = HiFarm.coach(Sprite(
         listOf(
             ".oooooooooooo.",
             "cccccccccccccc",
@@ -144,12 +144,12 @@ object LifeSprites {
             "cccccccccccccc",
             ".kk........kk."
         ), TRAIN + mapOf('c' to body)
-    )
+    ))
 
     /** Where a coach's windows are (x, y, width, height), lit at night. */
     val coachWindows = listOf(intArrayOf(1, 2, 2, 2), intArrayOf(4, 2, 2, 2), intArrayOf(7, 2, 2, 2), intArrayOf(10, 2, 2, 2))
 
-    val tractor = Sprite(
+    val tractor = HiFarm.tractor(Sprite(
         listOf(
             "..b...........",
             "..b..cccc.....",
@@ -161,7 +161,7 @@ object LifeSprites {
             "kkkkkk..kkk.kk",
             ".kkkk...kkk..k"
         ), mapOf('b' to rgb(60, 60, 66), 'g' to rgb(46, 128, 62), 'c' to rgb(206, 60, 48), 'r' to rgb(206, 60, 48), 'w' to rgb(170, 214, 240), 'k' to rgb(28, 28, 34))
-    )
+    ))
 
     val bat1 = Sprite(listOf("k...k", ".kkk.", "..k.."), mapOf('k' to rgb(30, 28, 40)))
     val bat2 = Sprite(listOf("..k..", ".kkk.", "k...k"), mapOf('k' to rgb(30, 28, 40)))
