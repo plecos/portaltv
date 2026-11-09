@@ -176,6 +176,7 @@ internal object HiSprites {
 
     /** A walker, 10 wide and 16 tall (6 more under an umbrella), facing right. */
     fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int?, style: Int = 0): Pair<List<String>, Map<Char, Int>> {
+        if (style >= 3) return child(shirt, pants, frame, umbrella, skin, hair, style == 4)
         val top = if (umbrella != null) 6 else 0
         val d = Draw(10, 16 + top)
         if (umbrella != null) {
@@ -226,6 +227,34 @@ internal object HiSprites {
         pal['p'] = pants; pal['q'] = Colors.scale(pants, 0.7f); pal['k'] = rgb(30, 30, 36)
         pal['K'] = rgb(40, 30, 28)
         pal['u'] = umbrella ?: 0; pal['U'] = Colors.scale(umbrella ?: 0, 0.75f); pal['g'] = bag ?: 0
+        return d.rows() to pal
+    }
+
+    /** A child, 8 wide and 12 tall (6 more under an umbrella): bigger head for the body, short legs; a girl has bunches and a dress. */
+    private fun child(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, girl: Boolean): Pair<List<String>, Map<Char, Int>> {
+        val top = if (umbrella != null) 6 else 0
+        val d = Draw(8, 12 + top)
+        if (umbrella != null) {
+            d.put(0, 2, "uuuu"); d.put(1, 0, "uuuuuuuu"); d.put(2, 0, "UuuUuuUu"); d.put(3, 0, "uUuuUuuu"); d.put(4, 0, "u.uu.uu.")
+            d.px(4, 4, 'k'); d.px(4, 5, 'k')
+        }
+        val y = top
+        d.put(y + 0, 2, "hhhh"); d.put(y + 1, 1, "hhhhhh"); d.put(y + 2, 1, if (girl) "hhssss" else "hssssK")
+        d.put(y + 3, 1, if (girl) "SsssKs" else "Ssss"); d.put(y + 4, 2, "ssss")
+        if (girl) { d.px(1, y + 3, 'h'); d.px(0, y + 4, 'H'); d.px(0, y + 5, 'h'); d.px(6, y + 4, 'H') }
+        if (girl) {
+            d.put(y + 5, 2, "LbbD"); d.put(y + 6, 1, "bLbbDb"); d.put(y + 7, 1, "sLbbDs"); d.put(y + 8, 1, "LbbbbD"); d.put(y + 9, 0, "DDDDDDDD")
+            if (frame == 0) { d.put(y + 10, 2, "s"); d.put(y + 10, 5, "s"); d.put(y + 11, 1, "kk"); d.put(y + 11, 5, "kk") }
+            else { d.put(y + 10, 3, "ss"); d.put(y + 11, 2, "kkkk") }
+        } else {
+            d.put(y + 5, 2, "LbbD"); d.put(y + 6, 1, "bLbbDb"); d.put(y + 7, 1, "sLbbDs"); d.put(y + 8, 2, "pppq"); d.put(y + 9, 2, "pppq")
+            if (frame == 0) { d.put(y + 10, 2, "pp"); d.put(y + 10, 4, "qq"); d.put(y + 11, 1, "kkk"); d.put(y + 11, 4, "kkk") }
+            else { d.put(y + 10, 3, "pq"); d.put(y + 11, 2, "kkkk") }
+        }
+        val pal = HashMap<Char, Int>()
+        pal.putAll(skinTones(skin)); pal.putAll(hairTones(hair)); pal.putAll(shirtTones(shirt))
+        pal['p'] = pants; pal['q'] = Colors.scale(pants, 0.7f); pal['k'] = rgb(30, 30, 36); pal['K'] = rgb(40, 30, 28)
+        pal['u'] = umbrella ?: 0; pal['U'] = Colors.scale(umbrella ?: 0, 0.75f)
         return d.rows() to pal
     }
 
