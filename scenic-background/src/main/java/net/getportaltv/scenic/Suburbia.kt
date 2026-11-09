@@ -681,9 +681,47 @@ private fun PixelScene.secondRow(s: SceneState) {
         val w = 13 + (Noise.unit(i, 976) * 4).toInt()
         val siding = lit(s, SIDING[pick(i, 977, SIDING.size)], haze)
         val roof = lit(s, ROOFS[pick(i, 978, ROOFS.size)], haze)
+        val glass = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
+        if (hiRes) {
+            // The far houses on the finer grid: boards along the walls, a tiled roof with a lit ridge and a shadow under its eaves,
+            // a chimney, framed windows with a sill, a door; and rounded trees of two shades with a trunk, and a shadow on the ground.
+            val sc = scale
+            val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+            val shade = lerp(siding, rgb(10, 10, 30), 0.2f)
+            fillOval(x - 2f, base - 0.8f, x + w + 3f, base + 1.2f, ink, 0.22f)
+            fillPhys(x * sc, (base - 6) * sc, (x + w) * sc, base * sc, siding)
+            fillAlphaPhys((x + w) * sc - 3, (base - 6) * sc, (x + w) * sc, base * sc, ink, 0.2f)
+            sidingTexture(x, base - 6, x + w, base)
+            for (r in 0 until 4) {
+                val x0 = x - 1 + r * (w / 4); val x1 = x + w + 1 - r * (w / 4)
+                fill(x0, base - 7 - r, x1, base - 6 - r, roof)
+                shingleRow(x0, x1, base - 7 - r, i + r)
+            }
+            fillAlphaPhys((x + (w / 4) * 3) * sc - 2, (base - 10) * sc, (x + w + 1 - 3 * (w / 4)) * sc + 2, (base - 10) * sc + 1, white, 0.4f)
+            eaveShadow(x - 1, x + w + 1, base - 6)
+            // A chimney on the roof.
+            val chX = x + 2 + (Noise.unit(i, 981) * (w - 8)).toInt()
+            fillPhys(chX * sc, (base - 11) * sc, chX * sc + 3, (base - 8) * sc, lit(s, rgb(150, 84, 70), haze))
+            fillAlphaPhys(chX * sc, (base - 11) * sc, chX * sc + 3, (base - 11) * sc + 1, white, 0.35f)
+            for (wx in intArrayOf(x + 2, x + w - 5)) {
+                fillPhys(wx * sc, (base - 4) * sc, (wx + 2) * sc, (base - 2) * sc, glass)
+                windowDetail(wx, base - 4, 2, 2, shade, 0f, WARM, s.look.day)
+            }
+            fillPhys((x + w / 2) * sc - 1, (base - 3) * sc, (x + w / 2) * sc + 3, base * sc, lerp(siding, rgb(60, 40, 30), 0.5f))
+            fillPhys((x + w / 2) * sc + 1, (base - 2) * sc, (x + w / 2) * sc + 2, (base - 2) * sc + 1, rgb(236, 226, 190))
+            if (Noise.unit(i, 979) < 0.5f) {
+                val tx = x + w + 2
+                val dark = lit(s, rgb(54, 106, 52), haze); val mid = lit(s, rgb(70, 130, 64), haze); val high = lit(s, rgb(96, 158, 80), haze)
+                fillPhys(tx * sc + 4, (base - 3) * sc, tx * sc + 6, base * sc, lit(s, rgb(96, 70, 50), haze))
+                fillOval(tx - 0.2f, base - 6.4f, tx + 5.4f, base - 1.2f, dark, 1f)
+                fillOval(tx - 0.2f, base - 6.4f, tx + 4.4f, base - 2.0f, mid, 1f)
+                fillOval(tx + 0.4f, base - 6.0f, tx + 2.6f, base - 4.2f, high, 1f)
+                fillOval(tx + 3.2f, base - 4.2f, tx + 4.8f, base - 2.8f, dark, 0.7f)
+            }
+            continue
+        }
         fill(x, base - 6, x + w, base, siding)
         for (r in 0 until 4) fill(x - 1 + r * (w / 4), base - 7 - r, x + w + 1 - r * (w / 4), base - 6 - r, roof)
-        val glass = lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f)
         fill(x + 2, base - 4, x + 4, base - 2, glass)
         fill(x + w - 5, base - 4, x + w - 3, base - 2, glass)
         // A tree between some of them.
