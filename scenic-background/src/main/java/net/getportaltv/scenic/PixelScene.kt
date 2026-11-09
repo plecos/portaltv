@@ -619,6 +619,8 @@ class PixelScene {
 
     // ---------- land ----------
 
+    private val HI_LIGHT_WHITE = rgb(255, 255, 255)
+    private val HI_DARK_INK = rgb(8, 10, 24)
     private val tops = IntArray(W + 8)
     /** Scratch for drawing the far land row by row in the 16-bit style: where each real column's land starts, its snow depth and which way it faces. */
     private val hiTop = IntArray(W * 2)
@@ -972,7 +974,21 @@ class PixelScene {
             var px = x0
             while (px <= x0 + len) {
                 fill(px, y - 9, px + 1, y, post)
+                if (hiRes) {
+                    // Lit left edge and a cap on each post, a shadow under each rail.
+                    val sc = scale
+                    fillAlphaPhys(px * sc, (y - 9) * sc, px * sc + 1, y * sc, HI_LIGHT_WHITE, 0.18f)
+                    fillAlphaPhys(px * sc + sc - 1, (y - 9) * sc, px * sc + sc, y * sc, HI_DARK_INK, 0.25f)
+                    fillAlphaPhys(px * sc - 1, (y - 9) * sc - 1, px * sc + sc + 1, (y - 9) * sc, HI_LIGHT_WHITE, 0.3f)
+                }
                 px += 14
+            }
+            if (hiRes) {
+                val sc = scale
+                fillAlphaPhys(x0 * sc, (y - 4) * sc + sc, (x0 + len) * sc, (y - 4) * sc + sc + 2, HI_DARK_INK, 0.22f)
+                fillAlphaPhys(x0 * sc, (y - 7) * sc + sc, (x0 + len) * sc, (y - 7) * sc + sc + 2, HI_DARK_INK, 0.22f)
+                fillAlphaPhys(x0 * sc, (y - 4) * sc, (x0 + len) * sc, (y - 4) * sc + 1, HI_LIGHT_WHITE, 0.15f)
+                fillAlphaPhys(x0 * sc, (y - 7) * sc, (x0 + len) * sc, (y - 7) * sc + 1, HI_LIGHT_WHITE, 0.15f)
             }
         }
     }
@@ -1136,11 +1152,40 @@ class PixelScene {
             val a = i * spacing.toDouble()
             val b = (i + 1) * spacing.toDouble()
             if (s.cityAt(a, 1.7) > 0.3f || s.cityAt(b, 1.7) > 0.3f || s.beachAt(a, 1.7) > 0.3f || s.beachAt(b, 1.7) > 0.3f || s.parkAt(a, 1.7) > 0.3f || s.parkAt(b, 1.7) > 0.3f) continue
-            fill(x, 112, x + 3, H, wood)
-            fill(x - 6, 116, x + 9, 118, wood)
-            fill(x - 4, 124, x + 7, 125, wood)
+            if (hiRes) {
+                // The 16-bit style: a pole with grain and a lit edge, crossarms with insulators, and wires that sag in a smooth curve.
+                val sc = scale
+                val grain = Colors.scale(wood, 0.78f); val lite = lerp(wood, rgb(255, 255, 255), 0.18f)
+                fillPhys(x * sc, 112 * sc, x * sc + 6, H * sc, wood)
+                fillPhys(x * sc, 112 * sc, x * sc + 1, H * sc, lite); fillPhys(x * sc + 5, 112 * sc, x * sc + 6, H * sc, grain)
+                var gy = 114 * sc
+                while (gy < H * sc) { fillPhys(x * sc + 2, gy, x * sc + 3, gy + 3 + (Noise.hash(i, gy, 3) and 3), grain); gy += 9 + (Noise.hash(i, gy, 5) and 7) }
+                fillPhys((x - 6) * sc, 116 * sc, (x + 9) * sc, 118 * sc, wood); fillPhys((x - 6) * sc, 116 * sc, (x + 9) * sc, 116 * sc + 1, lite); fillPhys((x - 6) * sc, 118 * sc - 1, (x + 9) * sc, 118 * sc, grain)
+                fillPhys((x - 4) * sc, 124 * sc, (x + 7) * sc, 125 * sc + 1, wood); fillPhys((x - 4) * sc, 124 * sc, (x + 7) * sc, 124 * sc + 1, lite)
+                val glass = solid(s, rgb(176, 196, 200), 0.0f)
+                for (ix in intArrayOf(x - 5, x + 8)) fillOval(ix - 0.6f, 114.6f, ix + 0.9f, 116.2f, glass, 1f)
+                for (ix in intArrayOf(x - 3, x + 6)) fillOval(ix - 0.6f, 122.6f, ix + 0.9f, 124.2f, glass, 1f)
+            } else {
+                fill(x, 112, x + 3, H, wood)
+                fill(x - 6, 116, x + 9, 118, wood)
+                fill(x - 4, 124, x + 7, 125, wood)
+            }
             if (!wired) continue
             val nx = x + spacing
+            if (hiRes) {
+                val sc = scale
+                for (w in intArrayOf(116, 124)) {
+                    var ppx = maxOf((x + 4) * sc, 0)
+                    val endP = minOf(nx * sc, W * sc)
+                    while (ppx < endP) {
+                        val t = (ppx - x * sc).toFloat() / (spacing * sc)
+                        val sag = (sin(t * Math.PI) * 14f * sc).toInt()
+                        fillPhys(ppx, w * sc + sag, ppx + 1, w * sc + sag + 1 + (if (sc > 1) 1 else 0), wire)
+                        ppx++
+                    }
+                }
+                continue
+            }
             for (w in intArrayOf(116, 124)) {
                 var px = x + 4
                 while (px < nx) {
