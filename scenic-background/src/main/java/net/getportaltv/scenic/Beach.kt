@@ -479,7 +479,7 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         s.beachVisit++
         val v = s.beachVisit
         s.whaleAt = if (s.boost || Noise.unit(v, 1601) < 0.6f) s.time + (if (s.boost) -1.5 else 14.0 + Noise.unit(v, 1602) * 70.0) else -1.0
-        s.finAt = if (s.boost || Noise.unit(v, 1603) < 0.7f) s.time + (if (s.boost) -7.0 else 8.0 + Noise.unit(v, 1604) * 80.0) else -1.0
+        s.finAt = s.time + (if (s.boost) -7.0 else 6.0 + Noise.unit(v, 1604) * 40.0)
     }
     // The lighthouse stands far out on its rock, so it is drawn first: the whale, the ships and the boats all pass in front of it.
     spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
@@ -946,28 +946,30 @@ private fun PixelScene.drawWhale(s: SceneState) {
 private fun PixelScene.drawFin(s: SceneState) {
     if (s.finAt < 0.0) return
     val age = (s.time - s.finAt).toFloat()
-    val dur = 24f
+    val dur = 32f
     if (age < 0f || age > dur) return
     val v = s.beachVisit
     val dir = if (Noise.unit(v, 1620) < 0.5f) 1 else -1
     val travelV = if (s.travelling) s.speed else 0f
-    val x = (if (dir > 0) 40f + 7f * age else W - 40f - 7f * age) - travelV * 0.08f * age
+    val x = (if (dir > 0) 60f + 5f * age else W - 60f - 5f * age) - travelV * 0.08f * age
     val y = SHORE - 8 - (Noise.unit(v, 1621) * 5).toInt() + (sin(age * 0.9) * 0.6).toInt()
     if (!seaOn(s, x.toInt(), y)) return
     // The fin rises out of the water and sinks away again at the end.
     val rise = minOf(1f, age / 1.5f, (dur - age) / 1.5f).coerceAtLeast(0f)
-    val h = (5 * rise).toInt()
-    val fin = solid(s, rgb(58, 64, 76), 0.1f)
-    val edge = solid(s, rgb(96, 104, 118), 0.1f)
+    val h = (8 * rise).toInt()
+    val fin = solid(s, rgb(40, 46, 58), 0.1f)
+    val edge = solid(s, rgb(150, 160, 176), 0.1f)
     val foam = solid(s, rgb(250, 252, 252), 0.0f)
-    val widths = intArrayOf(1, 2, 2, 3, 4)
+    val widths = intArrayOf(1, 1, 2, 2, 3, 3, 4, 5)
+    // The dark shape of the body just under the surface.
+    fillAlpha(x.toInt() - dir * 4 - 6, y + 1, x.toInt() - dir * 4 + 8, y + 3, rgb(20, 40, 60), 0.28f * rise)
     if (scale > 1) {
         // Drawn on the real picture's grid: a curved sail narrow at the tip and wider at the base, leaning forward.
         val sc = scale
-        val hp = (5f * rise * sc).toInt()
+        val hp = (8f * rise * sc).toInt()
         for (r in 0 until hp) {
             val f = (r + 1f) / hp
-            val wp = (1 + f * f * 3.4f * sc).toInt().coerceAtLeast(1)
+            val wp = (1 + f * f * 4.6f * sc).toInt().coerceAtLeast(1)
             val topP = y * sc - hp + r
             val lean = ((1f - f) * hp * 0.55f).toInt()
             val leftP = if (dir > 0) x.toInt() * sc + lean - (wp - 1) else x.toInt() * sc - lean
@@ -976,7 +978,7 @@ private fun PixelScene.drawFin(s: SceneState) {
             fillPhys(lead, topP, lead + 1, topP + 1, edge)
         }
     } else for (r in 0 until h) {
-        val w = widths[r + (5 - h).coerceAtLeast(0)]
+        val w = widths[r + (8 - h).coerceAtLeast(0)]
         val top = y - h + r
         // A curved front edge leaning forward, with a straight trailing edge.
         val left = if (dir > 0) x.toInt() + (h - r) / 2 - (w - 1) else x.toInt() - (h - r) / 2
@@ -984,11 +986,11 @@ private fun PixelScene.drawFin(s: SceneState) {
         fill(if (dir > 0) left + w - 1 else left, top, if (dir > 0) left + w else left + 1, top + 1, edge)
     }
     // The wake: a V of foam spreading out behind it.
-    if (rise > 0.3f) for (k in 1..9) {
+    if (rise > 0.3f) for (k in 1..14) {
         val wx = x.toInt() - dir * (k * 2)
         val spread = k / 3
-        fillAlpha(wx, y - spread, wx + 1, y - spread + 1, foam, 0.55f * (1f - k / 10f))
-        fillAlpha(wx, y + 1 + spread, wx + 1, y + 2 + spread, foam, 0.45f * (1f - k / 10f))
+        fillAlpha(wx, y - spread, wx + 1, y - spread + 1, foam, 0.65f * (1f - k / 15f))
+        fillAlpha(wx, y + 1 + spread, wx + 1, y + 2 + spread, foam, 0.55f * (1f - k / 15f))
     }
     fillAlpha(x.toInt() - 3, y, x.toInt() + 5, y + 1, foam, 0.5f)
 }
