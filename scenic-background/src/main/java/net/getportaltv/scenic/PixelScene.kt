@@ -231,11 +231,26 @@ class PixelScene {
         val sr = (color shr 16) and 0xFF
         val sg = (color shr 8) and 0xFF
         val sb = color and 0xFF
+        if (clip == null) {
+            // The usual case, with no clipping: the blend done in 256ths (no division), the colour's share worked out once.
+            val a256 = a + (a shr 7)
+            val ia256 = 256 - a256
+            val pr = sr * a256; val pg = sg * a256; val pb = sb * a256
+            for (y in ya until yb) {
+                var i = y * pw + xa
+                for (x in xa until xb) {
+                    val d = fb[i]
+                    fb[i] = OPAQUE or ((((((d shr 16) and 0xFF) * ia256 + pr) shr 8)) shl 16) or ((((((d shr 8) and 0xFF) * ia256 + pg) shr 8)) shl 8) or (((d and 0xFF) * ia256 + pb) shr 8)
+                    i++
+                }
+            }
+            return
+        }
         val ia = 255 - a
         for (y in ya until yb) {
             var i = y * pw + xa
             for (x in xa until xb) {
-                if (clip == null || clip[x shr sh]) {
+                if (clip[x shr sh]) {
                     val d = fb[i]
                     fb[i] = OPAQUE or ((d255(sr * a + ((d shr 16) and 0xFF) * ia)) shl 16) or
                         ((d255(sg * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255(sb * a + (d and 0xFF) * ia))
@@ -1448,7 +1463,8 @@ class PixelScene {
         val fog = s.cond.fog
         if (fog < 0.05f) return
         val color = s.look.fogColor
-        val far = (fog * 1.2f).coerceAtMost(1f)
+        // (In the 16-bit style a haze this thick is just made solid: it costs a fraction as much to draw and looks the same.)
+        val far = (fog * 1.2f).coerceAtMost(1f).let { if (scale > 1 && it > 0.93f) 1f else it }
         fillAlpha(0, 0, W, FIELD_TOP + 2, color, far)
         if (scale > 1) {
             // Thicker with distance, in steps of one real row so the thinning toward the road is smooth.
@@ -1478,13 +1494,13 @@ class PixelScene {
                 // Each bank is soft top and bottom (a smooth profile across its height) and patchy along its length as it drifts.
                 val sc = scale
                 val rows = 9 * sc
-                for (r in 0 until rows step 2) {
-                    val profile = sin(Math.PI * (r + 1f) / (rows + 1f)).toFloat()
+                for (r in 0 until rows step 3) {
+                    val profile = sin(Math.PI * (r + 1.5f) / (rows + 1f)).toFloat()
                     var sx = 0
                     while (sx < pw) {
                         val patch = 0.7f + 0.3f * sin(sx * 0.012 + s.time * 0.2 + i * 2.3 + r * 0.03).toFloat()
-                        fillAlphaPhys(sx, y * sc + r, minOf(sx + 40, pw), y * sc + r + 2, color, fog * 0.34f * wave * profile * patch)
-                        sx += 40
+                        fillAlphaPhys(sx, y * sc + r, minOf(sx + 80, pw), y * sc + r + 3, color, fog * 0.34f * wave * profile * patch)
+                        sx += 80
                     }
                 }
             } else fillAlpha(0, y, W, y + 9, color, fog * 0.22f * wave)
