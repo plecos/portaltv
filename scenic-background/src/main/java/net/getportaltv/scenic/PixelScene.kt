@@ -400,7 +400,7 @@ class PixelScene {
         val x = skyX(s.sunAz)
         val y = skyY(s.sunAlt)
         if (x < -20 || x > W + 20) return
-        val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f) * (1f - l.deck)).coerceIn(0f, 1f)
+        val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f) * (1f - l.grey)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val core = lerp(rgb(255, 238, 170), rgb(255, 150, 80), l.twilight)
         for (i in 4 downTo 1) fillCircle(x, y, 8f + i * 5f, core, shine * 0.07f)
@@ -414,7 +414,7 @@ class PixelScene {
         val cx = skyX(m.azDeg)
         val cy = skyY(m.altDeg)
         if (cx < -20 || cx > W + 20) return
-        val shine = ((1f - l.gloom * 0.85f) * (1f - l.haze * 0.8f) * (1f - l.deck)).coerceIn(0f, 1f)
+        val shine = ((1f - l.gloom * 0.85f) * (1f - l.haze * 0.8f) * (1f - l.grey)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val night = 1f - l.day
         val r = 6
@@ -544,13 +544,14 @@ class PixelScene {
     }
 
     private fun drawHills(s: SceneState, cam: Double, factor: Float, base: Int, amp: Float, freq: Float, seed: Int, color: Int, air: Float, airTop: Float) {
-        val a = air + s.look.haze * 0.3f
+        // Less of the distant blue over the hills in the woods, so they stay green instead of going grey-teal.
+        val a = (air + s.look.haze * 0.3f) * (1f - 0.55f * s.forestAt(s.cam + W / 2.0, 1.0))
         // The season's colour over the green: bright in spring, golden in autumn, dull in winter.
         val tinted = Colors.mul(color, s.season.hillR, s.season.hillG, s.season.hillB)
         val body = lit(s, tinted, a)
         val crest = lit(s, Colors.mul(tinted, 1.12f, 1.14f, 1.1f), a)
         // Under forest the hills are darker, bluer and softer along the top.
-        val forestColor = Colors.mul(color, 0.6f, 0.76f, 0.72f)
+        val forestColor = Colors.mul(color, 0.62f, 0.82f, 0.66f)
         val forestBody = lit(s, forestColor, a)
         val cityHill = lit(s, rgb(116, 122, 134), a)
         val duneHill = lit(s, rgb(208, 188, 142), a)
@@ -624,7 +625,7 @@ class PixelScene {
             k++
         }
         // Under trees the ground is darker, with fallen leaves and needles instead of crops.
-        val floorColor = lit(s, rgb(58, 82, 48), 0.1f + s.look.haze * 0.3f)
+        val floorColor = lit(s, rgb(52, 94, 44), 0.1f + s.look.haze * 0.3f)
         val litter = lit(s, rgb(84, 70, 46), 0.1f + s.look.haze * 0.3f)
         for (x in 0 until W) {
             val f = s.forestAt(x + floor(s.cam), 1.0)

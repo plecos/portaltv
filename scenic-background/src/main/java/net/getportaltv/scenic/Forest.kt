@@ -82,8 +82,8 @@ internal fun PixelScene.drawForestMist(s: SceneState) {
     if (forest < 0.05f) return
     val low = 1f - smoothstep(6f, 24f, s.sunAlt.toFloat())
     val damp = maxOf(s.cond.rain, s.cond.fog)
-    val amount = forest * (0.18f + 0.5f * low + 0.4f * damp).coerceAtMost(0.8f)
-    val color = lerp(s.look.fogColor, rgb(220, 230, 235), 0.4f * (1f - low))
+    val amount = forest * (0.14f + 0.3f * low + 0.4f * damp).coerceAtMost(0.8f)
+    val color = lerp(s.look.fogColor, rgb(236, 240, 228), 0.5f)
     for (band in 0 until 4) {
         val y = FIELD_TOP + band * 4 - 2
         val drift = (s.time * (1.2 + band * 0.4) + band * 40) % W
