@@ -7,10 +7,25 @@ import net.getportaltv.scenic.Colors.rgb
  * with the corners rounded, and then has the detail the coarse grid had no room for painted on: eyes, hooves, tails, planks,
  * shingles, wheels. The result is given the same lit and shaded edges as the other fine sprites.
  */
-internal class Fine(private val sp: Sprite) {
+internal class Fine(private val sp: Sprite, blank: Boolean = false) {
     val w = sp.width * 2
     val h = sp.height * 2
-    val a: IntArray = Sprite.doubled(sp.pixels, sp.width, sp.height)
+    /** The fine pixels: the sprite doubled with rounded corners, or (for [blank]) empty, to be drawn from nothing. */
+    val a: IntArray = if (blank) IntArray(w * h) else Sprite.doubled(sp.pixels, sp.width, sp.height)
+
+    /** A solid disc. */
+    fun disc(cx: Float, cy: Float, r: Float, c: Int) {
+        for (y in (cy - r).toInt() - 1..(cy + r).toInt() + 1) for (x in (cx - r).toInt() - 1..(cx + r).toInt() + 1) {
+            val dx = x + 0.5f - cx; val dy = y + 0.5f - cy
+            if (dx * dx + dy * dy <= r * r) px(x, y, c)
+        }
+    }
+
+    /** A line of single pixels. */
+    fun line(x0: Float, y0: Float, x1: Float, y1: Float, c: Int) {
+        val n = maxOf(Math.abs(x1 - x0), Math.abs(y1 - y0)).toInt().coerceAtLeast(1)
+        for (k in 0..n) px((x0 + (x1 - x0) * k / n).toInt(), (y0 + (y1 - y0) * k / n).toInt(), c)
+    }
 
     fun get(x: Int, y: Int): Int = if (x in 0 until w && y in 0 until h) a[y * w + x] else 0
     fun px(x: Int, y: Int, c: Int) { if (x in 0 until w && y in 0 until h) a[y * w + x] = c }
