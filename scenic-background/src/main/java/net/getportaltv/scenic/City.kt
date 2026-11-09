@@ -82,6 +82,24 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
             fill(x, top, x + w, bottom, body)
             fill(x, top, x + w, top + 1, roofLine)
             fill(x + w - 2, top + 1, x + w, bottom, side)
+            val sc = scale
+            val white = rgb(255, 255, 255)
+            if (hiRes) {
+                // (16-bit) A tower with form: lit left edge, shaded right side, vertical ribs, a stepped crown and a ledge, in see-through strokes.
+                val ink = rgb(0, 0, 20)
+                fillAlphaPhys(x * sc, top * sc, x * sc + 2, bottom * sc, white, 0.20f)
+                fillAlphaPhys((x + w) * sc - 5, top * sc, (x + w) * sc, bottom * sc, ink, 0.18f)
+                var rib = x * sc + 8
+                while (rib < (x + w) * sc - 6) { fillAlphaPhys(rib, top * sc + 2, rib + 1, bottom * sc, ink, 0.07f); rib += 10 }
+                fillAlphaPhys(x * sc, top * sc, (x + w) * sc, top * sc + 2, white, 0.32f)
+                if (layer.windows && w > 12) {
+                    // A setback crown on the taller ones.
+                    val cw = (w * 0.55f).toInt()
+                    fillPhys((x + (w - cw) / 2) * sc, (top - 3) * sc, (x + (w + cw) / 2) * sc, top * sc, body)
+                    fillAlphaPhys((x + (w - cw) / 2) * sc, (top - 3) * sc, (x + (w - cw) / 2) * sc + 2, top * sc, white, 0.2f)
+                    fillAlphaPhys((x + (w - cw) / 2) * sc, (top - 3) * sc, (x + (w + cw) / 2) * sc, (top - 3) * sc + 1, white, 0.3f)
+                }
+            }
             if (layer.windows) {
                 var wy = top + 3
                 while (wy < bottom - 3) {
@@ -89,7 +107,13 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
                     var col = 0
                     while (wx < x + w - 3) {
                         val on = Noise.unit(x0 + col * 3, wy + i, layer.seed + 9) < 0.55f
-                        fill(wx, wy, wx + 1, wy + 1, if (on) lerp(glass, WARM, night) else glass)
+                        val wc = if (on) lerp(glass, WARM, night) else glass
+                        if (hiRes) {
+                            // A narrower, taller pane with a lighter top, like a real window, and a faint glow when lit.
+                            fillPhys(wx * sc + 1, wy * sc, wx * sc + 4, wy * sc + 4, wc)
+                            if (!on || night < 0.2f) fillAlphaPhys(wx * sc + 1, wy * sc, wx * sc + 4, wy * sc + 1, white, 0.20f)
+                            else fillAlphaPhys(wx * sc, wy * sc - 1, wx * sc + 5, wy * sc + 5, WARM, 0.07f * night)
+                        } else fill(wx, wy, wx + 1, wy + 1, wc)
                         wx += 3
                         col++
                     }
@@ -98,8 +122,14 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
             }
             // An aerial on the tallest, with a red light that blinks at night.
             if (h > layer.maxH * 0.85f) {
+                if (hiRes) {
+                    line(x + w / 2f + 0.5f, top - 8f, x + w / 2f + 0.5f, top.toFloat(), side)
+                    for (e in 1..3) fillPhys((x + w / 2) * sc - 2, (top - e * 2) * sc, (x + w / 2) * sc + 4, (top - e * 2) * sc + 1, side)
+                    if (night > 0.2f && (s.time * 0.8).toInt() % 2 == 0) { fillGlow(x + w / 2f + 0.5f, top - 8.6f, 3f, rgb(255, 70, 60), 0.55f); fillOval(x + w / 2f - 0.1f, top - 9.2f, x + w / 2f + 1.1f, top - 8.0f, rgb(255, 90, 80), 1f) }
+                } else {
                 fill(x + w / 2, top - 5, x + w / 2 + 1, top, side)
                 if (night > 0.2f && (s.time * 0.8).toInt() % 2 == 0) fill(x + w / 2, top - 6, x + w / 2 + 1, top - 5, rgb(255, 70, 60))
+                }
             }
         }
     }
@@ -242,13 +272,60 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     var mx = x + 2 + 8
     while (mx < x + w - 4) { fill(mx, shopTop + 3, mx + 1, bottom, lerp(body, rgb(20, 20, 30), 0.4f)); mx += 9 }
     fill(x + w / 2 - 1, shopTop + 4, x + w / 2 + 2, bottom, lerp(body, rgb(40, 30, 30), 0.5f))
+    if (hiRes) {
+        val sc = scale
+        val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+        // The shop: a scalloped awning with a shadow under it, goods on a shelf in each window, and a door with a pane, handle and sign.
+        var ax2 = x + 2
+        var kk = 0
+        while (ax2 < x + w - 2) { fillOval(ax2.toFloat(), shopTop + 2.5f, ax2 + 4f, shopTop + 4.4f, if (kk % 2 == 0) awning else lerp(awning, white, 0.45f), 1f); ax2 += 4; kk++ }
+        eaveShadow(x + 2, x + w - 2, shopTop + 4)
+        var px0 = x + 3
+        var pane = 0
+        while (px0 + 7 < x + w - 4) {
+            val shelf = (shopTop + 8) * sc
+            fillAlphaPhys(px0 * sc, shelf, (px0 + 7) * sc, shelf + 1, ink, 0.45f)
+            for (g in 0 until 3) {
+                val gc = intArrayOf(rgb(220, 90, 80), rgb(80, 150, 220), rgb(240, 200, 80), rgb(120, 200, 140), rgb(230, 230, 230))[(Noise.unit(i * 11 + pane, g, 971) * 5).toInt().coerceIn(0, 4)]
+                val gh = 3 + (Noise.unit(i * 11 + pane, g, 972) * 4).toInt()
+                fillAlphaPhys(px0 * sc + 2 + g * 4, shelf - gh, px0 * sc + 5 + g * 4, shelf, gc, 0.85f)
+            }
+            px0 += 9; pane++
+        }
+        val dxc = (x + w / 2) * sc
+        fillAlphaPhys(dxc - 3, (shopTop + 4) * sc, dxc - 2, bottom * sc, white, 0.30f)
+        fillAlphaPhys(dxc + 5, (shopTop + 4) * sc, dxc + 6, bottom * sc, ink, 0.35f)
+        fillPhys(dxc + 1, (bottom - 4) * sc, dxc + 2, (bottom - 2) * sc, rgb(236, 226, 190))
+        fillPhys(dxc - 1, (shopTop + 5) * sc, dxc + 3, (shopTop + 5) * sc + 3, lerp(WARM, white, 0.2f))
+        if (w > 28) lettering(x + 6, shopTop - 5, w - 12, 2, i, lerp(body, white, 0.7f))
+        // The parapet's coping, and the roof: an air-conditioning unit with its fan and grille, a vent pipe, and on some a tank, an antenna with a dish or a billboard.
+        fillAlphaPhys((x - 1) * sc, (top - 1) * sc, (x + w + 1) * sc, (top - 1) * sc + 1, white, 0.38f)
+        val roofX = x + 2 + (Noise.unit(i, 827) * (w - 10).coerceAtLeast(1)).toInt()
+        val acC = lerp(body, rgb(170, 170, 176), 0.5f)
+        fillPhys(roofX * sc, (top - 4) * sc, (roofX + 6) * sc, (top - 1) * sc, acC)
+        fillAlphaPhys(roofX * sc, (top - 4) * sc, (roofX + 6) * sc, (top - 4) * sc + 1, white, 0.4f)
+        fillOval(roofX + 0.9f, top - 3.6f, roofX + 3.1f, top - 1.6f, ink, 0.55f)
+        fillOval(roofX + 1.3f, top - 3.2f, roofX + 2.7f, top - 2f, acC, 0.9f)
+        for (gx in 0..2) fillAlphaPhys((roofX + 3) * sc + 2 + gx * 3, (top - 3) * sc, (roofX + 3) * sc + 3 + gx * 3, (top - 1) * sc, ink, 0.4f)
+        line(roofX + 6f, top - 2f, roofX + 8f, top - 2f, shade); fillPhys((roofX + 8) * sc, (top - 4) * sc, (roofX + 8) * sc + 2, (top - 2) * sc, shade)
+    } else {
     // On the roof: an air-conditioning box, and on some a water tank, an aerial or a billboard.
     val roofX = x + 2 + (Noise.unit(i, 827) * (w - 10).coerceAtLeast(1)).toInt()
     fill(roofX, top - 4, roofX + 6, top - 1, lerp(body, rgb(170, 170, 176), 0.5f))
+    }
     val extra = Noise.unit(i, 828)
     when {
         extra < 0.25f && w > 40 -> tank(s, x + w - 12, top - 1, shade)
-        extra < 0.5f -> fill(x + 4, top - 9, x + 5, top - 1, shade)
+        extra < 0.5f -> if (hiRes) {
+            // An antenna mast with cross elements and a dish, and a light that blinks at night.
+            val sc = scale
+            line(x + 4.5f, top - 10f, x + 4.5f, top - 1f, shade)
+            for (e in intArrayOf(3, 5, 7)) fillPhys((x + 3) * sc + 1, (top - e - 1) * sc, (x + 6) * sc - 1, (top - e - 1) * sc + 1, shade)
+            fillOval(x + 5.6f, top - 8.4f, x + 8.4f, top - 6.2f, rgb(210, 214, 222), 1f)
+            fillOval(x + 6.1f, top - 8f, x + 7.7f, top - 6.8f, shade, 0.7f)
+            line(x + 5f, top - 7.4f, x + 6.4f, top - 7.2f, shade)
+            if (night > 0.2f && (s.time * 0.8).toInt() % 2 == 0) { fillGlow(x + 4.5f, top - 10.4f, 4f, rgb(255, 70, 60), 0.6f); fillOval(x + 3.9f, top - 11f, x + 5.1f, top - 9.8f, rgb(255, 90, 80), 1f) }
+        } else fill(x + 4, top - 9, x + 5, top - 1, shade)
         extra < 0.62f && w > 40 -> billboard(s, i, x + 4, top - 1, night)
     }
 }
@@ -470,6 +547,24 @@ private fun PixelScene.drawSchool(s: SceneState, lot: Int, x0: Int, bottom: Int,
 
 private fun PixelScene.tank(s: SceneState, x: Int, top: Int, shade: Int) {
     val wood = solid(s, rgb(120, 86, 58), 0.04f)
+    if (hiRes) {
+        // A wooden barrel on a braced frame: staves with iron hoops, a conical lid, a ladder.
+        val sc = scale
+        val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255); val hoop = rgb(60, 64, 72)
+        line(x + 1.5f, top - 5f, x + 0.5f, top.toFloat(), shade); line(x + 6.5f, top - 5f, x + 7.5f, top.toFloat(), shade)
+        line(x + 1.5f, top - 4f, x + 6.5f, top - 1f, shade, 200); line(x + 6.5f, top - 4f, x + 1.5f, top - 1f, shade, 200)
+        fillPhys(x * sc, (top - 12) * sc, (x + 8) * sc, (top - 5) * sc, wood)
+        fillAlphaPhys(x * sc, (top - 12) * sc, x * sc + 3, (top - 5) * sc, white, 0.28f)
+        fillAlphaPhys((x + 8) * sc - 4, (top - 12) * sc, (x + 8) * sc, (top - 5) * sc, ink, 0.30f)
+        var st = x * sc + 3
+        while (st < (x + 8) * sc - 2) { fillAlphaPhys(st, (top - 12) * sc, st + 1, (top - 5) * sc, ink, 0.18f); st += 3 }
+        for (hy in intArrayOf(top - 11, top - 8, top - 6)) fillPhys(x * sc, hy * sc, (x + 8) * sc, hy * sc + 1, hoop)
+        val mid = x * sc + 4 * sc
+        for (ry in 0 until 3 * sc) { val half = (4 * sc) - ry * (4 * sc - 2) / (3 * sc); fillPhys(mid - half, (top - 15) * sc + ry, mid, (top - 15) * sc + ry + 1, Colors.mul(wood, 1.15f, 1.15f, 1.15f)); fillPhys(mid, (top - 15) * sc + ry, mid + half, (top - 15) * sc + ry + 1, Colors.scale(wood, 0.8f)) }
+        fillPhys(mid - 1, (top - 17) * sc, mid + 1, (top - 15) * sc, shade)
+        line(x + 8.5f, top - 11f, x + 9.2f, top.toFloat(), shade, 255)
+        return
+    }
     fill(x + 1, top - 5, x + 2, top, shade)
     fill(x + 6, top - 5, x + 7, top, shade)
     fill(x, top - 12, x + 8, top - 5, wood)
@@ -481,6 +576,23 @@ private fun PixelScene.billboard(s: SceneState, i: Int, x: Int, top: Int, night:
     val colors = intArrayOf(rgb(230, 70, 90), rgb(60, 170, 230), rgb(250, 200, 60), rgb(110, 220, 130))
     val c = colors[(Noise.unit(i, 829) * colors.size).toInt().coerceIn(0, colors.size - 1)]
     val post = solid(s, rgb(70, 70, 78), 0.04f)
+    if (hiRes) {
+        // A billboard on a truss: steel frame, a panel with a bold shape, lamps along the top and a catwalk.
+        val sc = scale
+        val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+        line(x + 3.5f, top - 5f, x + 3.5f, top.toFloat(), post); line(x + 14.5f, top - 5f, x + 14.5f, top.toFloat(), post)
+        line(x + 3.5f, top - 5f, x + 14.5f, top.toFloat(), post, 190); line(x + 14.5f, top - 5f, x + 3.5f, top.toFloat(), post, 190)
+        fillPhys(x * sc, (top - 14) * sc, (x + 19) * sc, (top - 5) * sc, solid(s, rgb(220, 220, 224), 0.04f))
+        fillPhys(x * sc + 2, (top - 14) * sc + 2, (x + 19) * sc - 2, (top - 5) * sc - 2, lerp(solid(s, c, 0.04f), c, night))
+        fillAlphaPhys(x * sc + 2, (top - 14) * sc + 2, (x + 19) * sc - 2, (top - 13) * sc, white, 0.18f)
+        fillAlphaPhys(x * sc + 2, (top - 6) * sc - 2, (x + 19) * sc - 2, (top - 6) * sc, ink, 0.22f)
+        fillOval(x + 3f, top - 12f, x + 9f, top - 7f, rgb(255, 255, 255), 0.85f)
+        fillPhys((x + 10) * sc, (top - 11) * sc, (x + 16) * sc, (top - 10) * sc + 1, white); fillPhys((x + 10) * sc, (top - 9) * sc, (x + 14) * sc, (top - 9) * sc + 1, white)
+        fillPhys((x - 1) * sc, (top - 5) * sc, (x + 20) * sc, (top - 5) * sc + 2, post)
+        for (lx in 1..17 step 4) { fillPhys((x + lx) * sc, (top - 15) * sc, (x + lx) * sc + 1, (top - 14) * sc, post); fillOval(x + lx - 0.3f, top - 16f, x + lx + 1.3f, top - 14.8f, if (night > 0.2f) rgb(255, 244, 190) else rgb(214, 214, 204), 1f) }
+        if (night > 0.2f) fillAlpha(x - 3, top - 17, x + 22, top - 3, c, night * 0.16f)
+        return
+    }
     fill(x + 3, top - 5, x + 4, top, post)
     fill(x + 14, top - 5, x + 15, top, post)
     fill(x, top - 14, x + 19, top - 5, solid(s, rgb(220, 220, 224), 0.04f))
@@ -554,6 +666,31 @@ internal fun PixelScene.drawSubwayEntrances(s: SceneState) {
         val wx = i * spacing + 200 + (Noise.unit(i, 850) * 100).toInt()
         if (s.cityAt(wx.toDouble(), 1.0) < 0.9f) continue
         val x = wx - offset
+        if (hiRes) {
+            // The entrance on the finer grid: stairs of lit treads going down between railings with posts, a canopy, a globe lamp on each
+            // side, and a round sign on a pole that glows at night.
+            val sc = scale
+            val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+            fillPhys(x * sc, (ROAD_TOP - 5) * sc, (x + 14) * sc, ROAD_TOP * sc, solid(s, rgb(30, 30, 38), 0.0f))
+            for (st in 0 until 7) fillAlphaPhys((x + 2) * sc + st, (ROAD_TOP - 4) * sc + st * 2, (x + 12) * sc - st, (ROAD_TOP - 4) * sc + st * 2 + 1, white, 0.18f)
+            for (rx in intArrayOf(x, x + 13)) {
+                fillPhys(rx * sc, (ROAD_TOP - 6) * sc, rx * sc + 2, ROAD_TOP * sc, rail)
+                for (py in 0..2) fillPhys(rx * sc - 1, (ROAD_TOP - 6) * sc + py * 5, rx * sc + 3, (ROAD_TOP - 6) * sc + py * 5 + 1, rail)
+                fillOval(rx - 0.3f, ROAD_TOP - 8f, rx + 1.9f, ROAD_TOP - 5.7f, if (s.night() > 0.2f) rgb(255, 240, 190) else solid(s, rgb(220, 220, 214), 0.0f), 1f)
+                if (s.night() > 0.2f) fillGlow(rx + 0.8f, ROAD_TOP - 6.8f, 6f, rgb(255, 226, 150), s.night() * 0.45f)
+            }
+            fillPhys(x * sc, (ROAD_TOP - 6) * sc, (x + 14) * sc, (ROAD_TOP - 6) * sc + 3, rail)
+            fillAlphaPhys(x * sc, (ROAD_TOP - 6) * sc, (x + 14) * sc, (ROAD_TOP - 6) * sc + 1, white, 0.3f)
+            eaveShadow(x + 1, x + 13, ROAD_TOP - 5)
+            // The sign: a roundel with a bar, on a pole.
+            line(x + 16.5f, ROAD_TOP - 17f, x + 16.5f, ROAD_TOP - 1f, rail)
+            fillOval(x + 12.6f, ROAD_TOP - 20.6f, x + 20.4f, ROAD_TOP - 12.8f, sign, 1f)
+            fillOval(x + 13.6f, ROAD_TOP - 19.6f, x + 19.4f, ROAD_TOP - 13.8f, white, 1f)
+            fillOval(x + 14.4f, ROAD_TOP - 18.8f, x + 18.6f, ROAD_TOP - 14.6f, sign, 1f)
+            fillPhys((x + 12) * sc + 2, (ROAD_TOP - 17) * sc, (x + 21) * sc - 2, (ROAD_TOP - 16) * sc + 1, white)
+            if (s.night() > 0.2f) fillGlow(x + 16.5f, ROAD_TOP - 16.7f, 11f, sign, s.night() * 0.45f)
+            continue
+        }
         // The stairs go down between two railings.
         fill(x, ROAD_TOP - 6, x + 1, ROAD_TOP - 1, rail)
         fill(x + 13, ROAD_TOP - 6, x + 14, ROAD_TOP - 1, rail)

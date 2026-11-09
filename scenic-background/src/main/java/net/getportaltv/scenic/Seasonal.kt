@@ -66,6 +66,51 @@ private fun PixelScene.haystack(s: SceneState, chunk: Int, left: Int) {
     val straw = solid(s, rgb(214, 184, 96), 0.06f)
     val shade = solid(s, rgb(176, 146, 70), 0.06f)
     val light = solid(s, rgb(236, 210, 130), 0.06f)
+    if (hiRes) {
+        val sc = scale
+        val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+        fillOval(x - 1f, base - 1.1f, x + 14f, base + 1.2f, ink, 0.30f)
+        if (Noise.unit(chunk, 1304) < 0.5f) {
+            // A stack with a rounded, slightly bulging shape, lit on the left, built of straw strands running up and out from the top.
+            val apexX = (x + 5) * sc + sc / 2
+            val topY = (base - 8) * sc
+            val bottomY = base * sc
+            for (ry in 0 until bottomY - topY) {
+                val f = (ry + 1f) / (bottomY - topY)
+                val half = (1.2f * sc + f * 4.6f * sc + (if (f > 0.7f) (f - 0.7f) * 3f * sc else 0f)).toInt()
+                fillPhys(apexX - half, topY + ry, apexX, topY + ry + 1, straw)
+                fillPhys(apexX, topY + ry, apexX + half, topY + ry + 1, Colors.mul(straw, 0.88f, 0.85f, 0.78f))
+                fillAlphaPhys(apexX - half, topY + ry, apexX - half + 2, topY + ry + 1, light, 0.7f)
+                fillAlphaPhys(apexX + half - 2, topY + ry, apexX + half, topY + ry + 1, shade, 0.7f)
+            }
+            for (k in 0 until 26) {
+                val u = Noise.unit(chunk, k, 1306) * 2f - 1f
+                val len = 5f + Noise.unit(chunk, k, 1307) * 8f
+                val y0 = topY + 3 + (Noise.unit(chunk, k, 1308) * (bottomY - topY - 8)).toInt()
+                val x0 = apexX + (u * (2f + (y0 - topY) * 0.28f)).toInt()
+                val dxs = (u * len * 0.45f).toInt()
+                for (st in 0..len.toInt()) fillAlphaPhys(x0 + dxs * st / len.toInt().coerceAtLeast(1), y0 + st, x0 + dxs * st / len.toInt().coerceAtLeast(1) + 1, y0 + st + 1, if (k % 2 == 0) ink else white, if (k % 2 == 0) 0.16f else 0.2f)
+            }
+            fillPhys(apexX - 1, topY - 5, apexX + 1, topY + 2, solid(s, rgb(110, 80, 50), 0.06f))
+            fillOval(x + 1f, base - 1.1f, x + 11f, base + 0.4f, shade, 1f)
+        } else {
+            // Round bales lying in a row: the circular ends, with rings of rolled straw, bound with twine.
+            for (b in 0..1) {
+                val bx = x + b * 8
+                fillOval(bx - 0.3f, base - 5.6f, bx + 7.3f, base + 0.2f, shade, 1f)
+                fillOval(bx - 0.1f, base - 5.5f, bx + 7.0f, base - 0.1f, straw, 1f)
+                for (rr in 1..3) fillOval(bx + 0.4f + rr * 0.8f, base - 5f + rr * 0.8f, bx + 6.4f - rr * 0.8f, base - 0.6f - rr * 0.8f + 0.2f, shade, 0.30f)
+                fillAlphaPhys((bx + 3) * sc, (base - 5) * sc, (bx + 3) * sc + 1, (base - 1) * sc, ink, 0.25f)
+                fillOval(bx + 0.5f, base - 5.2f, bx + 3.0f, base - 3.4f, white, 0.18f)
+            }
+            if (Noise.unit(chunk, 1305) < 0.5f) {
+                fillOval(x + 3.7f, base - 10f, x + 10.3f, base - 4.3f, shade, 1f)
+                fillOval(x + 3.9f, base - 9.9f, x + 10.1f, base - 4.6f, straw, 1f)
+                for (rr in 1..2) fillOval(x + 4.5f + rr * 0.8f, base - 9.2f + rr * 0.8f, x + 9.5f - rr * 0.8f, base - 5.2f - rr * 0.6f, shade, 0.30f)
+            }
+        }
+        return
+    }
     if (Noise.unit(chunk, 1304) < 0.5f) {
         // A conical stack with a pole through the top.
         for (r in 0 until 8) {

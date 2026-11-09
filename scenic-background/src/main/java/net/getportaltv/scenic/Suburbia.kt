@@ -279,7 +279,7 @@ private fun PixelScene.commercialDistrict(s: SceneState, d: Int, x0: Int, offset
 }
 
 /** Some pretend lettering: little blocks along a sign, since a few pixels can't spell anything. */
-private fun PixelScene.lettering(x: Int, y: Int, w: Int, h: Int, seed: Int, color: Int) {
+internal fun PixelScene.lettering(x: Int, y: Int, w: Int, h: Int, seed: Int, color: Int) {
     if (hiRes) {
         // Little glyphs of strokes on the finer grid (three real pixels wide, a gap between) that read as writing, and spaces between words.
         val sc = scale
