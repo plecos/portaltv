@@ -436,10 +436,22 @@ class PixelScene {
             val twinkle = 0.75f + 0.25f * sin(s.time * (1.0 + Noise.unit(i, 4) * 2.0) + i).toFloat()
             val a = vis * base * twinkle
             val col = if (Noise.unit(i, 5) < 0.25f) rgb(255, 226, 190) else rgb(214, 226, 255)
+            if (scale > 1) {
+                // A round point with a faint halo, and the brightest ones with a small cross of light that twinkles.
+                val fx = x + Noise.unit(i, 6); val fy = y + Noise.unit(i, 7)
+                fillOval(fx - 0.35f, fy - 0.35f, fx + 0.65f, fy + 0.65f, col, a)
+                if (base > 0.55f) fillOval(fx - 1.1f, fy - 1.1f, fx + 1.7f, fy + 1.7f, col, a * 0.16f)
+                if (base > 0.9f && a > 0.5f) {
+                    val px = (fx * scale).toInt(); val py = (fy * scale).toInt()
+                    fillAlphaPhys(px - 3, py, px + 4, py + 1, col, a * 0.45f)
+                    fillAlphaPhys(px, py - 3, px + 1, py + 4, col, a * 0.45f)
+                }
+            } else {
             fillAlpha(x, y, x + 1, y + 1, col, a)
             if (base > 0.9f && a > 0.5f) {
                 fillAlpha(x - 1, y, x + 2, y + 1, col, a * 0.4f)
                 fillAlpha(x, y - 1, x + 1, y + 2, col, a * 0.4f)
+            }
             }
         }
         // A shooting star now and then.
@@ -451,6 +463,14 @@ class PixelScene {
                 val x0 = 40f + Noise.unit(slot, 63) * 240f
                 val y0 = 8f + Noise.unit(slot, 64) * 40f
                 val p = e / 0.7f
+                if (scale > 1) {
+                    // A smooth tapering trail along the whole path, bright at the head.
+                    for (k in 0..40) {
+                        val q = max(0f, p - k * 0.0075f)
+                        val px = ((x0 - q * 60f) * scale).toInt(); val py = ((y0 + q * 22f) * scale).toInt()
+                        fillAlphaPhys(px, py, px + 1 + (if (k < 8) 1 else 0), py + 1 + (if (k < 8) 1 else 0), rgb(255, 255, 255), vis * (1f - k / 41f))
+                    }
+                } else
                 for (k in 0..5) {
                     val q = max(0f, p - k * 0.04f)
                     fillAlpha((x0 - q * 60).toInt(), (y0 + q * 22).toInt(), (x0 - q * 60).toInt() + 1, (y0 + q * 22).toInt() + 1, rgb(255, 255, 255), vis * (1f - k / 6f))
@@ -1269,14 +1289,32 @@ class PixelScene {
             val len = if (far) 5 else 9
             val y = ((u2 * H + speed * s.time) % (H + 10)).toFloat() - 5f
             val x = ((Noise.unit(i, 13) * (W + 60) + slant * speed * s.time) % (W + 60)).toFloat() - 30f + y * slant * 0.5f
-            line(x, y, x + slant * len, y + len, color, if (far) 140 else 210)
+            if (scale > 1) {
+                // A streak that fades from a faint tail to a brighter head, one real pixel wide, drawn on the finer grid.
+                val sc = scale
+                val steps = len * sc
+                val peak = if (far) 0.55f else 0.85f
+                for (k in 0..steps) {
+                    val t = k.toFloat() / steps
+                    val px = ((x + slant * len * t) * sc).toInt(); val py = ((y + len * t) * sc).toInt()
+                    fillAlphaPhys(px, py, px + 1, py + 1, color, peak * (0.12f + 0.88f * t * t))
+                }
+            } else line(x, y, x + slant * len, y + len, color, if (far) 140 else 210)
         }
         // Splashes on the road.
         val bucket = floor(s.time * 8).toInt()
         for (i in 0 until (rain * 18).toInt()) {
             val x = (Noise.unit(bucket, i, 14) * W).toInt()
             val y = ROAD_TOP + 3 + (Noise.unit(bucket, i, 15) * (ROAD_BOTTOM - ROAD_TOP - 4)).toInt()
-            fillAlpha(x, y, x + 2, y + 1, color, 0.6f)
+            if (scale > 1) {
+                // A splash: a small ring spreading over the road, with a couple of drops thrown up from it.
+                val age = (s.time * 8 - bucket).toFloat()
+                val r = 0.6f + age * 1.6f
+                fillOval(x + 1f - r, y + 0.5f - r * 0.4f, x + 1f + r, y + 0.5f + r * 0.4f, color, 0.38f * (1f - age))
+                fillOval(x + 1f - r * 0.5f, y + 0.5f - r * 0.2f, x + 1f + r * 0.5f, y + 0.5f + r * 0.2f, color, 0.25f * (1f - age))
+                fillAlphaPhys(x * scale, ((y - 1) * scale) - (age * 3).toInt(), x * scale + 1, ((y - 1) * scale) - (age * 3).toInt() + 1, color, 0.7f * (1f - age))
+                fillAlphaPhys(x * scale + 3, ((y - 1) * scale) - (age * 2).toInt(), x * scale + 4, ((y - 1) * scale) - (age * 2).toInt() + 1, color, 0.6f * (1f - age))
+            } else fillAlpha(x, y, x + 2, y + 1, color, 0.6f)
         }
     }
 
@@ -1294,7 +1332,15 @@ class PixelScene {
             val y = ((u2 * H + fall * s.time) % H).toFloat()
             val x = ((Noise.unit(i, 23) * (W + 80) + drift * s.time * (0.5f + u1)) % (W + 80)).toFloat() - 40f + (sin(s.time * (0.8 + u1) + i) * 5f).toFloat()
             val size = if (u1 > 0.7f) 2 else 1
-            fillAlpha(x.toInt(), y.toInt(), x.toInt() + size, y.toInt() + size, color, 0.55f + 0.45f * u1)
+            if (scale > 1) {
+                // Round flakes with a soft halo; the biggest catch the light with a tiny cross.
+                val a = 0.55f + 0.45f * u1
+                if (size == 2) {
+                    fillOval(x - 0.9f, y - 0.9f, x + 2.1f, y + 2.1f, color, a * 0.25f)
+                    fillOval(x - 0.2f, y - 0.2f, x + 1.4f, y + 1.4f, color, a)
+                    if (u1 > 0.9f) { fillAlphaPhys((x * scale).toInt() - 2, (y * scale).toInt() + 1, (x * scale).toInt() + 5, (y * scale).toInt() + 2, color, a * 0.5f); fillAlphaPhys((x * scale).toInt() + 1, (y * scale).toInt() - 2, (x * scale).toInt() + 2, (y * scale).toInt() + 5, color, a * 0.5f) }
+                } else fillOval(x - 0.1f, y - 0.1f, x + 1.1f, y + 1.1f, color, a)
+            } else fillAlpha(x.toInt(), y.toInt(), x.toInt() + size, y.toInt() + size, color, 0.55f + 0.45f * u1)
         }
     }
 
