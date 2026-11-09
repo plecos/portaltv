@@ -8,7 +8,21 @@ object LifeSprites {
 
     /** A person on foot, 5 wide: [frame] 0 or 1 is the step, [umbrella] holds one up for the rain. */
     fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int? = null, style: Int = 0): Sprite {
-        // [style]: 0 short hair and trousers, 1 long hair and a dress, 2 a ponytail and trousers.
+        // [style]: 0 short hair and trousers, 1 long hair and a dress, 2 a ponytail and trousers, 3 a boy, 4 a girl in a dress with bunches.
+        if (style >= 3) {
+            val girl = style == 4
+            val kid = listOf(
+                ".hh.",
+                if (girl) "hssh" else ".ss.",
+                "sbbs",
+                if (girl) "bbbb" else ".bb.",
+                if (girl) "bbbb" else ".pp.",
+                if (girl) (if (frame == 0) "s..s" else ".ss.") else if (frame == 0) "p..p" else ".pp."
+            )
+            val rows = if (umbrella != null) listOf(".uu.", "uuuu", ".k..") + kid else kid
+            return Sprite(rows, mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
+                .let { s -> HiSprites.person(shirt, pants, frame, umbrella, skin, hair, null, style).let { (r, p) -> s.detail(r, p) } }
+        }
         val body = listOf(
             "..h..",
             ".hhh.",
