@@ -17,6 +17,7 @@
 #   EXPIRES=2020-01-01 scripts/test-catalog.sh   # an expired catalog: listing works, installing is paused
 #   BAD_SIGNATURE=1 / UNSIGNED=1 scripts/test-catalog.sh   # a catalog altered after signing, or with no signature: refused
 #   REVOKE_SIGNER=<sha256> scripts/test-catalog.sh   # the catalog withdraws everything signed by that key
+#   NEWER=1 scripts/test-catalog.sh        # the catalog offers a newer version of the sample and Scenic Travel, to see "Update available" (do not Install: the file is the old one)
 #   scripts/test-catalog.sh --off           # forget the test address
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -60,7 +61,8 @@ import json, sys, hashlib, os, copy
 d, hostport, code, name, signer = sys.argv[1:6]
 apk = os.path.join(d, "sample.apk")
 data = open(apk, "rb").read()
-version = {"version_code": int(code), "version_name": name, "apk": f"http://{hostport}/sample.apk",
+bump = 1 if os.environ.get("NEWER") else 0   # NEWER=1: offer a version one ahead of the installed one, to see "Update available" (its file will not match, so do not Install)
+version = {"version_code": int(code) + bump, "version_name": name + (".1" if bump else ""), "apk": f"http://{hostport}/sample.apk",
            "sha256": hashlib.sha256(data).hexdigest(), "size": len(data), "contract": 1}
 cat = json.load(open(os.path.join(d, "catalog.json")))
 sample = next(e for e in cat["extensions"] if e["package"] == "net.getportaltv.sample")
@@ -98,7 +100,8 @@ if os.path.isfile(apk) and signer:
     data = open(apk, "rb").read()
     e = next(e for e in cat["extensions"] if e["package"] == "net.getportaltv.scenic")
     e["signer"] = signer
-    e["versions"] = [{"version_code": int(code), "version_name": name, "apk": f"http://{hostport}/scenic.apk",
+    bump = 1 if os.environ.get("NEWER") else 0
+    e["versions"] = [{"version_code": int(code) + bump, "version_name": name + (".1" if bump else ""), "apk": f"http://{hostport}/scenic.apk",
                       "sha256": hashlib.sha256(data).hexdigest(), "size": len(data), "contract": 1}]
 else:
     cat["extensions"] = [e for e in cat["extensions"] if e["package"] != "net.getportaltv.scenic"]

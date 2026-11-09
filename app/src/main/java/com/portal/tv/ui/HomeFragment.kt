@@ -164,7 +164,11 @@ class HomeFragment : Fragment() {
         }
         view.findViewById<View>(R.id.btn_settings).setOnClickListener { openSettings(SettingsFragment()) }
         // A newer version has been found: the Update button goes straight to the update in Settings.
-        view.findViewById<View>(R.id.btn_update).setOnClickListener { openSettings(SettingsFragment.forUpdates()) }
+        // (If only an extension has an update, it opens Settings at Extensions instead.)
+        view.findViewById<View>(R.id.btn_update).setOnClickListener {
+            val portalUpdate = com.portal.tv.update.Updates.updateAvailable(requireContext(), com.portal.tv.BuildConfig.VERSION_NAME)
+            openSettings(if (portalUpdate) SettingsFragment.forUpdates() else SettingsFragment.forExtensions())
+        }
         refreshUpdateButton()
 
         setupBackground(view)
@@ -175,8 +179,13 @@ class HomeFragment : Fragment() {
         val context = context ?: return
         val button = view?.findViewById<View>(R.id.btn_update) ?: return
         val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
-        button.visibility = if (!kid && com.portal.tv.update.Updates.updateAvailable(context, com.portal.tv.BuildConfig.VERSION_NAME))
-            View.VISIBLE else View.GONE
+        val portal = !kid && com.portal.tv.update.Updates.updateAvailable(context, com.portal.tv.BuildConfig.VERSION_NAME)
+        button.visibility = if (portal) View.VISIBLE else View.GONE
+        // An extension with a newer version in the catalog (from the copy kept on the TV) also earns the button.
+        if (!kid && !portal) viewLifecycleOwner.lifecycleScope.launch {
+            val any = withContext(Dispatchers.IO) { com.portal.tv.extensions.ExtensionUpdates.pending(context).isNotEmpty() }
+            view?.findViewById<View>(R.id.btn_update)?.visibility = if (any) View.VISIBLE else View.GONE
+        }
     }
 
     /**
@@ -966,8 +975,9 @@ class HomeFragment : Fragment() {
             if (com.portal.tv.update.UpdateChecks.checkIfDue(requireContext())) refreshUpdateButton()
             // The catalog's withdrawn list, kept fresh while extensions are installed.
             if (com.portal.tv.extensions.CatalogChecks.checkIfDue(requireContext())) {
-                // A withdrawal may have switched something off.
+                // A withdrawal may have switched something off, and a newer version may now be on offer.
                 refreshExtensionItems()
+                refreshUpdateButton()
                 loadApps()
             }
         }

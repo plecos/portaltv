@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -14,6 +15,7 @@ import com.portal.tv.R
 import com.portal.tv.extensions.Capability
 import com.portal.tv.extensions.Catalog
 import com.portal.tv.extensions.CatalogClient
+import com.portal.tv.extensions.ExtensionUpdates
 import com.portal.tv.extensions.CatalogLabels
 import com.portal.tv.extensions.Extension
 import com.portal.tv.extensions.ExtensionAccess
@@ -39,7 +41,7 @@ class ExtensionsPage(
     private val scope: CoroutineScope,
     private val startActivity: (Intent) -> Unit,
     /** Told how many extensions were found and how many have something allowed, for the category's summary. */
-    private val onCounted: (found: Int, allowed: Int) -> Unit,
+    private val onCounted: (found: Int, allowed: Int, updates: Int) -> Unit,
     /** Opens the full-screen catalog. */
     private val onBrowse: () -> Unit
 ) {
@@ -47,6 +49,8 @@ class ExtensionsPage(
     private lateinit var list: LinearLayout
     /** The catalog kept from the last time it was fetched, if any; read with the scan, so drawing a page never waits on it. */
     private var catalog: Catalog? = null
+    /** Package to the newer version name the catalog offers. */
+    private var updates: Map<String, String> = emptyMap()
     private val d get() = context.resources.displayMetrics.density
     private fun px(v: Int) = (v * d).toInt()
 
@@ -59,8 +63,9 @@ class ExtensionsPage(
         scope.launch {
             val all = withContext(Dispatchers.IO) { ExtensionRegistry.scan(context) }
             catalog = withContext(Dispatchers.IO) { CatalogClient.cached(context)?.catalog }
+            updates = catalog?.takeIf { !CatalogLabels.expired(it, System.currentTimeMillis()) }?.let { ExtensionUpdates.offered(it, all) } ?: emptyMap()
             render(all, focusPackage)
-            onCounted(all.size, all.count { it.granted.isNotEmpty() })
+            onCounted(all.size, all.count { it.granted.isNotEmpty() }, updates.size)
         }
     }
 
@@ -175,27 +180,47 @@ class ExtensionsPage(
             return
         }
         all.forEach { ext ->
-            val row = TextView(context).apply {
-                text = ext.name + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
-                textSize = 18f
-                typeface = context.resources.getFont(R.font.inter)
-                setTextColor(context.resources.getColor(R.color.text_primary, null))
+            // Columns that line up from one row to the next: its picture, its name, its version, and what needs attention.
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(px(24), 0, px(24), 0)
-                minHeight = px(48)
+                minimumHeight = px(48)
                 setBackgroundResource(R.drawable.bg_settings_tile)
-                // Its own picture, so it is known at a glance.
-                ExtensionIcons.of(context, ext.packageName, ext.manifest?.iconRes ?: 0)?.let {
-                    it.setBounds(0, 0, px(32), px(32))
-                    setCompoundDrawables(it, null, null, null)
-                    compoundDrawablePadding = px(14)
-                }
                 isFocusable = true
+                isClickable = true
                 contentDescription = "${ext.name}, ${ExtensionLabels.status(ext.state, ext.granted)}. Select for details."
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                     .apply { bottomMargin = px(8) }
                 setOnClickListener { showDetail(ext) }
             }
+            fun cell(value: String, widthDp: Int, color: Int, sp: Float = 18f) = TextView(context).apply {
+                text = value
+                textSize = sp
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(color)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                layoutParams = if (widthDp > 0) LinearLayout.LayoutParams(px(widthDp), ViewGroup.LayoutParams.WRAP_CONTENT)
+                else LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
+            val primary = context.resources.getColor(R.color.text_primary, null)
+            val secondary = context.resources.getColor(R.color.text_secondary, null)
+            // Its own picture, so it is known at a glance (the space stays when it has none, so names still line up).
+            row.addView(ImageView(context).apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                ExtensionIcons.of(context, ext.packageName, ext.manifest?.iconRes ?: 0)?.let { setImageDrawable(it) }
+                layoutParams = LinearLayout.LayoutParams(px(32), px(32)).apply { marginEnd = px(14) }
+            })
+            row.addView(cell(ext.name, 220, primary))
+            row.addView(cell(ext.versionName.orEmpty(), 70, secondary))
+            val note = when {
+                ext.state == ExtensionState.REVOKED -> "Withdrawn"
+                updates.containsKey(ext.packageName) -> "Update available"
+                else -> ""
+            }
+            if (note.isNotEmpty()) row.addView(cell(note, 150, if (ext.state == ExtensionState.REVOKED) Color.rgb(255, 120, 120) else Color.rgb(140, 230, 160), 15f))
             list.addView(row)
             if (ext.packageName == focusPackage) row.post { row.requestFocus() }
         }
@@ -216,6 +241,23 @@ class ExtensionsPage(
         val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
+        }
+        ext.versionName?.let { box.addView(text("Version $it" + (updates[ext.packageName]?.let { n -> "  ·  $n is available" } ?: ""), 15f, soft)) }
+        var shown: PortalDialog? = null
+        updates[ext.packageName]?.let { newer ->
+            box.addView(TextView(context).apply {
+                text = "Update to $newer"
+                textSize = 18f
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(Color.WHITE)
+                setPadding(px(20), px(10), px(20), px(10))
+                setBackgroundResource(R.drawable.bg_settings_tile)
+                isFocusable = true
+                isClickable = true
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(12); bottomMargin = px(8) }
+                contentDescription = "Update ${ext.name} to $newer. Select to open the catalog."
+                setOnClickListener { shown?.dismiss(); onBrowse() }
+            })
         }
         // One line says whether to trust it. Verified: one of ours, or the one the catalog lists (same signer). Otherwise a warning.
         // Only judged once the catalog has been loaded.
@@ -259,7 +301,7 @@ class ExtensionsPage(
 
         when (val parsed = ext.parsed) {
             is ManifestParser.Result.Invalid -> box.addView(text("\n" + parsed.reason, 16f, soft))
-            is ManifestParser.Result.NeedsNewerPortal -> box.addView(text("\nIt was written for a newer version of the extension contract (${parsed.contract}) than this Portal speaks (${ManifestParser.CONTRACT_VERSION}).", 16f, soft))
+            is ManifestParser.Result.NeedsNewerPortal -> box.addView(text("\nIt needs a newer version of Portal than this one. Update Portal, then look again.", 16f, soft))
             is ManifestParser.Result.Ok -> if (ext.state == ExtensionState.REVOKED) {
                 // Nothing to allow: it is off. Only Uninstall is left.
             } else {
@@ -327,7 +369,6 @@ class ExtensionsPage(
         }
         ext.problems.forEach { box.addView(text("\n⚠ $it", 14f, Color.rgb(255, 200, 100))) }
 
-        var shown: PortalDialog? = null
         // Taking it off the TV: Android asks to confirm, and Portal forgets what was allowed once it is gone.
         val system = runCatching {
             context.packageManager.getApplicationInfo(ext.packageName, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0

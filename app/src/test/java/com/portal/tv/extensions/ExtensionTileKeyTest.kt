@@ -55,6 +55,8 @@ class ExtensionLabelsTest {
         assertEquals("3 found, need your permission", ExtensionLabels.summary(3, 0))
         assertEquals("1 found, needs your permission", ExtensionLabels.summary(1, 0))
         assertEquals("2 found, 1 allowed", ExtensionLabels.summary(2, 1))
+        assertEquals("2 found, 1 allowed · 1 update", ExtensionLabels.summary(2, 1, 1))
+        assertEquals("2 found, need your permission · 2 updates", ExtensionLabels.summary(2, 0, 2))
     }
 
     @Test

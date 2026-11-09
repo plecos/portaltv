@@ -42,9 +42,13 @@ class SettingsFragment : Fragment() {
 
     companion object {
         private const val ARG_UPDATES = "updates"
+        private const val ARG_EXTENSIONS = "extensions"
 
         /** Settings opened straight at System, Updates, with the update's button selected. */
         fun forUpdates() = SettingsFragment().apply { arguments = Bundle().apply { putBoolean(ARG_UPDATES, true) } }
+
+        /** Settings opened straight at Extensions (an extension has an update). */
+        fun forExtensions() = SettingsFragment().apply { arguments = Bundle().apply { putBoolean(ARG_EXTENSIONS, true) } }
     }
 
     private var onBackgroundChanged: (() -> Unit)? = null
@@ -848,6 +852,11 @@ class SettingsFragment : Fragment() {
             val install = view.findViewById<View>(R.id.opt_update_install)
             val target = if (install.visibility == View.VISIBLE) install else view.findViewById(R.id.opt_update_check)
             target.post { target.requestFocus() }
+        } else if (arguments?.getBoolean(ARG_EXTENSIONS) == true && shown.any { it.itemId == R.id.cat_extensions }) {
+            val at = shown.indexOfFirst { it.itemId == R.id.cat_extensions }
+            active = at
+            refresh()
+            items[at].post { items[at].requestFocus() }
         } else {
             val back = shown.indexOfFirst { it.itemId == returnToCategory }.takeIf { returnToCategory != 0 && it >= 0 } ?: 0
             active = back
@@ -1937,8 +1946,8 @@ class SettingsFragment : Fragment() {
     /** The Extensions page: what is installed, and what an adult has allowed. A kid's Settings never shows it. */
     private fun setupExtensions(view: View) {
         if (com.portal.tv.repo.ProfileManager.isActiveKids(requireContext())) return
-        val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }, { found, allowed ->
-            extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed)
+        val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }, { found, allowed, updates ->
+            extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed, updates)
             refreshCategories?.invoke()
             refreshBackgroundChoices?.invoke()
             refreshSaverLooks?.invoke()
