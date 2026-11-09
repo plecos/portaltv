@@ -194,8 +194,10 @@ internal fun PixelScene.drawCityBlocks(s: SceneState) {
     for (lot in first..first + W / LOT + 2) {
         val x0 = lot * LOT - offset
         val amount = s.cityAt((lot * LOT + LOT / 2).toDouble(), NEAR_FACTOR)
-        if (amount <= 0.02f) continue
-        val growth = smoothstep(0.05f, 0.95f, amount)
+        // A lot is either city or not (decided by where it stands in the world, so it never changes as it scrolls by): the buildings
+        // are simply there at full height, they don't rise out of the ground in the transition.
+        if (amount < 0.3f) continue
+        val growth = 1f
         when (lotKind(lot, s.placeMode)) {
             PARK -> drawPark(s, lot, x0, bottom, amount)
             SCHOOL -> drawSchool(s, lot, x0, bottom, growth, night)
