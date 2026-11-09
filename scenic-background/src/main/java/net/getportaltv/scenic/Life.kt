@@ -378,7 +378,23 @@ internal fun PixelScene.drawButterflies(s: SceneState) {
         if (x < -4 || x > W + 4) continue
         val color = lit(s, colors[(Noise.unit(seed, 3) * colors.size).toInt().coerceIn(0, colors.size - 1)], 0.04f)
         val open = (s.time * 9 + phase).toInt() % 2 == 0
-        if (open) fill(x.toInt(), y.toInt(), x.toInt() + 3, y.toInt() + 1, color) else fill(x.toInt() + 1, y.toInt() - 1, x.toInt() + 2, y.toInt() + 1, color)
+        if (hiRes) {
+            // A butterfly whose wings really beat: two pairs of rounded wings with a spot, a slim body and two feelers.
+            val flap = kotlin.math.abs(sin(s.time * 9 + phase)).toFloat()
+            val ww = 0.5f + 1.9f * flap
+            val bx = x.toFloat() + 1.5f
+            val by = y.toFloat() + 0.5f
+            val shade = Colors.scale(color, 0.78f)
+            for (side in intArrayOf(-1, 1)) {
+                val x0 = if (side < 0) bx - ww else bx
+                val x1 = if (side < 0) bx else bx + ww
+                fillOval(x0, by - 1.9f, x1, by + 0.2f, color, 1f)
+                fillOval(x0, by - 0.2f, x1, by + 1.5f, shade, 1f)
+                if (flap > 0.5f) fillOval(if (side < 0) bx - ww * 0.7f else bx + ww * 0.2f, by - 1.3f, if (side < 0) bx - ww * 0.2f else bx + ww * 0.7f, by - 0.6f, rgb(255, 255, 255), 0.55f)
+            }
+            fillOval(bx - 0.25f, by - 1.2f, bx + 0.45f, by + 1.2f, rgb(40, 34, 36), 1f)
+            line(bx, by - 1.2f, bx - 0.9f, by - 2.2f, rgb(40, 34, 36), 190); line(bx + 0.2f, by - 1.2f, bx + 1.1f, by - 2.2f, rgb(40, 34, 36), 190)
+        } else if (open) fill(x.toInt(), y.toInt(), x.toInt() + 3, y.toInt() + 1, color) else fill(x.toInt() + 1, y.toInt() - 1, x.toInt() + 2, y.toInt() + 1, color)
     }
 }
 
@@ -396,9 +412,17 @@ internal fun PixelScene.drawFireflies(s: SceneState) {
         if (x < -4 || x > W + 4) continue
         val pulse = max(0.0, sin(s.time * 1.3 + phase)).let { it * it }.toFloat()
         if (pulse < 0.05f) continue
+        if (hiRes) {
+            // Round glows that brighten toward a small bright core.
+            val fx = x.toFloat(); val fy = y.toFloat()
+            fillOval(fx - 3.2f, fy - 3.2f, fx + 3.2f, fy + 3.2f, rgb(200, 255, 120), pulse * 0.14f)
+            fillOval(fx - 2f, fy - 2f, fx + 2f, fy + 2f, rgb(220, 255, 140), pulse * 0.30f)
+            fillOval(fx - 1f, fy - 1f, fx + 1f, fy + 1f, rgb(250, 255, 200), pulse)
+        } else {
         fillAlpha(x.toInt() - 2, y.toInt() - 2, x.toInt() + 3, y.toInt() + 3, rgb(200, 255, 120), pulse * 0.28f)
         fillAlpha(x.toInt() - 1, y.toInt() - 1, x.toInt() + 2, y.toInt() + 2, rgb(220, 255, 140), pulse * 0.55f)
         fillAlpha(x.toInt(), y.toInt(), x.toInt() + 1, y.toInt() + 1, rgb(250, 255, 200), pulse)
+        }
     }
 }
 
