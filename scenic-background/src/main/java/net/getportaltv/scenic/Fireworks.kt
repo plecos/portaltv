@@ -46,8 +46,15 @@ internal fun PixelScene.drawFireworks(s: SceneState) {
                 // The rocket climbing, with a short spark tail.
                 val f = age / rise
                 val y = 124 - ((124 - cy) * (1f - (1f - f) * (1f - f))).toInt()
+                if (scale > 1) {
+                    // A bright head with a glow, and a trail of sparks falling away behind it.
+                    fillGlow(cx + 0.5f, y + 0.5f, 5f, rgb(255, 230, 170), 0.55f * night)
+                    fillOval(cx - 0.2f, y - 0.2f, cx + 1.2f, y + 1.2f, rgb(255, 250, 220), 0.95f * night)
+                    for (k in 1..10) fillOval(cx + 0.1f + (Noise.unit(k, ev.seed, 463) - 0.5f) * 0.8f, y + k * 1.2f, cx + 0.8f + (Noise.unit(k, ev.seed, 463) - 0.5f) * 0.8f, y + k * 1.2f + 0.7f, rgb(255, 190, 110), (0.8f - k * 0.075f).coerceAtLeast(0f) * night)
+                } else {
                 fillAlpha(cx, y, cx + 1, y + 1, rgb(255, 240, 200), 0.95f * night)
                 for (k in 1..4) fillAlpha(cx, y + k * 2, cx + 1, y + k * 2 + 1, rgb(255, 190, 110), (0.7f - k * 0.15f) * night)
+                }
                 continue
             }
             val a = age - rise
@@ -59,7 +66,10 @@ internal fun PixelScene.drawFireworks(s: SceneState) {
             val fade = (1f - a / life).coerceIn(0f, 1f)
             val sparks = if (willow) 44 else 56
             // The flash of the burst lights the sky around it for a moment.
-            if (a < 0.3f) fillAlpha(cx - 2, cy - 2, cx + 3, cy + 3, centre, 0.8f * (1f - a / 0.3f) * night)
+            if (a < 0.3f) {
+                if (scale > 1) fillGlow(cx + 0.5f, cy + 0.5f, 16f, centre, 0.7f * (1f - a / 0.3f) * night)
+                else fillAlpha(cx - 2, cy - 2, cx + 3, cy + 3, centre, 0.8f * (1f - a / 0.3f) * night)
+            }
             val r = radius * (1f - exp(-a * 2.8f))
             for (j in 0 until sparks) {
                 val ang = (j + ev.unit(6 + j % 5) * 0.8f) * (2 * Math.PI / sparks).toFloat()
@@ -70,6 +80,18 @@ internal fun PixelScene.drawFireworks(s: SceneState) {
                 if (px < 0 || px >= W || py < 0 || py > 130) continue
                 if (Noise.unit(j, floor(s.time * 14).toInt(), ev.seed) < (a / life) * 0.55f) continue
                 val col = if (j % 4 == 0) centre else main
+                if (scale > 1) {
+                    // Round sparks with a faint halo and a tail of fainter and fainter points behind them along their path.
+                    val fx = cx + cos(ang) * reach; val fy = cy + sin(ang) * reach * 0.92f + 0.5f * gravity * a * a
+                    fillOval(fx - 1.1f, fy - 1.1f, fx + 1.1f, fy + 1.1f, col, fade * 0.18f * night)
+                    fillOval(fx - 0.55f, fy - 0.55f, fx + 0.55f, fy + 0.55f, col, (fade * 0.95f) * night)
+                    if (a < life * 0.7f) for (k in 1..4) {
+                        val a2 = (a - k * 0.045f).coerceAtLeast(0f)
+                        val r2 = radius * (1f - exp(-a2 * 2.8f)) * shell
+                        val tx = cx + cos(ang) * r2; val ty = cy + sin(ang) * r2 * 0.92f + 0.5f * gravity * a2 * a2
+                        fillOval(tx - 0.4f, ty - 0.4f, tx + 0.4f, ty + 0.4f, main, fade * (0.5f - k * 0.1f) * night)
+                    }
+                } else {
                 fillAlpha(px, py, px + 2, py + 2, col, (fade * 0.95f) * night)
                 if (a < life * 0.6f) {
                     val a2 = a - 0.09f
@@ -77,6 +99,7 @@ internal fun PixelScene.drawFireworks(s: SceneState) {
                     val tx = cx + (cos(ang) * r2 * shell).toInt()
                     val ty = cy + (sin(ang) * r2 * 0.92f * shell + 0.5f * gravity * a2 * a2).toInt()
                     if (tx in 0 until W && ty >= 0) fillAlpha(tx, ty, tx + 1, ty + 1, main, fade * 0.45f * night)
+                }
                 }
             }
         }
