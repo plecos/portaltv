@@ -851,39 +851,6 @@ class PixelScene {
                     y += 2
                 }
             }
-            // Ridges and spurs running down from each summit, a dark line with a lit one beside it, so the face reads as folds of rock.
-            run {
-                val ridgeDark = Colors.scale(shade, 0.78f); val ridgeLight = Colors.mul(lit, 1.12f, 1.12f, 1.16f)
-                var cx = 12
-                while (cx < n - 12) {
-                    val t0 = tp[cx]
-                    var isPeak = t0 < H * sc - 30
-                    if (isPeak) { var k = -24; while (k <= 24) { val xx = cx + k; if (xx in 0 until n && tp[xx] < t0) { isPeak = false; break }; k += 3 } }
-                    if (isPeak && t0 > 6) {
-                        val wc = offset.toInt() * sc + cx
-                        for (side in intArrayOf(-1, 1)) for (rr in 0 until 3) {
-                            val h1 = Noise.hash(wc, side * 7 + rr, 41)
-                            var rx = cx + side * (4 + (h1 and 7) * 2 + rr * 3).toFloat().toInt()
-                            var ry = t0 + 2f
-                            var ax = rx.toFloat(); var ay = t0 + 3f
-                            val len = 40 + (h1 shr 3 and 31)
-                            var step = 0
-                            var px0 = cx + side * (rr * 3 + 1).toFloat(); var py0 = t0.toFloat() + 2f
-                            while (step < len && py0 < limit - 4) {
-                                val nx = px0 + side * (1.1f + 0.5f * Noise.unit(wc, step / 6, 43 + rr))
-                                val ny = py0 + 1.5f
-                                val ix = nx.toInt()
-                                if (ix in 0 until n && ny.toInt() < limit) {
-                                    fillAlphaPhys(ix, ny.toInt(), ix + 1, ny.toInt() + 1, ridgeDark, 0.34f)
-                                    fillAlphaPhys(ix + side * -1, ny.toInt(), ix + side * -1 + 1, ny.toInt() + 1, ridgeLight, 0.26f)
-                                }
-                                px0 = nx; py0 = ny; step++
-                            }
-                        }
-                    }
-                    cx += 4
-                }
-            }
             return
         }
         for (px in 0 until W * sc) {
