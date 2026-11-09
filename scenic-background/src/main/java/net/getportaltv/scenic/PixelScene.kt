@@ -885,6 +885,8 @@ class PixelScene {
         val calm = (1f - s.cond.rain - s.cond.snow - s.cond.fog * 1.3f - s.cond.thunder).coerceIn(0f, 1f)
         val daylight = Colors.smoothstep(-2f, 8f, s.sunAlt.toFloat())
         if (calm * daylight < 0.1f) return
+        // At the beach the only birds are gulls and pelicans, which the sea life draws.
+        if (s.beachAt(s.cam + W / 2.0, 1.0) > 0.2f || s.beachAt(s.cam, 1.0) > 0.5f || s.beachAt(s.cam + W, 1.0) > 0.5f) return
         spritePaint.colorFilter = filter(s, 0.12f)
         val slotLen = 14.0
         val slot = floor(s.time / slotLen).toInt()
