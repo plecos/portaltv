@@ -45,11 +45,11 @@ private object BeachSprites {
             .map { (a, b) -> umbrella(a, b) }
     }
 
-    private fun umbrella(c1: Int, c2: Int) = picture(13, 11) { bm ->
+    private fun umbrella(c1: Int, c2: Int) = HiBeach.umbrella(picture(13, 11) { bm ->
         val half = intArrayOf(2, 4, 5, 6)
         for (r in 0..3) for (x in 6 - half[r]..6 + half[r]) bm.dot(x, r, if ((x / 2) % 2 == 0) c1 else c2)
         bm.rect(6, 4, 7, 11, POLE)
-    }
+    }, c1, c2, POLE)
 
     private val SUITS = intArrayOf(rgb(230, 80, 90), rgb(60, 140, 220), rgb(250, 200, 60), rgb(90, 190, 130))
     private val sunbatherCache = HashMap<Int, Sprite>()
@@ -79,7 +79,7 @@ private object BeachSprites {
 
     val palms by lazy { listOf(palm(0), palm(1)) }
 
-    private fun palm(lean: Int) = picture(19, 25) { bm ->
+    private fun palm(lean: Int) = HiBeach.palm(picture(19, 25) { bm ->
         val trunk = rgb(132, 96, 62)
         val ring = rgb(96, 68, 44)
         val cx0 = 9
@@ -104,9 +104,9 @@ private object BeachSprites {
             }
         }
         bm.dot(cx, top + 1, rgb(110, 76, 44)); bm.dot(cx + 2, top + 1, rgb(110, 76, 44))
-    }
+    }, lean)
 
-    val tower = picture(14, 17) { bm ->
+    val tower = HiBeach.tower(picture(14, 17) { bm ->
         val wood = rgb(160, 118, 80)
         val dark = rgb(112, 80, 54)
         for (x in intArrayOf(1, 4, 9, 12)) bm.rect(x, 10, x + 1, 17, dark)
@@ -116,9 +116,9 @@ private object BeachSprites {
         bm.rect(1, 1, 13, 3, rgb(210, 60, 52))
         bm.rect(4, 4, 8, 6, rgb(60, 80, 110))
         bm.rect(9, 7, 11, 9, dark)
-    }
+    })
 
-    val castle = picture(9, 6) { bm ->
+    val castle = HiBeach.castle(picture(9, 6) { bm ->
         val sand = rgb(214, 190, 138)
         val shade = rgb(176, 150, 104)
         bm.rect(0, 3, 9, 6, sand)
@@ -126,14 +126,14 @@ private object BeachSprites {
         bm.dot(1, 1, 0); bm.dot(7, 1, 0); bm.dot(4, 0, rgb(210, 60, 52))
         bm.rect(0, 5, 9, 6, shade)
         bm.dot(4, 4, shade)
-    }
+    })
 
-    val net = picture(18, 12) { bm ->
+    val net = HiBeach.net(picture(18, 12) { bm ->
         val post = rgb(236, 236, 232)
         bm.rect(0, 0, 1, 12, post); bm.rect(17, 0, 18, 12, post)
         for (y in 1..4) for (x in 1..16) if ((x + y) % 2 == 0) bm.dot(x, y, rgb(220, 220, 224))
         bm.rect(1, 1, 17, 2, post)
-    }
+    })
 
     private val playerCache = HashMap<Int, Sprite>()
 
@@ -144,15 +144,15 @@ private object BeachSprites {
         Sprite(rows, mapOf('s' to People.SKIN[skin], 'h' to People.hair(hair), 'b' to SUITS[suit], 'p' to rgb(60, 70, 110)))
     }
 
-    val sailboat = picture(10, 11) { bm ->
+    val sailboat = HiBeach.sailboat(picture(10, 11) { bm ->
         bm.rect(4, 0, 5, 8, rgb(120, 100, 80))
         for (r in 1..7) bm.rect(5, r, 5 + (r + 1) / 2, r + 1, WHITE)
         for (r in 2..7) bm.rect(4 - (8 - r) / 3 - 1, r, 4, r + 1, rgb(240, 240, 250))
         bm.rect(0, 8, 10, 10, rgb(120, 66, 50))
         bm.rect(0, 8, 10, 9, rgb(236, 236, 232))
-    }
+    })
 
-    val ship = picture(24, 9) { bm ->
+    val ship = HiBeach.ship(picture(24, 9) { bm ->
         bm.rect(0, 6, 24, 9, rgb(60, 50, 56))
         bm.rect(0, 6, 24, 7, rgb(170, 60, 50))
         bm.rect(3, 2, 9, 6, WHITE)
@@ -161,9 +161,9 @@ private object BeachSprites {
         val cols = intArrayOf(rgb(200, 80, 60), rgb(70, 120, 190), rgb(220, 180, 70), rgb(90, 160, 110))
         for (k in 0 until 5) bm.rect(11 + k * 2, 4, 13 + k * 2, 6, cols[k % cols.size])
         for (k in 0 until 4) bm.rect(12 + k * 2, 2, 14 + k * 2, 4, cols[(k + 1) % cols.size])
-    }
+    })
 
-    val lighthouse = picture(9, 24) { bm ->
+    val lighthouse = HiBeach.lighthouse(picture(9, 24) { bm ->
         val white = rgb(240, 240, 238)
         val red = rgb(204, 58, 50)
         // The tower, narrowing toward the top, in red and white bands.
@@ -179,9 +179,9 @@ private object BeachSprites {
         bm.rect(2, 6, 7, 7, rgb(60, 60, 70))
         // The rock it stands on.
         bm.rect(0, 22, 9, 24, rgb(92, 88, 92)); bm.rect(1, 21, 8, 22, rgb(92, 88, 92))
-    }
+    })
 
-    val cruise = picture(46, 16) { bm ->
+    val cruise = HiBeach.cruise(picture(46, 16) { bm ->
         val white = rgb(246, 246, 246)
         val shade = rgb(206, 210, 220)
         val blue = rgb(40, 70, 130)
@@ -199,7 +199,7 @@ private object BeachSprites {
         bm.rect(30, 0, 34, 4, rgb(240, 190, 60)); bm.rect(30, 0, 34, 1, rgb(50, 50, 60))
         bm.rect(24, 1, 28, 4, rgb(240, 190, 60)); bm.rect(24, 1, 28, 2, rgb(50, 50, 60))
         for (x in 8 until 40 step 6) bm.dot(x, 13, rgb(230, 120, 40))
-    }
+    })
 
     val gullUp = picture(5, 3) { bm -> bm.dot(0, 0, WHITE); bm.dot(4, 0, WHITE); bm.dot(1, 1, WHITE); bm.dot(3, 1, WHITE); bm.dot(2, 2, rgb(210, 210, 214)) }
     private val PELICAN_BODY = rgb(122, 106, 92)
@@ -208,7 +208,7 @@ private object BeachSprites {
     private val PELICAN_BILL = rgb(204, 166, 112)
 
     /** A brown pelican facing right, wings out flat for the glide: broad wings, white head and a long pouched bill. */
-    val pelicanGlide = picture(13, 5) { bm ->
+    val pelicanGlide = HiBeach.pelican(picture(13, 5) { bm ->
         bm.rect(0, 1, 9, 2, PELICAN_WING)
         bm.rect(2, 2, 9, 3, PELICAN_BODY)
         bm.rect(3, 3, 7, 4, PELICAN_BODY)
@@ -216,23 +216,23 @@ private object BeachSprites {
         bm.rect(11, 2, 13, 3, PELICAN_BILL)
         bm.dot(11, 3, PELICAN_BILL)
         bm.dot(10, 1, PELICAN_WING)
-    }
-    val pelicanUp = picture(13, 6) { bm ->
+    }, 2)
+    val pelicanUp = HiBeach.pelican(picture(13, 6) { bm ->
         bm.dot(0, 0, PELICAN_WING); bm.rect(1, 1, 3, 2, PELICAN_WING); bm.rect(3, 2, 8, 3, PELICAN_WING)
         bm.rect(3, 3, 9, 4, PELICAN_BODY)
         bm.rect(4, 4, 8, 5, PELICAN_BODY)
         bm.rect(9, 2, 11, 4, PELICAN_HEAD)
         bm.rect(11, 3, 13, 4, PELICAN_BILL)
         bm.dot(11, 4, PELICAN_BILL)
-    }
-    val pelicanDown = picture(13, 6) { bm ->
+    }, 4)
+    val pelicanDown = HiBeach.pelican(picture(13, 6) { bm ->
         bm.rect(2, 1, 8, 2, PELICAN_BODY)
         bm.rect(1, 2, 9, 3, PELICAN_BODY)
         bm.rect(0, 3, 3, 4, PELICAN_WING); bm.dot(0, 4, PELICAN_WING); bm.rect(3, 3, 8, 4, PELICAN_WING)
         bm.rect(9, 1, 11, 3, PELICAN_HEAD)
         bm.rect(11, 2, 13, 3, PELICAN_BILL)
         bm.dot(11, 3, PELICAN_BILL)
-    }
+    }, 2)
     val gullDown = picture(5, 3) { bm -> bm.dot(2, 0, rgb(210, 210, 214)); bm.rect(1, 1, 4, 2, WHITE); bm.dot(0, 2, WHITE); bm.dot(4, 2, WHITE) }
 
 }
