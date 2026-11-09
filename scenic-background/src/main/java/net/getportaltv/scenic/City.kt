@@ -310,11 +310,23 @@ private fun PixelScene.drawPlayground(s: SceneState, lot: Int, x0: Int, bottom: 
     val left = x0 + 20
     val right = x0 + 34
     val top = bottom - 15
-    fill(left, top, right + 1, top + 2, metal)
-    for (post in intArrayOf(left, right)) {
-        fill(post, top, post + 1, bottom, metal)
-        fill(post - 1, bottom - 2, post, bottom, metal)
-        fill(post + 1, bottom - 2, post + 2, bottom, metal)
+    if (hiRes) {
+        // The frame on the finer grid: a round top bar with a highlight, and A-shaped legs that splay to the ground.
+        val sc = scale
+        fillPhys(left * sc, top * sc, (right + 1) * sc, top * sc + 3, metal)
+        fillPhys(left * sc, top * sc, (right + 1) * sc, top * sc + 1, Colors.mul(metal, 1.25f, 1.25f, 1.25f))
+        for (post in intArrayOf(left, right)) {
+            line(post + 0.5f, top + 1f, post - 2.6f, bottom.toFloat(), metal)
+            line(post + 0.5f, top + 1f, post + 3.6f, bottom.toFloat(), Colors.scale(metal, 0.8f))
+            fillOval(post - 0.8f, top - 0.4f, post + 1.9f, top + 1.8f, Colors.scale(metal, 0.85f), 1f)
+        }
+    } else {
+        fill(left, top, right + 1, top + 2, metal)
+        for (post in intArrayOf(left, right)) {
+            fill(post, top, post + 1, bottom, metal)
+            fill(post - 1, bottom - 2, post, bottom, metal)
+            fill(post + 1, bottom - 2, post + 2, bottom, metal)
+        }
     }
     for (swing in 0..1) {
         val bx = left + 4 + swing * 6
@@ -325,9 +337,25 @@ private fun PixelScene.drawPlayground(s: SceneState, lot: Int, x0: Int, bottom: 
         val length = 10f
         val sx = bx + (sin(angle) * length).toInt()
         val sy = top + 2 + (cos(angle) * length).toInt()
-        line(bx + 0.5f, top + 2f, sx + 0.5f, sy.toFloat(), chain)
-        fill(sx - 2, sy, sx + 2, sy + 1, seat)
-        if (occupied) {
+        if (hiRes) {
+            // Two chains and a rounded seat.
+            line(bx - 0.2f, top + 2f, sx - 1.6f, sy.toFloat(), chain)
+            line(bx + 1.2f, top + 2f, sx + 1.8f, sy.toFloat(), chain)
+            fillOval(sx - 2.6f, sy.toFloat(), sx + 2.8f, sy + 1.4f, seat, 1f)
+            fillOval(sx - 2.2f, sy.toFloat(), sx + 2.4f, sy + 0.5f, Colors.mul(seat, 1.2f, 1.2f, 1.2f), 1f)
+        } else {
+            line(bx + 0.5f, top + 2f, sx + 0.5f, sy.toFloat(), chain)
+            fill(sx - 2, sy, sx + 2, sy + 1, seat)
+        }
+        if (occupied && hiRes) {
+            // The child: a round head with hair, a body, arms up to the chains and legs that kick out as they swing forward.
+            val kick = if (cos(t * 1.7) > 0) 1f else -1f
+            fillOval(sx - 1.3f, sy - 5.6f, sx + 1.7f, sy - 3.2f, kidSkin(0), 1f)
+            fillOval(sx - 1.5f, sy - 6.2f, sx + 1.9f, sy - 4.6f, kidHair(0), 1f)
+            fillOval(sx - 1.6f, sy - 3.6f, sx + 2.2f, sy + 0.2f, kidShirt(0), 1f)
+            line(sx - 1.4f, sy - 2.8f, sx - 1.6f, sy - 6f, kidSkin(0)); line(sx + 1.6f, sy - 2.8f, sx + 1.8f, sy - 6f, kidSkin(0))
+            line(sx - 0.4f, sy + 0.2f, sx - 0.4f + kick * 2.4f, sy + 3.4f, solid(s, rgb(60, 70, 110), 0.04f)); line(sx + 0.8f, sy + 0.2f, sx + 0.8f + kick * 2.4f, sy + 3.4f, solid(s, rgb(60, 70, 110), 0.04f))
+        } else if (occupied) {
             // The child: head, hair, body and legs that kick out as they swing forward.
             val kick = if (cos(t * 1.7) > 0) 1 else -1
             fill(sx - 1, sy - 5, sx + 1, sy - 3, kidSkin(0))
@@ -338,6 +366,26 @@ private fun PixelScene.drawPlayground(s: SceneState, lot: Int, x0: Int, bottom: 
     }
     // The slide: a ladder up to a platform, and a ramp down.
     val platform = bottom - 11
+    if (hiRes) {
+        // A ladder with two rails and rungs, a railed platform, and a ramp that curves down and flattens out to a lip.
+        val sc = scale
+        fillPhys((x0 + 36) * sc, platform * sc, (x0 + 40) * sc, platform * sc + 3, metal)
+        fillPhys((x0 + 36) * sc, platform * sc - 4, (x0 + 36) * sc + 1, platform * sc, metal); fillPhys((x0 + 39) * sc, platform * sc - 4, (x0 + 39) * sc + 1, platform * sc, metal)
+        fillPhys((x0 + 36) * sc, platform * sc - 4, (x0 + 40) * sc, platform * sc - 3, metal)
+        line(x0 + 36.5f, platform.toFloat(), x0 + 36.5f, bottom.toFloat(), ladder); line(x0 + 38.5f, platform.toFloat(), x0 + 38.5f, bottom.toFloat(), ladder)
+        var rungY = platform + 2.5f
+        while (rungY < bottom) { fillPhys((x0 + 36) * sc, (rungY * sc).toInt(), (x0 + 39) * sc + 1, (rungY * sc).toInt() + 1, ladder); rungY += 2.5f }
+        var prevX = x0 + 40f; var prevY = platform + 1f
+        for (st in 1..24) {
+            val u = st / 24f
+            val nx = x0 + 40f + u * 8.5f
+            val ny = platform + 1f + 8f * (u * (2f - u))
+            line(prevX, prevY, nx, ny, slideBlue); line(prevX, prevY - 0.6f, nx, ny - 0.6f, Colors.mul(slideBlue, 1.25f, 1.25f, 1.25f))
+            line(prevX, prevY + 1.2f, nx, ny + 1.2f, Colors.scale(slideBlue, 0.78f))
+            prevX = nx; prevY = ny
+        }
+        fillAlpha(x0 + 36, bottom, x0 + 50, bottom + 1, rgb(10, 10, 20), 0.2f)
+    } else {
     fill(x0 + 36, platform, x0 + 40, platform + 1, metal)
     fill(x0 + 36, platform, x0 + 37, bottom, ladder)
     fill(x0 + 38, platform, x0 + 39, bottom, ladder)
@@ -347,20 +395,34 @@ private fun PixelScene.drawPlayground(s: SceneState, lot: Int, x0: Int, bottom: 
         val ry = platform + (k * 9) / 7
         fill(x0 + 40 + k, ry, x0 + 41 + k, ry + 2, slideBlue)
     }
+    }
     if (kids) {
         // A child waits on the platform, then sits and slides down, and then is off again.
         val u = (t + lot * 1.3) % 9.0
         if (u < 3.0) {
             val shift = if (u < 2.0) 0 else 2
+            if (hiRes) {
+                fillOval(x0 + 36.6f, platform - 5.6f + shift, x0 + 39.4f, platform - 3.2f + shift, kidSkin(1), 1f)
+                fillOval(x0 + 36.4f, platform - 6.2f + shift, x0 + 39.6f, platform - 4.6f + shift, kidHair(1), 1f)
+                fillOval(x0 + 36.4f, platform - 3.6f + shift, x0 + 40.2f, platform + shift.toFloat(), kidShirt(1), 1f)
+            } else {
             fill(x0 + 37, platform - 4, x0 + 39, platform - 2, kidSkin(1))
             fill(x0 + 37, platform - 5, x0 + 39, platform - 4, kidHair(1))
             fill(x0 + 37, platform - 2 + shift, x0 + 40, platform + shift, kidShirt(1))
+            }
         } else if (u < 4.6) {
             val k = (((u - 3.0) / 1.6) * 7).toInt().coerceIn(0, 7)
             val ry = platform + (k * 9) / 7
+            if (hiRes) {
+                val kx = x0 + 40f + k * 1.2f
+                fillOval(kx - 0.6f, ry - 5.2f, kx + 2.2f, ry - 2.8f, kidSkin(1), 1f)
+                fillOval(kx - 0.8f, ry - 5.8f, kx + 2.4f, ry - 4.2f, kidHair(1), 1f)
+                fillOval(kx - 0.8f, ry - 3.2f, kx + 2.8f, ry + 0.2f, kidShirt(1), 1f)
+            } else {
             fill(x0 + 40 + k - 1, ry - 4, x0 + 40 + k + 1, ry - 2, kidSkin(1))
             fill(x0 + 40 + k - 1, ry - 5, x0 + 40 + k + 1, ry - 4, kidHair(1))
             fill(x0 + 40 + k - 1, ry - 2, x0 + 40 + k + 2, ry, kidShirt(1))
+            }
         }
     }
 }
