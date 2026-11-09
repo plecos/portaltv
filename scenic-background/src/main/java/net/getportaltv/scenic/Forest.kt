@@ -144,19 +144,34 @@ internal fun PixelScene.drawCampsites(s: SceneState) {
         val flick = Noise.unit((s.time * 9).toInt(), i, 664)
         val tall = 3 + (flick * 3).toInt()
         val fx = cx - 1 + (if (flick > 0.6f) 1 else 0)
-        fill(cx - 2, base - 3, cx + 3, base - 1, rgb(232, 92, 30))
-        fill(cx - 1, base - 3 - tall + 2, cx + 2, base - 3, rgb(255, 150, 40))
-        fill(fx, base - 2 - tall + 1, fx + 1, base - 2, rgb(255, 232, 130))
+        if (hiRes) {
+            // Rounded flames in three layers that lick and flicker, over stones and crossed logs.
+            val sway = (flick - 0.5f) * 1.2f
+            val log = solid(s, rgb(70, 48, 34), 0.04f)
+            fillOval(cx - 3.4f, base - 1.9f, cx + 4.4f, base - 0.5f, log, 1f)
+            fillOval(cx - 2.6f, base - 2.6f, cx + 3.6f, base - 1.2f, Colors.mul(log, 1.2f, 1.2f, 1.2f), 1f)
+            for (k in 0 until 7) { val a = k * 2 * Math.PI / 7; fillOval((cx + 0.5f + kotlin.math.cos(a).toFloat() * 4.6f) - 0.8f, base - 0.4f + kotlin.math.sin(a).toFloat() * 0.6f - 0.5f, cx + 0.5f + kotlin.math.cos(a).toFloat() * 4.6f + 0.8f, base - 0.4f + kotlin.math.sin(a).toFloat() * 0.6f + 0.6f, solid(s, rgb(116, 116, 122), 0.04f), 1f) }
+            fillOval(cx - 2.6f + sway * 0.3f, base - 3f - tall + 1.5f, cx + 3.6f + sway * 0.3f, base - 1f, rgb(232, 92, 30), 1f)
+            fillOval(cx - 1.7f + sway * 0.6f, base - 3.2f - tall + 1.8f, cx + 2.7f + sway * 0.6f, base - 1.2f, rgb(255, 150, 40), 1f)
+            fillOval(cx - 0.7f + sway, base - 3f - tall * 0.6f, cx + 1.7f + sway, base - 1.4f, rgb(255, 232, 130), 1f)
+            if (night > 0.2f) fillOval(cx - 6f, base - 6f - tall, cx + 7f, base.toFloat(), rgb(255, 150, 60), night * 0.10f)
+        } else {
+            fill(cx - 2, base - 3, cx + 3, base - 1, rgb(232, 92, 30))
+            fill(cx - 1, base - 3 - tall + 2, cx + 2, base - 3, rgb(255, 150, 40))
+            fill(fx, base - 2 - tall + 1, fx + 1, base - 2, rgb(255, 232, 130))
+        }
         // Smoke drifting up and away.
         for (k in 0 until 7) {
             val age = ((s.time * 0.9 + k * 0.7 + i) % 5.0).toFloat() / 5f
             val sx = cx + (age * 6f).toInt() + (sin(s.time * 0.8 + k) * 2).toInt()
             val sy = base - 6 - (age * 26f).toInt()
-            fillAlpha(sx, sy, sx + 2 + (age * 2).toInt(), sy + 2, rgb(190, 190, 196), (1f - age) * 0.35f * (1f - 0.5f * night))
+            if (hiRes) fillOval(sx.toFloat(), sy.toFloat(), sx + 2f + age * 4f, sy + 2f + age * 2.5f, rgb(190, 190, 196), (1f - age) * 0.32f * (1f - 0.5f * night))
+            else fillAlpha(sx, sy, sx + 2 + (age * 2).toInt(), sy + 2, rgb(190, 190, 196), (1f - age) * 0.35f * (1f - 0.5f * night))
         }
         // The glow of the fire on the ground and the tents once it is dark.
         if (night > 0.1f) {
-            for (r in intArrayOf(30, 20, 11)) {
+            if (hiRes) for (r in intArrayOf(30, 20, 11)) fillOval((cx - r).toFloat(), base - 4f - r / 3f, (cx + r).toFloat(), base - 3f + r / 6f, rgb(255, 150, 60), night * 0.08f)
+            else for (r in intArrayOf(30, 20, 11)) {
                 for (dy in -r / 3..r / 6) {
                     val half = (kotlin.math.sqrt(1f - (dy * dy).toFloat() / ((r / 3f) * (r / 3f))) * r).toInt()
                     if (half > 0) fillAlpha(cx - half, base - 4 + dy, cx + half, base - 3 + dy, rgb(255, 150, 60), night * 0.08f)
@@ -170,6 +185,42 @@ private fun PixelScene.tent(s: SceneState, x: Int, base: Int, color: Int, flip: 
     val body = solid(s, color, 0.04f)
     val dark = Colors.mul(body, 0.7f, 0.7f, 0.74f)
     val h = 9
+    if (hiRes) {
+        // A tent on the finer grid: a lit left side and a shaded right, seams down the fabric, a door with its flaps tied back, guy
+        // ropes to pegs, and a shadow on the ground.
+        val sc = scale
+        val lightC = Colors.mul(body, 1.14f, 1.14f, 1.14f); val shadeC = Colors.mul(body, 0.78f, 0.78f, 0.82f)
+        val apexX = (x + 7) * sc + sc / 2
+        val topP = (base - h + 1) * sc
+        val bottomP = (base + 1) * sc
+        fillOval(x - 2f, base - 0.5f, x + 17f, base + 1.8f, rgb(10, 10, 20), 0.28f)
+        for (ry in 0 until bottomP - topP) {
+            val half = ((ry + 1f) / (bottomP - topP) * (7.6f * sc)).toInt()
+            fillPhys(apexX - half, topP + ry, apexX, topP + ry + 1, lightC)
+            fillPhys(apexX, topP + ry, apexX + half + 1, topP + ry + 1, shadeC)
+        }
+        // Seams, lighter on the lit side and darker on the other.
+        for (k in listOf(-0.7f, -0.35f, 0.35f, 0.7f)) {
+            val ex = apexX + (k * 7.4f * sc).toInt()
+            line(apexX / sc.toFloat(), (topP + 2f) / sc, ex / sc.toFloat(), base.toFloat(), if (k < 0) lightC else dark, 110)
+        }
+        // The door: dark inside with the flaps drawn back to each side.
+        val doorTop = (base - 5) * sc
+        for (ry in 0 until bottomP - doorTop) {
+            val half = ((ry + 1f) / (bottomP - doorTop) * (2.6f * sc)).toInt() + sc / 2
+            fillPhys(apexX - half, doorTop + ry, apexX + half, doorTop + ry + 1, rgb(24, 20, 26))
+            fillPhys(apexX - half - 2, doorTop + ry, apexX - half, doorTop + ry + 1, lightC)
+            fillPhys(apexX + half, doorTop + ry, apexX + half + 2, doorTop + ry + 1, shadeC)
+        }
+        // The pole's tip, guy ropes and pegs.
+        fillPhys(apexX - 1, topP - 3, apexX + 1, topP + 1, solid(s, rgb(150, 120, 80), 0.04f))
+        val rope = solid(s, rgb(226, 214, 190), 0.04f)
+        line(apexX / sc.toFloat(), topP / sc.toFloat() + 1f, x - 4f, base + 0.5f, rope, 150)
+        line(apexX / sc.toFloat(), topP / sc.toFloat() + 1f, x + 19f, base + 0.5f, rope, 150)
+        fillPhys((x - 4) * sc, base * sc, (x - 4) * sc + 2, base * sc + 2, dark); fillPhys((x + 19) * sc, base * sc, (x + 19) * sc + 2, base * sc + 2, dark)
+        fillPhys(x * sc, base * sc + sc, (x + 15) * sc, base * sc + sc + 1, dark)
+        return
+    }
     for (r in 0 until h) {
         val half = r * 7 / h
         val y = base - h + r + 1

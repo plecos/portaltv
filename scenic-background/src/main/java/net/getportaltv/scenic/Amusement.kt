@@ -167,6 +167,65 @@ private fun PixelScene.gate(s: SceneState, x: Int) {
             fillOval(x + 5f + k, BASE - 18.4f, x + 9f + k, BASE - 14.6f, color, 0.22f)
         }
     }
+    if (hiRes) {
+        // (16-bit) The entrance on the finer grid: shaded and panelled towers with arched windows and doorways, studs along the band,
+        // a pointed spire with a rippling flag, and a framed sign whose lettering is made of little glyphs.
+        val sc = scale
+        val glassC = lerp(lerp(s.look.skyBottom, rgb(56, 76, 106), 0.55f), rgb(255, 224, 140), night * 0.9f)
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        for (side in 0..1) {
+            val px = if (side == 0) x else x + GATE_W - 12
+            sidingTexture(px + 1, BASE - 30, px + 11, BASE)
+            fillAlphaPhys(px * sc, (BASE - 30) * sc, px * sc + 2, BASE * sc, white, 0.22f)
+            fillAlphaPhys((px + 12) * sc - 2, (BASE - 30) * sc, (px + 12) * sc, BASE * sc, ink, 0.26f)
+            wallFalloff(px + 1, BASE - 30, px + 11, BASE)
+            // Two arched windows with a sill and a glint.
+            for (wx in intArrayOf(px + 3, px + 7)) {
+                fillPhys(wx * sc, (BASE - 25) * sc, (wx + 2) * sc, (BASE - 20) * sc, glassC)
+                fillOval(wx.toFloat(), BASE - 26.2f, wx + 2f, BASE - 24f, glassC, 1f)
+                fillAlphaPhys(wx * sc - 1, (BASE - 20) * sc, (wx + 2) * sc + 1, (BASE - 20) * sc + 2, white, 0.5f)
+                fillAlphaPhys(wx * sc, (BASE - 25) * sc, wx * sc + 1, (BASE - 21) * sc, ink, 0.4f)
+                fillAlphaPhys((wx + 2) * sc - 1, (BASE - 25) * sc, (wx + 2) * sc, (BASE - 21) * sc, ink, 0.4f)
+                fillAlphaPhys(wx * sc + 1, (BASE - 24) * sc, wx * sc + 3, (BASE - 24) * sc + 2, white, 0.30f * (1f - night))
+            }
+            // The doorway: an arch above the dark door, with a lit frame.
+            fillOval(px + 3f, BASE - 14.6f, px + 9f, BASE - 9.4f, dark, 1f)
+            fillAlphaPhys((px + 3) * sc, (BASE - 12) * sc, (px + 3) * sc + 1, BASE * sc, white, 0.35f)
+            // Studs along the gold band, and a pointed spire.
+            var stud = (px + 1) * sc + 2
+            while (stud < (px + 11) * sc - 1) { fillPhys(stud, (BASE - 33) * sc, stud + 1, (BASE - 33) * sc + 1, rgb(255, 244, 190)); fillPhys(stud, (BASE - 31) * sc, stud + 1, (BASE - 31) * sc + 1, ink); stud += 4 }
+            val spireBase = (BASE - 34) * sc
+            val spireTop = (BASE - 41) * sc
+            for (ry in 0 until spireBase - spireTop) {
+                val half = (ry * 2.6f / (spireBase - spireTop) * sc).toInt() + 1
+                fillPhys((px + 6) * sc - half, spireTop + ry, (px + 6) * sc + half, spireTop + ry + 1, if (ry % 4 == 3) Colors.scale(band, 0.8f) else band)
+            }
+            fillOval(px + 5.4f, BASE - 42f, px + 6.6f, BASE - 40.6f, rgb(255, 232, 120), 1f)
+            // The flag ripples.
+            val flagC = c(s, rgb(220, 60, 60))
+            for (fx in 0 until 5 * sc) {
+                val wave = (sin(s.time * 4.0 + fx * 0.9) * 1.2).toInt()
+                fillPhys((px + 7) * sc + fx, (BASE - 40) * sc + wave, (px + 7) * sc + fx + 1, (BASE - 37) * sc + wave - (fx / 4), flagC)
+            }
+        }
+        // The sign: a double gold frame, and the lettering as small glyphs of lit strokes.
+        fillAlphaPhys((x + 7) * sc, (BASE - 27) * sc, (x + GATE_W - 7) * sc, (BASE - 27) * sc + 1, white, 0.3f)
+        fillPhys((x + 8) * sc, (BASE - 26) * sc, (x + GATE_W - 8) * sc, (BASE - 26) * sc + 1, band)
+        fillPhys((x + 8) * sc, (BASE - 18) * sc - 1, (x + GATE_W - 8) * sc, (BASE - 18) * sc, band)
+        fillPhys((x + 12) * sc, (BASE - 25) * sc, (x + 52) * sc, (BASE - 19) * sc, dark)
+        val letter = if (night > 0.2f) rgb(255, 230, 120) else c(s, rgb(250, 230, 160))
+        for (g in 0 until 20) {
+            val gx = (x + 12) * sc + 2 + g * 5
+            val bits = Noise.hash(g, 7, 311)
+            val top = (BASE - 24) * sc
+            if (bits and 1 != 0) fillPhys(gx, top, gx + 3, top + 1, letter)
+            if (bits and 2 != 0) fillPhys(gx, top + 5, gx + 3, top + 6, letter)
+            if (bits and 4 != 0) fillPhys(gx, top, gx + 1, top + 6, letter)
+            if (bits and 8 != 0) fillPhys(gx + 2, top, gx + 3, top + 6, letter)
+            if (bits and 16 != 0) fillPhys(gx + 1, top + 2, gx + 2, top + 4, letter)
+        }
+        if (night > 0.2f) fillOval((x + 10).toFloat(), BASE - 26f, (x + 54).toFloat(), BASE - 18f, rgb(255, 230, 120), night * 0.10f)
+    }
     // Seasonal touches: pumpkins at Halloween, lit trees at Christmas, and snow along the sign when it lies.
     if (s.season.halloween > 0.3f) for (k in 0 until 4) pumpkin(s, x + 14 + k * 9, BASE + 3 + (k % 2), night, 0.04f)
     if (s.season.festive > 0.3f) for (side in 0..1) {
