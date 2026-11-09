@@ -13,18 +13,31 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     val pixels: IntArray by lazy { IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) } }
 
     /** The same picture twice as big with its edges smoothed (see [doubled]), for the 16-bit style. */
-    val pixelsHi: IntArray by lazy { hiOverride ?: shaded(doubled(pixels, width, height), width * 2, height * 2) }
+    val pixelsHi: IntArray by lazy { hiOverride?.let { if (hiShade) shaded(it, width * 2, height * 2) else it } ?: shaded(doubled(pixels, width, height), width * 2, height * 2) }
 
     /** A finer drawing of this sprite, twice the size, drawn by hand for the 16-bit style (see [detail]). */
     private var hiOverride: IntArray? = null
+    private var hiShade = false
+
+    /** The hand-drawn fine pixels, if it has them (so a recoloured copy can be made from them). */
+    val hiBase: IntArray? get() = hiOverride
+
+    /** The same as [detail] from pixels already made; [shade] gives them the lit and shaded edges and leaf grain of the automatic version. */
+    fun detailPixels(px: IntArray, shade: Boolean): Sprite {
+        check(px.size == width * 2 * height * 2)
+        hiOverride = px
+        hiShade = shade
+        return this
+    }
 
     /** Gives this sprite a hand-drawn finer version for the 16-bit style (twice the width and height); returns the sprite. */
-    fun detail(hiRows: List<String>, hiPalette: Map<Char, Int>): Sprite {
+    fun detail(hiRows: List<String>, hiPalette: Map<Char, Int>, shade: Boolean = false): Sprite {
         val w = hiRows.maxOf { it.length }
         check(w == width * 2 && hiRows.size == height * 2) { "the fine drawing is ${w}x${hiRows.size}, not ${width * 2}x${height * 2}" }
         val px = IntArray(w * hiRows.size)
         hiRows.forEachIndexed { y, row -> row.forEachIndexed { x, ch -> hiPalette[ch]?.let { px[y * w + x] = it } } }
         hiOverride = px
+        hiShade = shade
         return this
     }
 
@@ -123,7 +136,20 @@ class SeasonalTree(val green: Sprite) {
                 val out = if (c == LEAF_D || c == LEAF_G || c == LEAF_L) map(c, x, y) else c
                 if (out != null) b.setPixel(x, y, out)
             }
-            return Sprite.of(b)
+            val sp = Sprite.of(b)
+            // The fine drawing, if the tree has one, is recoloured the same way.
+            green.hiBase?.let { hi ->
+                val w2 = src.width * 2
+                val out = IntArray(hi.size)
+                for (i in hi.indices) {
+                    val c = hi[i]
+                    if (c == 0) continue
+                    val r = if (c == LEAF_D || c == LEAF_G || c == LEAF_L) map(c, i % w2, i / w2) else c
+                    if (r != null) out[i] = r
+                }
+                sp.detailPixels(out, true)
+            }
+            return sp
         }
         fun shade(c: Int, dark: Int, mid: Int, light: Int) = if (c == LEAF_D) dark else if (c == LEAF_G) mid else light
         autumn = listOf(
@@ -268,7 +294,7 @@ object Sprites {
             }.concatToString()
         }
         for (t in 0 until 2) rows += CharArray(width) { x -> if (x == half || x == half - 1 && t == 1) (if (x == half) 'B' else 'b') else '.' }.concatToString()
-        return Sprite(rows, GREEN).also { frostOf[it] = frost(it) }
+        return Sprite(rows, GREEN).also { frostOf[it] = frost(it) }.let { s -> HiSprites.fir(tiers).let { (r, p) -> s.detail(r, p, shade = true) } }
     }
 
     /** A broad tree with a round crown of the given [radius], lit from the upper left, on a trunk. */
@@ -293,7 +319,7 @@ object Sprites {
         }
         val trunk = (radius / 2).coerceAtLeast(2)
         for (t in 0 until trunk) rows += CharArray(width) { x -> if (x == radius) 'B' else if (x == radius - 1) 'b' else '.' }.concatToString()
-        return Sprite(rows, GREEN)
+        return Sprite(rows, GREEN).let { s -> HiSprites.broadleaf(radius, seed, trunk).let { (r, p) -> s.detail(r, p, shade = true) } }
     }
 
     /** The broad trees through the year. */
