@@ -69,7 +69,10 @@ internal fun PixelScene.drawSkyline(s: SceneState) {
         for (i in first..first + W / layer.cell + 4) {
             val x0 = i * layer.cell + (Noise.unit(i, layer.seed, 1) * 8).toInt() - 4
             val w = layer.cell - 4 + (Noise.unit(i, layer.seed, 2) * layer.cell * 0.5f).toInt()
-            val amount = s.cityAt((x0 + w / 2).toDouble(), layer.factor)
+            // The far towers belong to the city on the ground below them: they show only where the city itself is on screen, so the
+            // skyline does not rise over the suburbs long before the city is reached (the far layers look far ahead along the road).
+            val ground = s.cityOnScreen((x0 - offset + w / 2).coerceIn(0, W - 1))
+            val amount = minOf(s.cityAt((x0 + w / 2).toDouble(), layer.factor), smoothstep(0.12f, 0.65f, ground))
             if (amount <= 0.02f) continue
             val tall = Noise.unit(i, layer.seed, 3)
             var h = layer.minH + tall * tall * (layer.maxH - layer.minH)
@@ -239,7 +242,9 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     if (s.snowCover > 0.03f) fillAlpha(x - 1, top - 2, x + w + 1, top, solid(s, rgb(238, 242, 250), 0.04f), s.snowCover)
     // Windows in rows, lit at night here and there.
     var wy = top + 5
-    val shopTop = bottom - 11
+    // Not every building has a shop: some have a plain lobby and a stone base instead.
+    val shop = Noise.unit(i, 977) < 0.6f
+    val shopTop = if (shop) bottom - 11 else bottom - 9
     while (wy < shopTop - 5) {
         var wx = x + 3
         var col = 0
@@ -256,8 +261,10 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
         }
         wy += 8
     }
-    // The shop at the bottom: an awning over a glass front with the lights on at night.
     val awning = solid(s, AWNINGS[(Noise.unit(i, 826) * AWNINGS.size).toInt().coerceIn(0, AWNINGS.size - 1)], 0.04f)
+    if (!shop) lobby(s, i, x, w, bottom, shopTop, body, shade, glassDay, night)
+    if (shop) {
+    // The shop at the bottom: an awning over a glass front with the lights on at night.
     fill(x + 2, shopTop, x + w - 2, shopTop + 3, awning)
     var ax = x + 3
     while (ax < x + w - 3) { fill(ax, shopTop, ax + 2, shopTop + 3, lerp(awning, rgb(255, 255, 255), 0.45f)); ax += 4 }
@@ -272,9 +279,11 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     var mx = x + 2 + 8
     while (mx < x + w - 4) { fill(mx, shopTop + 3, mx + 1, bottom, lerp(body, rgb(20, 20, 30), 0.4f)); mx += 9 }
     fill(x + w / 2 - 1, shopTop + 4, x + w / 2 + 2, bottom, lerp(body, rgb(40, 30, 30), 0.5f))
+    }
     if (hiRes) {
         val sc = scale
         val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+        if (shop) {
         // The shop: a scalloped awning with a shadow under it, goods on a shelf in each window, and a door with a pane, handle and sign.
         var ax2 = x + 2
         var kk = 0
@@ -298,6 +307,7 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
         fillPhys(dxc + 1, (bottom - 4) * sc, dxc + 2, (bottom - 2) * sc, rgb(236, 226, 190))
         fillPhys(dxc - 1, (shopTop + 5) * sc, dxc + 3, (shopTop + 5) * sc + 3, lerp(WARM, white, 0.2f))
         if (w > 28) lettering(x + 6, shopTop - 5, w - 12, 2, i, lerp(body, white, 0.7f))
+        }
         // The parapet's coping, and the roof: an air-conditioning unit with its fan and grille, a vent pipe, and on some a tank, an antenna with a dish or a billboard.
         fillAlphaPhys((x - 1) * sc, (top - 1) * sc, (x + w + 1) * sc, (top - 1) * sc + 1, white, 0.38f)
         val roofX = x + 2 + (Noise.unit(i, 827) * (w - 10).coerceAtLeast(1)).toInt()
@@ -327,6 +337,35 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
             if (night > 0.2f && (s.time * 0.8).toInt() % 2 == 0) { fillGlow(x + 4.5f, top - 10.4f, 4f, rgb(255, 70, 60), 0.6f); fillOval(x + 3.9f, top - 11f, x + 5.1f, top - 9.8f, rgb(255, 90, 80), 1f) }
         } else fill(x + 4, top - 9, x + 5, top - 1, shade)
         extra < 0.62f && w > 40 -> billboard(s, i, x + 4, top - 1, night)
+    }
+}
+
+/** The ground floor of a building without a shop: a stone base, a lobby door with a canopy and a light, and a window either side. */
+private fun PixelScene.lobby(s: SceneState, i: Int, x: Int, w: Int, bottom: Int, top: Int, body: Int, shade: Int, glassDay: Int, night: Float) {
+    val stone = lerp(body, rgb(120, 116, 112), 0.45f)
+    val stoneDark = lerp(stone, rgb(10, 10, 20), 0.25f)
+    fill(x, top, x + w, bottom, stone)
+    fill(x, top, x + w, top + 1, lerp(stone, rgb(255, 255, 255), 0.25f))
+    fill(x, top + 1, x + w, top + 2, stoneDark)
+    val lit = lerp(glassDay, WARM, night * 0.8f)
+    val dx = x + w / 2
+    // A window each side where the building is wide enough.
+    if (w >= 24) {
+        fill(x + 3, top + 4, x + 8, bottom - 2, lit)
+        fill(x + w - 8, top + 4, x + w - 3, bottom - 2, lit)
+        fill(x + 3, bottom - 2, x + 8, bottom - 1, stoneDark)
+        fill(x + w - 8, bottom - 2, x + w - 3, bottom - 1, stoneDark)
+    }
+    // The door, with a canopy over it and a step.
+    fill(dx - 3, top + 3, dx + 3, bottom, lerp(lit, rgb(30, 30, 40), 0.35f))
+    fill(dx, top + 3, dx + 1, bottom, stoneDark)
+    fill(dx - 4, top + 2, dx + 4, top + 3, shade)
+    fill(dx - 4, bottom - 1, dx + 4, bottom, lerp(stone, rgb(255, 255, 255), 0.2f))
+    if (night > 0.2f) fillAlpha(dx - 3, top + 3, dx + 3, bottom, WARM, 0.35f * night)
+    if (hiRes) {
+        val sc = scale
+        fillAlphaPhys(x * sc, (top + 2) * sc, (x + w) * sc, (top + 2) * sc + 2, rgb(8, 10, 24), 0.35f)
+        fillPhys((dx + 1) * sc + 2, (bottom - 4) * sc, (dx + 1) * sc + 4, (bottom - 3) * sc, rgb(236, 226, 190))
     }
 }
 

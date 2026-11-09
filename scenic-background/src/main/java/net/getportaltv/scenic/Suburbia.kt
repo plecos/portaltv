@@ -60,6 +60,7 @@ internal fun PixelScene.drawSuburbBlocks(s: SceneState) {
     if (s.placeMode != Places.JOURNEY && s.placeMode != Places.SUBURBIA) return
     val offset = floor(s.cam * NEAR).toInt()
     val first = Math.floorDiv(offset, DISTRICT) - 1
+    drawAirport(s)
     // The tower is farther off than the second row of houses, so it is drawn first and they stand in front of its feet.
     waterTower(s)
     secondRow(s)
