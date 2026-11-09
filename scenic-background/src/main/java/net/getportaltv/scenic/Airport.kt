@@ -114,6 +114,21 @@ internal fun PixelScene.drawAirport(s: SceneState) {
             }
             fillAlpha(x - 2, runwayY - 2, x + len + 2, runwayY + 5, rgb(255, 240, 200), night * 0.06f)
         }
+        // Airliners waiting at the terminal for their passengers, with a baggage cart and a fuel truck alongside.
+        val parked = if (Noise.unit(i, 990) < 0.6f) 2 else 1
+        for (k in 0 until parked) {
+            val px = x + 38 + k * 22
+            spritePaint.alpha = 255
+            spritePaint.colorFilter = filter(s, 0.12f + s.look.haze * 0.3f)
+            sprite(JetSprites.down, px, ground)
+            spritePaint.colorFilter = null
+            // The jet bridge from the terminal to the door, and the little service vehicle under the wing.
+            fill(px + 4, ground - 4, px + 7, ground - 3, dark)
+            val cartC = if (k == 0) lit(s, rgb(240, 200, 60), haze) else white
+            fill(px + 8, ground - 2, px + 12, ground - 1, cartC)
+            fill(px + 8, ground - 1, px + 9, ground, dark); fill(px + 11, ground - 1, px + 12, ground, dark)
+            if (night > 0.2f) fillAlpha(px + 3, ground - 5, px + 11, ground - 4, rgb(255, 235, 170), 0.7f * night)
+        }
         // The airliner: one pass at a time, taking off or landing.
         for (ev in LifeSchedule.events(s.time, 55.0, 24.0, 0.85f, 4701, s.boost)) {
             val t = (s.time - ev.spawn).toFloat()
