@@ -130,4 +130,51 @@ internal object HiBeach {
         px(25, headY, rgb(150, 110, 70))
         px(22, headY - 1, rgb(60, 52, 44))
     }.done()
+
+    /** Somebody lying on a towel seen from above, 14 by 4: hair and face at the left, a swimsuit, bare legs, a stripe on the towel. */
+    fun sunbather(sp: Sprite, suit: Int) = Fine(sp, blank = true).apply {
+        val hair = sp.pixels[0]; val skin = sp.pixels[1]; val tan = sp.pixels[sp.width + 1]
+        val towel = rgb(240, 240, 236)
+        rect(0, 0, 14, 4, towel); rect(6, 0, 8, 4, Colors.mul(suit, 1f, 1f, 1f))
+        rect(0, 3, 14, 4, Colors.scale(towel, 0.86f))
+        rect(0, 0, 3, 3, hair); rect(1, 1, 3, 3, skin); px(0, 0, hair)
+        rect(3, 0, 10, 3, skin)
+        rect(4, 0, 7, 2, suit); rect(9, 0, 11, 3, suit)
+        rect(10, 1, 14, 3, tan); rect(3, 2, 9, 3, tan)
+        rect(0, 2, 3, 3, Colors.scale(skin, 0.85f))
+    }.done()
+
+    /** A surfer standing on a board, 14 by 12: a wetsuit, arms out for balance, the board with a stripe. */
+    fun surfer(sp: Sprite) = Fine(sp, blank = true).apply {
+        val skin = sp.pixels[3]
+        val suit = rgb(60, 130, 220); val legs = rgb(40, 50, 80); val board = rgb(250, 230, 90)
+        rect(0, 10, 14, 12, board); rect(0, 11, 14, 12, Colors.scale(board, 0.82f)); rect(0, 10, 14, 11, Colors.mul(board, 1.1f, 1.1f, 1.05f))
+        rect(2, 10, 4, 12, rgb(220, 70, 60)); px(0, 10, CLEAR); px(13, 10, CLEAR)
+        rect(6, 0, 8, 1, rgb(60, 44, 36)); rect(6, 1, 8, 3, skin); px(7, 2, rgb(40, 28, 24))
+        rect(5, 3, 9, 7, suit); rect(5, 3, 6, 7, Colors.mul(suit, 1.18f, 1.18f, 1.18f)); rect(8, 3, 9, 7, Colors.scale(suit, 0.82f))
+        rect(3, 4, 5, 5, suit); rect(2, 5, 3, 6, skin); rect(9, 4, 11, 5, suit); rect(11, 3, 12, 4, skin)
+        rect(5, 7, 7, 10, legs); rect(7, 7, 9, 10, Colors.scale(legs, 0.8f)); rect(5, 9, 7, 10, skin)
+    }.done()
+
+    /** A beach volleyball player, 10 by 16, in swimwear: standing ready, or jumping with both arms up to hit the ball. */
+    fun player(sp: Sprite, skin: Int, hair: Int, suit: Int, up: Boolean, woman: Boolean) = Fine(sp, blank = true).apply {
+        val shorts = rgb(60, 70, 110); val shade = Colors.scale(skin, 0.82f); val hairD = Colors.scale(hair, 0.65f)
+        val y0 = if (up) 4 else 0
+        rect(3, y0, 7, y0 + 1, hair); rect(2, y0 + 1, 8, y0 + 2, hair); rect(2, y0 + 2, 3, y0 + 3, hair)
+        rect(3, y0 + 2, 8, y0 + 4, skin); px(7, y0 + 3, rgb(40, 30, 28)); rect(4, y0 + 4, 7, y0 + 5, skin)
+        if (woman) { for (r in 3..7) px(2, y0 + r, hair); for (r in 4..6) px(1, y0 + r, hairD) }
+        // The chest: a top for a woman, bare for a man; the arms either side or raised.
+        rect(2, y0 + 5, 8, y0 + 9, skin); rect(2, y0 + 5, 3, y0 + 9, Colors.mul(skin, 1.08f, 1.08f, 1.08f)); rect(7, y0 + 5, 8, y0 + 9, shade)
+        if (woman) { rect(3, y0 + 5, 7, y0 + 7, suit) }
+        if (up) {
+            rect(1, 0, 3, 5, skin); rect(7, 0, 9, 5, skin); rect(3, 3, 4, 4, skin)
+            px(1, 4, shade); px(8, 4, shade)
+        } else {
+            rect(1, 6, 2, 11, skin); rect(8, 6, 9, 11, shade); rect(1, 10, 3, 11, skin)
+        }
+        rect(2, y0 + 9, 8, y0 + 12, if (woman) suit else shorts)
+        rect(2, y0 + 9, 8, y0 + 10, Colors.mul(if (woman) suit else shorts, 1.15f, 1.15f, 1.15f))
+        if (up) { rect(3, y0 + 12, 5, 16, skin); rect(5, y0 + 12, 7, 15, shade); rect(3, 15, 5, 16, skin) }
+        else { rect(2, 12, 4, 16, skin); rect(6, 12, 8, 16, shade); rect(2, 15, 4, 16, rgb(220, 210, 190)); rect(6, 15, 8, 16, rgb(200, 190, 170)) }
+    }.done()
 }

@@ -57,12 +57,12 @@ private object BeachSprites {
     /** Somebody lying on a towel, in a swimsuit [suit] (0 to 3), with their own [skin] tone and [hair]. */
     fun sunbather(suit: Int, skin: Int, hair: Int): Sprite = sunbatherCache.getOrPut((suit * 8 + skin) * People.HAIR_COUNT + hair) {
         val sk = People.SKIN[skin]
-        picture(7, 2) { bm ->
+        HiBeach.sunbather(picture(7, 2) { bm ->
             bm.dot(0, 0, People.hair(hair)); bm.dot(1, 0, sk)
             bm.rect(2, 0, 4, 1, SUITS[suit])
             bm.rect(4, 0, 7, 1, sk)
             bm.rect(1, 1, 7, 2, People.tanned(sk))
-        }
+        }, SUITS[suit])
     }
 
     private val surferCache = HashMap<Int, Sprite>()
@@ -70,11 +70,11 @@ private object BeachSprites {
     /** Somebody on a board, in a wetsuit, with their own [skin] tone. */
     fun surfer(skin: Int): Sprite = surferCache.getOrPut(skin) {
         val sk = People.SKIN[skin]
-        picture(7, 6) { bm ->
+        HiBeach.surfer(picture(7, 6) { bm ->
             bm.rect(0, 5, 7, 6, rgb(250, 230, 90))
             bm.dot(3, 0, sk); bm.rect(3, 1, 4, 3, rgb(60, 130, 220)); bm.rect(3, 3, 4, 5, rgb(40, 50, 80))
             bm.dot(2, 2, sk); bm.dot(4, 2, sk)
-        }
+        })
     }
 
     val palms by lazy { listOf(palm(0), palm(1)) }
@@ -141,7 +141,7 @@ private object BeachSprites {
     fun player(skin: Int, hair: Int, suit: Int, up: Boolean): Sprite = playerCache.getOrPut(((skin * People.HAIR_COUNT + hair) * 4 + suit) * 2 + (if (up) 1 else 0)) {
         val rows = if (up) listOf("s.h.s", "shhhs", ".sss.", ".bbb.", ".bbb.", ".ppp.", ".p.p.", "..p..")
         else listOf("..h..", ".hhh.", ".sss.", ".bbb.", "sbbbs", ".ppp.", ".p.p.", ".p.p.")
-        Sprite(rows, mapOf('s' to People.SKIN[skin], 'h' to People.hair(hair), 'b' to SUITS[suit], 'p' to rgb(60, 70, 110)))
+        HiBeach.player(Sprite(rows, mapOf('s' to People.SKIN[skin], 'h' to People.hair(hair), 'b' to SUITS[suit], 'p' to rgb(60, 70, 110))), People.SKIN[skin], People.hair(hair), SUITS[suit], up, Math.floorMod(Noise.hash(skin, hair, suit + 5821), 2) == 1)
     }
 
     val sailboat = HiBeach.sailboat(picture(10, 11) { bm ->
@@ -721,10 +721,17 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             val stroke = ((t * 1.6 + i) % 2.0) < 1.0
             // A head with hair on top and shoulders just out of the water (small: they are further out than the people on the sand),
             // an arm that reaches up and over, stroke by stroke, and the water closing round them.
-            fill(sx, sy, sx + 3, sy + 1, swimHair)
-            fill(sx, sy + 1, sx + 3, sy + 2, swimSkin)
-            fill(sx - 1, sy + 2, sx + 4, sy + 3, swimSkin)
-            if (stroke) fill(sx + 4, sy - 1, sx + 5, sy + 2, swimSkin) else fill(sx + 4, sy + 2, sx + 6, sy + 3, swimSkin)
+            if (scale > 1) {
+                fillOval(sx.toFloat(), sy - 0.2f, sx + 3f, sy + 1.4f, swimHair, 1f)
+                fillOval(sx + 0.2f, sy + 0.7f, sx + 2.8f, sy + 2.3f, swimSkin, 1f)
+                fillOval(sx - 1.3f, sy + 2f, sx + 4.3f, sy + 3.6f, swimSkin, 1f)
+                if (stroke) line(sx + 3.6f, sy + 2.4f, sx + 5f, sy - 0.6f, swimSkin) else line(sx + 3.6f, sy + 2.6f, sx + 6.2f, sy + 2.8f, swimSkin)
+            } else {
+                fill(sx, sy, sx + 3, sy + 1, swimHair)
+                fill(sx, sy + 1, sx + 3, sy + 2, swimSkin)
+                fill(sx - 1, sy + 2, sx + 4, sy + 3, swimSkin)
+                if (stroke) fill(sx + 4, sy - 1, sx + 5, sy + 2, swimSkin) else fill(sx + 4, sy + 2, sx + 6, sy + 3, swimSkin)
+            }
             fillAlpha(sx - 2, sy + 3, sx + 7, sy + 4, foam, 0.65f)
             fillAlpha(sx - 3, sy + 4, sx + 8, sy + 5, foam, 0.2f)
         }
@@ -841,11 +848,13 @@ private fun PixelScene.drawWhale(s: SceneState) {
                         side > bellyLine -> belly
                         else -> back
                     }
-                    fill(cx.toInt(), y, cx.toInt() + 1, y + 1, color)
+                    // At the real picture's own resolution, so the 16-bit style draws it twice as finely.
+                    val sc = scale
+                    fillPhys((cx * sc).toInt(), (cy * sc).toInt(), (cx * sc).toInt() + 1, (cy * sc).toInt() + 1, color)
                 }
-                j += 0.5f
+                j += 0.5f / scale
             }
-            k += 0.5f
+            k += 0.5f / scale
         }
         // The small hump of the back fin two thirds of the way along, the knobbly head, and an eye.
         val fx = hx - tx * len * 0.66f - px * (humpbackWidth(0.66f) + 1f)
@@ -936,7 +945,21 @@ private fun PixelScene.drawFin(s: SceneState) {
     val edge = solid(s, rgb(96, 104, 118), 0.1f)
     val foam = solid(s, rgb(250, 252, 252), 0.0f)
     val widths = intArrayOf(1, 2, 2, 3, 4)
-    for (r in 0 until h) {
+    if (scale > 1) {
+        // Drawn on the real picture's grid: a curved sail narrow at the tip and wider at the base, leaning forward.
+        val sc = scale
+        val hp = (5f * rise * sc).toInt()
+        for (r in 0 until hp) {
+            val f = (r + 1f) / hp
+            val wp = (1 + f * f * 3.4f * sc).toInt().coerceAtLeast(1)
+            val topP = y * sc - hp + r
+            val lean = ((1f - f) * hp * 0.55f).toInt()
+            val leftP = if (dir > 0) x.toInt() * sc + lean - (wp - 1) else x.toInt() * sc - lean
+            fillPhys(leftP, topP, leftP + wp, topP + 1, fin)
+            val lead = if (dir > 0) leftP + wp - 1 else leftP
+            fillPhys(lead, topP, lead + 1, topP + 1, edge)
+        }
+    } else for (r in 0 until h) {
         val w = widths[r + (5 - h).coerceAtLeast(0)]
         val top = y - h + r
         // A curved front edge leaning forward, with a straight trailing edge.
