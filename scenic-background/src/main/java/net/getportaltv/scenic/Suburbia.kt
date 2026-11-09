@@ -845,6 +845,8 @@ private fun PixelScene.waterTower(s: SceneState) {
         if (s.suburbAt(wx.toDouble(), factor) < 0.6f || s.cityAt(wx.toDouble(), factor) > 0.3f) continue
         val x = wx - offset
         if (x < -20 || x > W + 20) continue
+        // Never in front of the airport.
+        if (airportNear(s, wx / factor, 2600.0)) continue
         // Standing on the ground: the field begins at FIELD_TOP, so the feet are set just inside it (they used to stop short of it and
         // leave the tower hanging in the air).
         val base = FIELD_TOP + 3

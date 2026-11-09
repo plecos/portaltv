@@ -171,3 +171,18 @@ internal fun PixelScene.drawAirport(s: SceneState) {
         }
     }
 }
+
+/** Whether an airport lies within [reach] camera units of [cam], so that other things (the water tower) can keep clear of it. */
+internal fun PixelScene.airportNear(s: SceneState, cam: Double, reach: Double): Boolean {
+    val factor = 0.18
+    val cell = 1000
+    val centre = Math.floorDiv((cam * factor).toInt(), cell)
+    val span = (reach * factor / cell).toInt() + 2
+    for (i in centre - span..centre + span) {
+        if (Noise.unit(i, 985) > 0.55f) continue
+        val wx = i * cell + 60 + (Noise.unit(i, 986) * 400).toInt()
+        if (s.suburbAt(wx.toDouble(), factor) < 0.6f || s.cityAt(wx.toDouble(), factor) > 0.2f) continue
+        if (kotlin.math.abs(wx / factor - cam) < reach) return true
+    }
+    return false
+}
