@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -179,27 +180,47 @@ class ExtensionsPage(
             return
         }
         all.forEach { ext ->
-            val row = TextView(context).apply {
-                text = ext.name + (ext.versionName?.let { "  ·  $it" } ?: "") + (if (updates.containsKey(ext.packageName)) "  ·  Update available" else "") + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
-                textSize = 18f
-                typeface = context.resources.getFont(R.font.inter)
-                setTextColor(context.resources.getColor(R.color.text_primary, null))
+            // Columns that line up from one row to the next: its picture, its name, its version, and what needs attention.
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(px(24), 0, px(24), 0)
-                minHeight = px(48)
+                minimumHeight = px(48)
                 setBackgroundResource(R.drawable.bg_settings_tile)
-                // Its own picture, so it is known at a glance.
-                ExtensionIcons.of(context, ext.packageName, ext.manifest?.iconRes ?: 0)?.let {
-                    it.setBounds(0, 0, px(32), px(32))
-                    setCompoundDrawables(it, null, null, null)
-                    compoundDrawablePadding = px(14)
-                }
                 isFocusable = true
+                isClickable = true
                 contentDescription = "${ext.name}, ${ExtensionLabels.status(ext.state, ext.granted)}. Select for details."
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                     .apply { bottomMargin = px(8) }
                 setOnClickListener { showDetail(ext) }
             }
+            fun cell(value: String, widthDp: Int, color: Int, sp: Float = 18f) = TextView(context).apply {
+                text = value
+                textSize = sp
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(color)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                layoutParams = if (widthDp > 0) LinearLayout.LayoutParams(px(widthDp), ViewGroup.LayoutParams.WRAP_CONTENT)
+                else LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
+            val primary = context.resources.getColor(R.color.text_primary, null)
+            val secondary = context.resources.getColor(R.color.text_secondary, null)
+            // Its own picture, so it is known at a glance (the space stays when it has none, so names still line up).
+            row.addView(ImageView(context).apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                ExtensionIcons.of(context, ext.packageName, ext.manifest?.iconRes ?: 0)?.let { setImageDrawable(it) }
+                layoutParams = LinearLayout.LayoutParams(px(32), px(32)).apply { marginEnd = px(14) }
+            })
+            row.addView(cell(ext.name, 220, primary))
+            row.addView(cell(ext.versionName.orEmpty(), 70, secondary))
+            val note = when {
+                ext.state == ExtensionState.REVOKED -> "Withdrawn"
+                updates.containsKey(ext.packageName) -> "Update available"
+                else -> ""
+            }
+            if (note.isNotEmpty()) row.addView(cell(note, 150, if (ext.state == ExtensionState.REVOKED) Color.rgb(255, 120, 120) else Color.rgb(140, 230, 160), 15f))
             list.addView(row)
             if (ext.packageName == focusPackage) row.post { row.requestFocus() }
         }
