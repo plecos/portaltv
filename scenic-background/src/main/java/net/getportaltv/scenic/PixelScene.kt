@@ -107,6 +107,7 @@ class PixelScene {
         phase("drawHills") { drawHills(s, cam, 0.26f, 134, 14f, 0.028f, 29, rgb(84, 148, 78), 0.34f, 0.40f) }
         phase("drawTreeLine") { drawTreeLine(s, cam, 0.26f, 0.06f) }
         phase("drawSkyline") { drawSkyline(s) }
+        phase("drawFarFog") { drawFarFog(s) }
         phase("drawField") { drawField(s) }
         phase("drawCityGround") { drawCityGround(s) }
         phase("drawBeachGround") { drawBeachGround(s) }
@@ -1459,25 +1460,33 @@ class PixelScene {
      * Thick fog closes in from the distance: the sky, mountains, hills, towers and sea are gone altogether, and the land behind the
      * road is lost a little more with every step back from it, so only what is nearest stays clear.
      */
+    /** In fog the far land (mountains, hills, the distant skyline) fades into it fully; the nearer things drawn after this (city blocks, the park's rides) stay mostly in view. */
+    private fun drawFarFog(s: SceneState) {
+        val fog = s.cond.fog
+        if (fog < 0.05f) return
+        // (In the 16-bit style a haze this thick is just made solid: it costs a fraction as much to draw and looks the same.)
+        val far = (fog * 1.2f).coerceAtMost(1f).let { if (scale > 1 && it > 0.93f) 1f else it }
+        fillAlpha(0, 0, W, FIELD_TOP + 2, s.look.fogColor, far)
+    }
+
     private fun drawDepthFog(s: SceneState) {
         val fog = s.cond.fog
         if (fog < 0.05f) return
         val color = s.look.fogColor
-        // (In the 16-bit style a haze this thick is just made solid: it costs a fraction as much to draw and looks the same.)
-        val far = (fog * 1.2f).coerceAtMost(1f).let { if (scale > 1 && it > 0.93f) 1f else it }
-        fillAlpha(0, 0, W, FIELD_TOP + 2, color, far)
+        // A lighter veil over the second layer of things (city blocks, rides, trees) than over the distance.
+        fillAlpha(0, 0, W, FIELD_TOP + 2, color, fog * 0.38f)
         if (scale > 1) {
             // Thicker with distance, in steps of one real row so the thinning toward the road is smooth.
             for (py in (FIELD_TOP + 2) * scale until ROAD_TOP * scale) {
                 val t = (py / scale.toFloat() - FIELD_TOP) / (ROAD_TOP - FIELD_TOP).toFloat()
-                fillAlphaPhys(0, py, pw, py + 1, color, fog * (1f - 0.6f * t) * 0.95f)
+                fillAlphaPhys(0, py, pw, py + 1, color, fog * (1f - 0.6f * t) * 0.62f)
             }
             return
         }
         var y = FIELD_TOP + 2
         while (y < ROAD_TOP) {
             val t = (y - FIELD_TOP) / (ROAD_TOP - FIELD_TOP).toFloat()
-            fillAlpha(0, y, W, minOf(y + 2, ROAD_TOP), color, fog * (1f - 0.6f * t) * 0.95f)
+            fillAlpha(0, y, W, minOf(y + 2, ROAD_TOP), color, fog * (1f - 0.6f * t) * 0.62f)
             y += 2
         }
     }
