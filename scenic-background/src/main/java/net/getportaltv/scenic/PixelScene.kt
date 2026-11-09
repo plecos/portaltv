@@ -607,7 +607,16 @@ class PixelScene {
             val top = if (h < 0.02f) H * sc else ((base - h * maxH) * sc).toInt()
             // Which way the slope faces: rising to the right faces left, into the light.
             val facingLeft = if (sc == 1) tops[i + 3] <= tops[i - 3] else heights[i + 3] >= heights[i - 3]
-            fillPhys(px, top, px + 1, H * sc, if (facingLeft) lit else shade)
+            val side = if (facingLeft) lit else shade
+            if (sc > 1) {
+                // Lighter near the summit, deeper toward the foot.
+                var y0 = top
+                for (k in 0 until 6) {
+                    val y1 = if (k == 5) H * sc else top + (k + 1) * 14 * sc
+                    fillPhys(px, y0, px + 1, y1, Colors.scale(side, 1.06f - 0.028f * k))
+                    y0 = y1
+                }
+            } else fillPhys(px, top, px + 1, H * sc, side)
             if (h > snowLine) {
                 val depth = (((h - snowLine) * 34f).toInt() + 1 + (Noise.hash((x + offset.toInt()) / 2, seed, 9) and 1)) * sc
                 fillPhys(px, top, px + 1, top + depth, if (facingLeft) snow else snowShade)
@@ -649,7 +658,15 @@ class PixelScene {
             var crestColor = if (f > 0f) lerp(crest, forestCrest, f) else crest
             if (c > 0f) { bodyColor = lerp(bodyColor, cityHill, c); crestColor = lerp(crestColor, cityHill, c) }
             if (b > 0f) { bodyColor = lerp(bodyColor, duneHill, b); crestColor = lerp(crestColor, duneHill, b) }
-            fillPhys(px, top, px + 1, H * sc, bodyColor)
+            if (sc > 1) {
+                // Lit along the ridge, shaded toward the foot.
+                var y0 = top
+                for (k in 0 until 5) {
+                    val y1 = if (k == 4) H * sc else top + (k + 1) * 8 * sc
+                    fillPhys(px, y0, px + 1, y1, Colors.scale(bodyColor, 1.05f - 0.04f * k))
+                    y0 = y1
+                }
+            } else fillPhys(px, top, px + 1, H * sc, bodyColor)
             fillPhys(px, top, px + 1, top + sc, crestColor)
         }
         // Fields on the slopes: a darker band, so the hills read as farmland.

@@ -13,7 +13,7 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     val pixels: IntArray by lazy { IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) } }
 
     /** The same picture twice as big with its edges smoothed (see [doubled]), for the 16-bit style. */
-    val pixelsHi: IntArray by lazy { doubled(pixels, width, height) }
+    val pixelsHi: IntArray by lazy { shaded(doubled(pixels, width, height), width * 2, height * 2) }
 
     constructor(rows: List<String>, palette: Map<Char, Int>) : this(
         rows.maxOf { it.length }, rows.size,
@@ -52,6 +52,34 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
                     val o = y * 2 * w2 + x * 2
                     out[o] = e0; out[o + 1] = e1; out[o + w2] = e2; out[o + w2 + 1] = e3
                 }
+            }
+            return out
+        }
+
+        private fun alphaAt(p: IntArray, w: Int, h: Int, x: Int, y: Int): Int = if (x < 0 || y < 0 || x >= w || y >= h) 0 else p[y * w + x] ushr 24
+
+        /**
+         * Gives a doubled picture some form, once: the edges facing up and left (toward the light) are lightened and the ones facing
+         * down and right darkened, it is a little lighter at the top than at the foot, and leaves get a grain of light and shade.
+         * Only solid pixels are touched, so soft edges and glows stay as they are.
+         */
+        fun shaded(p: IntArray, w: Int, h: Int): IntArray {
+            val out = p.copyOf()
+            for (y in 0 until h) for (x in 0 until w) {
+                val c = p[y * w + x]
+                if (c ushr 24 != 255) continue
+                var f = 1.07f - 0.14f * y / h
+                val lit = alphaAt(p, w, h, x, y - 1) == 0 || alphaAt(p, w, h, x - 1, y) == 0
+                val dark = alphaAt(p, w, h, x, y + 1) == 0 || alphaAt(p, w, h, x + 1, y) == 0
+                if (lit && !dark) f *= 1.17f else if (dark && !lit) f *= 0.80f
+                val r = (c shr 16) and 0xFF
+                val g = (c shr 8) and 0xFF
+                val b = c and 0xFF
+                if (g > r + 12 && g > b + 12) {
+                    // Leaves: clumps of light and shade with a finer grain on top.
+                    f *= 0.90f + 0.12f * Noise.unit(x shr 1, y shr 1, 778) + 0.10f * Noise.unit(x, y, 779)
+                }
+                out[y * w + x] = (0xFF shl 24) or (minOf(255, (r * f).toInt()) shl 16) or (minOf(255, (g * f).toInt()) shl 8) or minOf(255, (b * f).toInt())
             }
             return out
         }
