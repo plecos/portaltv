@@ -470,7 +470,9 @@ class PixelScene {
         val shine = ((1f - l.gloom * 0.9f) * (1f - l.haze * 0.7f) * (1f - l.grey)).coerceIn(0f, 1f)
         if (shine < 0.03f) return
         val core = lerp(rgb(255, 238, 170), rgb(255, 150, 80), l.twilight)
-        for (i in 4 downTo 1) fillCircle(x, y, 8f + i * 5f, core, shine * 0.07f)
+        // (Two wide glows in the 16-bit style, four in the 8-bit: the big circles are costly on the finer grid.)
+        if (scale > 1) { fillCircle(x, y, 28f, core, shine * 0.10f); fillCircle(x, y, 18f, core, shine * 0.12f) }
+        else for (i in 4 downTo 1) fillCircle(x, y, 8f + i * 5f, core, shine * 0.07f)
         fillCircle(x, y, 8f, core, shine)
     }
 
@@ -626,6 +628,7 @@ class PixelScene {
     private val hiTop = IntArray(W * 2)
     private val hiSnow = IntArray(W * 2)
     private val hiFace = BooleanArray(W * 2)
+    private val hiInner = IntArray(W)
     private val hiBody = IntArray(W * 2 * 5)
     private val hiCrest = IntArray(W * 2)
 
@@ -689,15 +692,45 @@ class PixelScene {
             val litB = IntArray(6) { OPAQUE or (Colors.scale(lit, 1.06f - 0.028f * it) and 0xFFFFFF) }
             val shadeB = IntArray(6) { OPAQUE or (Colors.scale(shade, 1.06f - 0.028f * it) and 0xFFFFFF) }
             val snowC = OPAQUE or (snow and 0xFFFFFF); val snowShadeC = OPAQUE or (snowShade and 0xFFFFFF)
-            val bandH = 14 * sc
-            // Only as far down as the field, which always covers what is below it.
-            for (y in minTop.coerceAtLeast(0) until (FIELD_TOP + 2) * sc) {
-                val row = y * pw
-                for (px in 0 until n) {
-                    val d = y - tp[px]
-                    if (d < 0) continue
-                    fb[row + px] = if (d < sn[px]) (if (fc[px]) snowC else snowShadeC)
-                    else { val k = d / bandH; (if (fc[px]) litB else shadeB)[if (k > 5) 5 else k] }
+            // Which of the six shades a depth below the summit gets, looked up (a division for every pixel is slow on a TV).
+            val bandLut = IntArray(H * 2) { minOf(5, it / (14 * sc)) }
+            val limit = (FIELD_TOP + 2) * sc   // only as far down as the field, which always covers what is below it
+            // The outline, a few rows deep, is drawn at the real picture's resolution; below it the shading changes slowly, so the
+            // inside is filled in blocks of the scene's own pixels, a quarter of the work.
+            val edge = 3
+            val inner = hiInner
+            for (lx in 0 until W) {
+                val p0 = lx * sc; val p1 = p0 + 1
+                // The snow's lower edge is drawn at the real resolution too, so it is smooth.
+                val start = maxOf(tp[p0] + maxOf(edge, sn[p0] + 1), tp[p1] + maxOf(edge, sn[p1] + 1))
+                inner[lx] = if (tp[p0] >= H * sc && tp[p1] >= H * sc) Int.MAX_VALUE else ((start + 1) / 2) * 2
+            }
+            for (px in 0 until n) {
+                val t0 = tp[px]
+                if (t0 >= H * sc) continue
+                val end = minOf(inner[px / sc], limit)
+                var y = t0
+                var i = y * pw + px
+                while (y < end) {
+                    val d = y - t0
+                    fb[i] = if (d < sn[px]) (if (fc[px]) snowC else snowShadeC) else (if (fc[px]) litB else shadeB)[bandLut[d]]
+                    y++; i += pw
+                }
+            }
+            var minInner = Int.MAX_VALUE
+            for (lx in 0 until W) if (inner[lx] < minInner) minInner = inner[lx]
+            if (minInner < limit) {
+                var y = minInner
+                while (y < limit) {
+                    val r0 = y * pw; val r1 = r0 + pw
+                    for (lx in 0 until W) {
+                        if (y < inner[lx]) continue
+                        val px = lx * sc
+                        val d = y - tp[px]
+                        val c = (if (fc[px]) litB else shadeB)[bandLut[d]]
+                        fb[r0 + px] = c; fb[r0 + px + 1] = c; fb[r1 + px] = c; fb[r1 + px + 1] = c
+                    }
+                    y += 2
                 }
             }
             return
@@ -767,14 +800,14 @@ class PixelScene {
         if (sc > 1) {
             // Row by row: contiguous in memory, which a slow TV draws far faster than a column at a time.
             val n = W * sc
-            val bandH = 8 * sc
+            val bandLut = IntArray(H * 2) { minOf(4, it / (8 * sc)) }
             // Only as far down as the field, which always covers what is below it.
             for (y in hillMin.coerceAtLeast(0) until (FIELD_TOP + 2) * sc) {
                 val row = y * pw
                 for (px in 0 until n) {
                     val d = y - hiTop[px]
                     if (d < 0) continue
-                    fb[row + px] = if (d < sc) hiCrest[px] else { val k = d / bandH; hiBody[px * 5 + (if (k > 4) 4 else k)] }
+                    fb[row + px] = if (d < sc) hiCrest[px] else hiBody[px * 5 + bandLut[d]]
                 }
             }
         }
