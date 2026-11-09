@@ -520,19 +520,14 @@ private fun PixelScene.coaster(s: SceneState, x: Int) {
     }
 }
 
+private val RIDER_SKIN = intArrayOf(rgb(240, 200, 170), rgb(205, 152, 112), rgb(142, 96, 66), rgb(96, 62, 42))
+
 private fun PixelScene.dropTower(s: SceneState, x: Int) {
     if (x + 18 < 0 || x > W) return
     val night = s.dark()
     val steel = c(s, rgb(110, 130, 190))
     val stripe = c(s, rgb(236, 236, 244))
-    fill(x + 4, BASE - 60, x + 10, BASE, steel)
-    for (y in BASE - 58 until BASE step 6) fill(x + 4, y, x + 10, y + 2, stripe)
-    if (hiRes) {
-        // Lattice braces down the tower and a lit edge.
-        for (y in BASE - 58 until BASE - 6 step 6) { line(x + 4f, y.toFloat() + 2f, x + 10f, y + 6f, Colors.scale(steel, 0.7f)); line(x + 10f, y.toFloat() + 2f, x + 4f, y + 6f, Colors.scale(steel, 0.7f)) }
-        fillAlphaPhys((x + 4) * scale, (BASE - 60) * scale, (x + 4) * scale + 1, BASE * scale, rgb(255, 255, 255), 0.25f)
-    }
-    fill(x + 2, BASE - 64, x + 12, BASE - 60, c(s, rgb(220, 60, 60)))
+    val red = c(s, rgb(220, 60, 60))
     // The seat ring climbs slowly, hangs a moment, then drops and bounces.
     val p = ((s.rideTime) % 14.0).toFloat()
     val f = when {
@@ -543,8 +538,62 @@ private fun PixelScene.dropTower(s: SceneState, x: Int) {
         else -> 0f
     }.coerceIn(0f, 1f)
     val y = BASE - 8 - (f * 46f).toInt()
-    fill(x, y, x + 14, y + 4, c(s, rgb(250, 200, 60)))
-    for (k in 0 until 4) fill(x + 1 + k * 3, y - 2, x + 2 + k * 3, y, c(s, rgb(240, 200, 170)))
+    val yellow = c(s, rgb(250, 200, 60))
+    if (hiRes) {
+        val sc = scale
+        val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+        val lt = Colors.mul(steel, 1.18f, 1.18f, 1.22f); val dk = Colors.scale(steel, 0.62f)
+        // The shadow on the ground and a plinth the tower stands on.
+        fillOval(x - 2f, BASE - 1.2f, x + 16f, BASE + 1.4f, ink, 0.25f)
+        fill(x + 2, BASE - 3, x + 12, BASE, dk)
+        fillAlphaPhys((x + 2) * sc, (BASE - 3) * sc, (x + 12) * sc, (BASE - 3) * sc + 1, white, 0.35f)
+        // The column: a lit left face, a shaded right face, two guide rails for the seat ring, white bands with a shadow under each, and lattice braces.
+        fill(x + 4, BASE - 60, x + 10, BASE - 3, steel)
+        fillPhys((x + 4) * sc, (BASE - 60) * sc, (x + 4) * sc + 3, (BASE - 3) * sc, lt)
+        fillPhys((x + 10) * sc - 3, (BASE - 60) * sc, (x + 10) * sc, (BASE - 3) * sc, dk)
+        fillPhys((x + 6) * sc + 1, (BASE - 60) * sc, (x + 6) * sc + 2, (BASE - 3) * sc, dk)
+        fillPhys((x + 8) * sc, (BASE - 60) * sc, (x + 8) * sc + 1, (BASE - 3) * sc, dk)
+        for (yy in BASE - 58 until BASE - 4 step 6) {
+            fill(x + 4, yy, x + 10, yy + 2, stripe)
+            fillAlphaPhys((x + 4) * sc, (yy + 2) * sc, (x + 10) * sc, (yy + 2) * sc + 2, ink, 0.25f)
+            fillAlphaPhys((x + 4) * sc, yy * sc, (x + 10) * sc, yy * sc + 1, white, 0.5f)
+        }
+        for (yy in BASE - 58 until BASE - 8 step 6) { line(x + 4f, yy + 2f, x + 10f, yy + 6f, dk, 254); line(x + 10f, yy + 2f, x + 4f, yy + 6f, dk, 254) }
+        // The crown: a red cap with a scalloped edge, a dome, a spire and a pennant that flutters.
+        fill(x + 2, BASE - 64, x + 12, BASE - 62, red)
+        var scx = x + 2
+        while (scx < x + 12) { fillOval(scx.toFloat(), BASE - 63f, scx + 2.5f, BASE - 61f, if ((scx - x) % 4 == 2) c(s, rgb(250, 250, 244)) else red, 1f); scx += 2 }
+        fillOval(x + 3f, BASE - 68f, x + 11f, BASE - 62f, red, 1f)
+        fillOval(x + 4f, BASE - 67f, x + 7f, BASE - 64.5f, Colors.mul(red, 1.25f, 1.25f, 1.25f), 0.7f)
+        line(x + 7f, BASE - 73f, x + 7f, BASE - 68f, dk, 254)
+        fillOval(x + 6.3f, BASE - 74f, x + 7.9f, BASE - 72.6f, yellow, 1f)
+        val flutter = (sin(s.rideTime * 4.0) * 1.2).toInt()
+        fillPhys((x + 7) * sc + 1, (BASE - 73) * sc, (x + 7) * sc + 6, (BASE - 73) * sc + 2, c(s, rgb(240, 90, 90)))
+        fillPhys((x + 7) * sc + 6, (BASE - 73) * sc + flutter / 2, (x + 7) * sc + 8, (BASE - 73) * sc + 2 + flutter / 2, c(s, rgb(240, 90, 90)))
+        // The seat ring: a clamp round the column, a yellow ring lit above and shaded below, and riders in rows, arms up while the ring falls.
+        fill(x + 3, y - 1, x + 11, y + 5, dk)
+        fillOval(x - 1f, y + 1.6f, x + 15f, y + 5.2f, Colors.scale(yellow, 0.7f), 1f)
+        fillOval(x - 1f, y + 0.2f, x + 15f, y + 4f, yellow, 1f)
+        fillAlphaPhys((x + 1) * sc, y * sc + 2, (x + 13) * sc, y * sc + 3, white, 0.45f)
+        val falling = f > 0.05f && f < 0.995f && p > 8f
+        for (k in 0 until 4) {
+            val rx = x + 2.2f + k * 3.2f
+            val skin = RIDER_SKIN[(k + x.coerceAtLeast(0)) % RIDER_SKIN.size]
+            val shirt = c(s, GONDOLAS[(k * 2 + 1) % GONDOLAS.size])
+            fillOval(rx - 1f, y - 2.2f, rx + 1.2f, y + 0.8f, shirt, 1f)
+            fillOval(rx - 0.8f, y - 4f, rx + 1f, y - 2.2f, skin, 1f)
+            fillOval(rx - 0.8f, y - 4.2f, rx + 1f, y - 3.2f, rgb(60, 40, 30), 1f)
+            if (falling) { line(rx - 0.8f, y - 1.8f, rx - 1.4f, y - 5f, skin, 254); line(rx + 1f, y - 1.8f, rx + 1.6f, y - 5f, skin, 254) }
+            else fillPhys((rx * sc).toInt() - 2, y * sc - 2, (rx * sc).toInt() + 4, y * sc, skin)
+        }
+        fillAlphaPhys((x - 1) * sc, y * sc + 1, (x + 15) * sc, y * sc + 3, ink, 0.12f)
+    } else {
+        fill(x + 4, BASE - 60, x + 10, BASE, steel)
+        for (yy in BASE - 58 until BASE step 6) fill(x + 4, yy, x + 10, yy + 2, stripe)
+        fill(x + 2, BASE - 64, x + 12, BASE - 60, red)
+        fill(x, y, x + 14, y + 4, yellow)
+        for (k in 0 until 4) fill(x + 1 + k * 3, y - 2, x + 2 + k * 3, y, c(s, rgb(240, 200, 170)))
+    }
     if (night > 0.2f) {
         val on = (s.rideTime * 4).toInt() % 2 == 0
         fill(x + 6, BASE - 66, x + 8, BASE - 64, if (on) rgb(255, 80, 70) else rgb(120, 40, 40))
@@ -557,14 +606,68 @@ private fun PixelScene.swings(s: SceneState, x: Int) {
     val night = s.dark()
     val cx = x + 23
     val steel = c(s, rgb(150, 150, 170))
-    fill(cx - 2, BASE - 34, cx + 3, BASE, steel)
-    // The ring at the top turns, and the chairs swing out on their chains: further out the faster it spins.
     val spin = s.rideTime * 1.3
     val flare = (0.35 + 0.65 * (0.5 + 0.5 * sin(s.rideTime * 0.25))).toFloat()
     val topY = BASE - 36
-    fill(cx - 20, topY, cx + 21, topY + 3, c(s, rgb(220, 60, 90)))
-    fill(cx - 17, topY - 2, cx + 18, topY, c(s, rgb(250, 200, 60)))
-    fill(cx - 3, topY - 5, cx + 4, topY - 2, c(s, rgb(60, 140, 220)))
+    val pink = c(s, rgb(220, 60, 90)); val gold = c(s, rgb(250, 200, 60)); val blue = c(s, rgb(60, 140, 220))
+    if (hiRes) {
+        val sc = scale
+        val ink = rgb(8, 10, 24); val white = rgb(255, 255, 255)
+        val lt = Colors.mul(steel, 1.15f, 1.15f, 1.18f); val dk = Colors.scale(steel, 0.65f)
+        // Ground shadow, a stepped plinth and the mast: lit on the left, shaded on the right, with cross braces.
+        fillOval(cx - 9f, BASE - 1.2f, cx + 10f, BASE + 1.4f, ink, 0.25f)
+        fill(cx - 5, BASE - 3, cx + 6, BASE, dk); fill(cx - 3, BASE - 6, cx + 4, BASE - 3, steel)
+        fillAlphaPhys((cx - 5) * sc, (BASE - 3) * sc, (cx + 6) * sc, (BASE - 3) * sc + 1, white, 0.35f)
+        fill(cx - 2, topY, cx + 3, BASE - 6, steel)
+        fillPhys((cx - 2) * sc, topY * sc, (cx - 2) * sc + 3, (BASE - 6) * sc, lt)
+        fillPhys((cx + 3) * sc - 3, topY * sc, (cx + 3) * sc, (BASE - 6) * sc, dk)
+        for (yy in topY + 3 until BASE - 8 step 7) { line(cx - 2f, yy.toFloat(), cx + 3f, yy + 7f, dk, 254); line(cx + 3f, yy.toFloat(), cx - 2f, yy + 7f, dk, 254) }
+        // The canopy that turns: a pink disc with a scalloped skirt and a row of bulbs, a gold tier above, striped as it spins, a blue dome and a spire.
+        fillOval(cx - 20.5f, topY - 0.5f, cx + 21.5f, topY + 3.8f, Colors.scale(pink, 0.72f), 1f)
+        fillOval(cx - 20.5f, topY - 1.5f, cx + 21.5f, topY + 2.4f, pink, 1f)
+        var sk = cx - 20
+        var kk = 0
+        while (sk < cx + 20) { fillOval(sk.toFloat(), topY + 1.5f, sk + 3.2f, topY + 4.2f, if (kk % 2 == 0) pink else c(s, rgb(250, 250, 244)), 1f); sk += 3; kk++ }
+        fillOval(cx - 17.5f, topY - 4.6f, cx + 18.5f, topY - 0.4f, gold, 1f)
+        fillAlphaPhys((cx - 14) * sc, (topY - 4) * sc, (cx + 15) * sc, (topY - 4) * sc + 2, white, 0.4f)
+        for (st in 0 until 10) {
+            val a = spin + st * 2 * PI / 10
+            if (sin(a) > 0) fillAlphaPhys(((cx + cos(a) * 16.5) * sc).toInt(), (topY - 4) * sc, ((cx + cos(a) * 16.5) * sc).toInt() + 3, (topY - 1) * sc, rgb(200, 60, 60), 0.55f)
+        }
+        fillOval(cx - 5f, topY - 8.5f, cx + 6f, topY - 3f, blue, 1f)
+        fillOval(cx - 3.6f, topY - 7.6f, cx - 0.4f, topY - 5.2f, Colors.mul(blue, 1.3f, 1.3f, 1.3f), 0.8f)
+        line(cx + 0.5f, topY - 12f, cx + 0.5f, topY - 8f, dk, 254)
+        fillOval(cx - 0.3f, topY - 13f, cx + 1.3f, topY - 11.4f, gold, 1f)
+        for (bk in 0 until 19) fillCircle(cx - 19f + bk * 2.1f, topY + 1f, 0.45f, if (night > 0.2f && (bk + (s.rideTime * 5).toInt()) % 3 == 0) rgb(255, 235, 150) else white, 0.9f)
+        // The chairs on their chains, riders in them; the far ones a little darker.
+        for (pass in 0..1) for (i in 0 until 8) {
+            val a = spin + i * PI / 4
+            val front = sin(a) > 0
+            if (front != (pass == 1)) continue
+            val rx = cos(a)
+            val ex = cx + (rx * 18).toFloat()
+            val sx = cx + (rx * (18 + 9 * flare)).toFloat()
+            val sy = topY + 16 - (flare * 4) + (sin(a) * 2).toFloat()
+            val dim = if (front) 1f else 0.78f
+            val chain = Colors.scale(c(s, rgb(224, 224, 232)), dim)
+            line(ex - 0.6f, topY + 3f, sx - 1f, sy + 0.5f, chain, 254)
+            line(ex + 0.6f, topY + 3f, sx + 1.4f, sy + 0.5f, chain, 254)
+            val seat = Colors.scale(c(s, GONDOLAS[i % GONDOLAS.size]), dim)
+            val skin = Colors.scale(RIDER_SKIN[i % RIDER_SKIN.size], dim)
+            fillOval(sx - 1f, sy - 2.4f, sx + 1.4f, sy + 0.9f, Colors.scale(c(s, GONDOLAS[(i + 3) % GONDOLAS.size]), dim), 1f)
+            fillOval(sx - 0.7f, sy - 4.2f, sx + 1.1f, sy - 2.4f, skin, 1f)
+            fillOval(sx - 0.7f, sy - 4.4f, sx + 1.1f, sy - 3.4f, Colors.scale(rgb(60, 40, 30), dim), 1f)
+            fillOval(sx - 1.8f, sy + 0.5f, sx + 2.4f, sy + 2.3f, seat, 1f)
+            fillAlphaPhys(((sx - 1.4f) * sc).toInt(), ((sy + 0.5f) * sc).toInt(), ((sx + 2f) * sc).toInt(), ((sy + 0.5f) * sc).toInt() + 1, white, 0.4f)
+            if (night > 0.2f) fillAlpha(sx.toInt() - 3, sy.toInt() - 2, sx.toInt() + 4, sy.toInt() + 5, rgb(255, 230, 150), night * 0.16f)
+        }
+        return
+    }
+    fill(cx - 2, BASE - 34, cx + 3, BASE, steel)
+    // The ring at the top turns, and the chairs swing out on their chains: further out the faster it spins.
+    fill(cx - 20, topY, cx + 21, topY + 3, pink)
+    fill(cx - 17, topY - 2, cx + 18, topY, gold)
+    fill(cx - 3, topY - 5, cx + 4, topY - 2, blue)
     for (pass in 0..1) for (i in 0 until 8) {
         val a = spin + i * PI / 4
         val front = sin(a) > 0
