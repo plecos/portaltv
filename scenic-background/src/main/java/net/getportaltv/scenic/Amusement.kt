@@ -65,7 +65,8 @@ internal fun PixelScene.drawParkGround(s: SceneState) {
         if (a <= 0.01f) continue
         fillAlpha(x, BASE - 1, x + 1, ROAD_TOP - 1, tarmac, a)
         fillAlpha(x, ROAD_TOP - 1, x + 1, ROAD_TOP, kerb, a)
-        if (a > 0.5f && Math.floorMod(x + cam, 16) == 0) {
+        val inRides = Math.floorMod(x + cam, Places.STRETCH.toInt()) in (2 * PARK_FROM)..(2 * PARK_TO)
+        if (a > 0.5f && !inRides && Math.floorMod(x + cam, 16) == 0) {
             fillAlpha(x, ROW_A - 8, x + 1, ROW_A + 1, line, 0.7f)
             fillAlpha(x, ROW_B - 7, x + 1, ROW_B + 1, line, 0.7f)
         }
@@ -460,7 +461,7 @@ internal fun PixelScene.drawParkFront(s: SceneState) {
         if (s.suburbAt(floor(s.cam * LAYER) + x.coerceIn(-8, W + 8), LAYER) > 0.02f || s.suburbOnScreen(x.coerceIn(0, W - 1)) > 0.02f) continue
         // A clear way up to the gate.
         val into = Math.floorMod(ci * cell, (Places.STRETCH).toInt())
-        if (into in (2 * GATE_X - 20)..(2 * (GATE_X + GATE_W) + 20)) continue
+        if (into in (2 * PARK_FROM - 20)..(2 * PARK_TO + 20)) continue
         for (row in 0..1) {
             // In the thick of the park only the front row is filled (the rides and visitors need the room); out at the ends, both.
             if (row == 0 && a > 0.85f) continue

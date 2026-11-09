@@ -703,7 +703,7 @@ class PixelScene {
                     windmill(s, bx, FIELD_TOP + 12)
                 }
                 // Animals grazing in a group.
-                if (Noise.unit(i, 60) < 0.5f) {
+                if (s.look.day >= 0.31f && Noise.unit(i, 60) < 0.5f) {
                     val kind = animals[(Noise.unit(i, 61) * animals.size).toInt().coerceIn(0, animals.size - 1)]
                     val n = 2 + (Noise.unit(i, 62) * 3).toInt()
                     val ax = left + 10 + (Noise.unit(i, 63) * 120).toInt()
