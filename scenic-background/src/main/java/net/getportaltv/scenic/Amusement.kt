@@ -115,12 +115,25 @@ private fun PixelScene.stall(s: SceneState, x: Int, i: Int) {
         fill(x + k + 1, BASE - 9, x + k + 2, BASE - 5, c(s, rgb(246, 246, 240)))
     }
     fill(x - 1, BASE - 10, x + 15, BASE - 9, c(s, color))
+    if (hiRes) {
+        // A scalloped edge under the awning, plank lines on the counter and a shadow under the awning.
+        for (k in 0 until 14 step 2) fillOval(x + k.toFloat(), BASE - 5.7f, x + k + 2f, BASE - 4.3f, c(s, if ((k / 2) % 2 == 0) color else rgb(246, 246, 240)), 1f)
+        eaveShadow(x, x + 14, BASE - 4)
+        sidingTexture(x, BASE - 4, x + 14, BASE)
+    }
     // Balloons tied to some of them.
     if (i % 3 == 0) for (b in 0..2) {
         val bx = x + 2 + b * 4
         val by = BASE - 18 - (b % 2) * 3 + (sin(s.time * 1.2 + b + i) * 1).toInt()
-        fill(bx, by, bx + 2, by + 3, c(s, GONDOLAS[(i + b * 2) % GONDOLAS.size]))
-        fill(bx, by + 3, bx + 1, BASE - 10, c(s, rgb(200, 200, 200)))
+        if (hiRes) {
+            val bc = c(s, GONDOLAS[(i + b * 2) % GONDOLAS.size])
+            fillOval(bx - 0.6f, by - 0.5f, bx + 2.6f, by + 3.2f, bc, 1f)
+            fillOval(bx - 0.1f, by.toFloat(), bx + 0.7f, by + 0.9f, rgb(255, 255, 255), 0.55f)
+            fill(bx + 1, by + 3, bx + 2, BASE - 10, c(s, rgb(200, 200, 200)))
+        } else {
+            fill(bx, by, bx + 2, by + 3, c(s, GONDOLAS[(i + b * 2) % GONDOLAS.size]))
+            fill(bx, by + 3, bx + 1, BASE - 10, c(s, rgb(200, 200, 200)))
+        }
     }
 }
 
@@ -149,6 +162,10 @@ private fun PixelScene.gate(s: SceneState, x: Int) {
         val color = if (night > 0.2f && on && s.running() > 0.3f) s.lightPal(k / 3).let { if (s.season.halloween > 0.3f || s.season.festive > 0.3f) it else rgb(255, 240, 160) } else c(s, rgb(220, 200, 150))
         fill(x + 6 + k, BASE - 28, x + 7 + k, BASE - 27, color)
         fill(x + 6 + k, BASE - 17, x + 7 + k, BASE - 16, color)
+        if (hiRes && night > 0.2f && on && s.running() > 0.3f) {
+            fillOval(x + 5f + k, BASE - 29.4f, x + 9f + k, BASE - 25.6f, color, 0.22f)
+            fillOval(x + 5f + k, BASE - 18.4f, x + 9f + k, BASE - 14.6f, color, 0.22f)
+        }
     }
     // Seasonal touches: pumpkins at Halloween, lit trees at Christmas, and snow along the sign when it lies.
     if (s.season.halloween > 0.3f) for (k in 0 until 4) pumpkin(s, x + 14 + k * 9, BASE + 3 + (k % 2), night, 0.04f)
@@ -184,11 +201,25 @@ private fun PixelScene.carousel(s: SceneState, x: Int) {
             val hy = BASE - 9 + bob
             val coat = if (i % 2 == 0) c(s, rgb(240, 236, 230)) else c(s, rgb(140, 96, 60))
             fill(hx, BASE - 4, hx + 1, hy + 1, c(s, rgb(236, 210, 120)))
-            fill(hx - 2, hy - 2, hx + 3, hy, coat)
             val dir = if (-sin(a) > 0) 1 else -1
-            fill(if (dir > 0) hx + 2 else hx - 3, hy - 4, if (dir > 0) hx + 4 else hx - 1, hy - 1, coat)
-            fill(hx - 2, hy, hx - 1, hy + 2, coat)
-            fill(hx + 2, hy, hx + 3, hy + 2, coat)
+            if (hiRes) {
+                // A horse built from rounded pieces: a body, an arched neck and head with a mane and an eye, and four legs.
+                val dark = Colors.scale(coat, 0.72f)
+                fillOval(hx - 2.8f, hy - 2.6f, hx + 3.4f, hy + 0.5f, coat, 1f)
+                val nx = if (dir > 0) hx + 1.6f else hx - 3.6f
+                fillOval(nx, hy - 4.6f, nx + 2f, hy - 1f, coat, 1f)
+                val hxh = if (dir > 0) hx + 2.2f else hx - 4.6f
+                fillOval(hxh, hy - 4.9f, hxh + 2.4f, hy - 3.6f, coat, 1f)
+                fill(if (dir > 0) hx + 2 else hx - 3, hy - 5, if (dir > 0) hx + 3 else hx - 2, hy - 4, dark)
+                fillAlpha(hx - 2, hy - 2, hx + 3, hy - 1, rgb(255, 255, 255), 0.18f)
+                fill(hx - 2, hy, hx - 1, hy + 2, dark); fill(hx + 2, hy, hx + 3, hy + 2, dark)
+                fillPhys((hx - 2) * scale + 2, hy * scale + 1, (hx - 2) * scale + 4, hy * scale + 3, coat); fillPhys((hx + 2) * scale - 1, hy * scale + 1, (hx + 2) * scale + 1, hy * scale + 3, coat)
+            } else {
+                fill(hx - 2, hy - 2, hx + 3, hy, coat)
+                fill(if (dir > 0) hx + 2 else hx - 3, hy - 4, if (dir > 0) hx + 4 else hx - 1, hy - 1, coat)
+                fill(hx - 2, hy, hx - 1, hy + 2, coat)
+                fill(hx + 2, hy, hx + 3, hy + 2, coat)
+            }
         }
         if (pass == 0) {
             // The central pillar and the canopy: a striped cone with a scalloped edge.
@@ -202,6 +233,13 @@ private fun PixelScene.carousel(s: SceneState, x: Int) {
             val stripe = Math.floorMod(px - cx + 100, 8) < 4
             fill(px, y, px + 1, y + 1, if (stripe) c(s, rgb(220, 56, 60)) else c(s, rgb(246, 246, 240)))
         }
+    }
+    if (hiRes) {
+        // The canopy's edge scalloped, and a shadow under it.
+        val half = 3 + 9 * 5 / 2
+        var sx = cx - half
+        while (sx < cx + half) { fillOval(sx.toFloat(), BASE - 19.3f, sx + 4f, BASE - 17.6f, if (Math.floorMod(sx - cx + 100, 8) < 4) c(s, rgb(220, 56, 60)) else c(s, rgb(246, 246, 240)), 1f); sx += 4 }
+        eaveShadow(cx - half, cx + half, BASE - 18)
     }
     if (s.snowCover > 0.03f) fillAlpha(cx - 4, BASE - 29, cx + 5, BASE - 27, rgb(240, 244, 252), s.snowCover)
     fill(cx, BASE - 33, cx + 1, BASE - 28, c(s, rgb(240, 200, 60)))
@@ -227,7 +265,20 @@ private fun PixelScene.ferris(s: SceneState, x: Int) {
     }
     val turn = s.rideTime * 0.16
     // Rim, inner ring and spokes.
-    for (k in 0 until 96) {
+    if (hiRes) {
+        // The rim and inner ring on the finer grid: 300 and 220 points, so the circles are round, not stepped.
+        val sc = scale
+        for (k in 0 until 300) {
+            val a = k * 2 * PI / 300
+            val px = ((cx + cos(a) * r) * sc).toInt(); val py = ((cy + sin(a) * r) * sc).toInt()
+            fillPhys(px, py, px + 2, py + 2, frame)
+            if (k % 3 != 0 && k < 220) {
+                val b = k * 2 * PI / 220
+                val qx = ((cx + cos(b) * (r - 8)) * sc).toInt(); val qy = ((cy + sin(b) * (r - 8)) * sc).toInt()
+                fillPhys(qx, qy, qx + 1 + sc / 2, qy + 1 + sc / 2, frame)
+            }
+        }
+    } else for (k in 0 until 96) {
         val a = k * 2 * PI / 96
         fill((cx + cos(a) * r).toInt(), (cy + sin(a) * r).toInt(), (cx + cos(a) * r).toInt() + 1, (cy + sin(a) * r).toInt() + 1, frame)
         if (k % 2 == 0) fill((cx + cos(a) * (r - 8)).toInt(), (cy + sin(a) * (r - 8)).toInt(), (cx + cos(a) * (r - 8)).toInt() + 1, (cy + sin(a) * (r - 8)).toInt() + 1, frame)
@@ -246,7 +297,7 @@ private fun PixelScene.ferris(s: SceneState, x: Int) {
         fill(gx - 2, gy + 2, gx + 3, gy + 3, c(s, rgb(250, 250, 244)))
         if (night > 0.2f) fillAlpha(gx - 3, gy + 1, gx + 4, gy + 6, rgb(255, 230, 150), night * 0.18f)
     }
-    fill(cx - 2, cy - 2, cx + 3, cy + 3, dark)
+    if (hiRes) { fillOval(cx - 2.4f, cy - 2.4f, cx + 3.4f, cy + 3.4f, dark, 1f); fillOval(cx - 1f, cy - 1f, cx + 2f, cy + 2f, frame, 1f) } else fill(cx - 2, cy - 2, cx + 3, cy + 3, dark)
     // At night the rim is a ring of coloured lights, chasing round.
     if (night > 0.15f) for (k in 0 until 48) {
         val a = k * 2 * PI / 48
@@ -347,7 +398,15 @@ private fun PixelScene.coaster(s: SceneState, x: Int) {
         val top = BASE - hs[i].toInt() + 2
         if (top < BASE) fill(px, top, px + 1, BASE, support)
     }
-    for (i in xs.indices) {
+    if (hiRes) {
+        // The track as one smooth curve on the finer grid: the running surface and a darker rail under it.
+        for (i in 0 until xs.size - 1) {
+            val x0 = x + xs[i]; val x1 = x + xs[i + 1]
+            if (x1 < 0f || x0 >= W) continue
+            line(x0, BASE - hs[i], x1, BASE - hs[i + 1], track)
+            line(x0, BASE - hs[i] + 1f, x1, BASE - hs[i + 1] + 1f, rail)
+        }
+    } else for (i in xs.indices) {
         val px = x + xs[i].toInt()
         if (px < 0 || px >= W) continue
         val py = BASE - hs[i].toInt()
@@ -378,8 +437,18 @@ private fun PixelScene.coaster(s: SceneState, x: Int) {
             val px = x + xs[idx].toInt()
             val py = BASE - hs[idx].toInt()
             if (px < -4 || px >= W) continue
-            fill(px - 2, py - 3, px + 3, py, c(s, trainColors[carN]))
-            fill(px - 1, py - 4, px + 2, py - 3, c(s, rgb(250, 220, 190)))
+            if (hiRes) {
+                val bodyC = c(s, trainColors[carN])
+                fillOval(px - 2.8f, py - 3.6f, px + 3.8f, py + 0.3f, bodyC, 1f)
+                fillAlpha(px - 2, py - 3, px + 3, py - 2, rgb(255, 255, 255), 0.25f)
+                fillOval(px - 1.2f, py - 5.2f, px + 0.4f, py - 3.6f, c(s, rgb(240, 200, 168)), 1f)
+                fillOval(px + 0.8f, py - 5.2f, px + 2.4f, py - 3.6f, c(s, rgb(224, 176, 140)), 1f)
+                fillPhys(px * scale - 1, py * scale, px * scale + 3, py * scale + 2, c(s, rgb(40, 40, 48)))
+                fillPhys(px * scale + 5, py * scale, px * scale + 9, py * scale + 2, c(s, rgb(40, 40, 48)))
+            } else {
+                fill(px - 2, py - 3, px + 3, py, c(s, trainColors[carN]))
+                fill(px - 1, py - 4, px + 2, py - 3, c(s, rgb(250, 220, 190)))
+            }
             if (night > 0.2f) fillAlpha(px - 3, py - 5, px + 4, py + 1, rgb(255, 230, 150), night * 0.2f)
         }
     }
@@ -399,6 +468,11 @@ private fun PixelScene.dropTower(s: SceneState, x: Int) {
     val stripe = c(s, rgb(236, 236, 244))
     fill(x + 4, BASE - 60, x + 10, BASE, steel)
     for (y in BASE - 58 until BASE step 6) fill(x + 4, y, x + 10, y + 2, stripe)
+    if (hiRes) {
+        // Lattice braces down the tower and a lit edge.
+        for (y in BASE - 58 until BASE - 6 step 6) { line(x + 4f, y.toFloat() + 2f, x + 10f, y + 6f, Colors.scale(steel, 0.7f)); line(x + 10f, y.toFloat() + 2f, x + 4f, y + 6f, Colors.scale(steel, 0.7f)) }
+        fillAlphaPhys((x + 4) * scale, (BASE - 60) * scale, (x + 4) * scale + 1, BASE * scale, rgb(255, 255, 255), 0.25f)
+    }
     fill(x + 2, BASE - 64, x + 12, BASE - 60, c(s, rgb(220, 60, 60)))
     // The seat ring climbs slowly, hangs a moment, then drops and bounces.
     val p = ((s.rideTime) % 14.0).toFloat()

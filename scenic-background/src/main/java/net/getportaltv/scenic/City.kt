@@ -443,9 +443,24 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
         if (amount < 0.15f + 0.65f * Noise.unit(i, 1400)) continue
         val h = 22
         val x = wx - offset
-        fill(x, ROAD_TOP - h, x + 1, ROAD_TOP, post)
-        fill(x, ROAD_TOP - h, x + 5, ROAD_TOP - h + 1, post)
-        fill(x + 3, ROAD_TOP - h + 1, x + 6, ROAD_TOP - h + 2, if (night > 0.2f) rgb(255, 236, 170) else solid(s, rgb(210, 210, 200), 0.0f))
+        if (hiRes) {
+            // A tapered pole on a base plate, a curved arm and a hooded lamp, drawn on the finer grid.
+            val sc = scale
+            val topP = (ROAD_TOP - h) * sc
+            fillPhys(x * sc, topP, x * sc + 2, ROAD_TOP * sc - 3, post)
+            fillPhys(x * sc - 1, ROAD_TOP * sc - 3, x * sc + 3, ROAD_TOP * sc, post)
+            fillPhys(x * sc - 1, ROAD_TOP * sc - 2, x * sc + 3, ROAD_TOP * sc - 1, lerp(post, rgb(120, 126, 140), 0.5f))
+            fillPhys(x * sc, topP, x * sc + 1, ROAD_TOP * sc - 3, lerp(post, rgb(160, 168, 186), 0.3f))
+            for (k in 0..8) fillPhys(x * sc + 1 + k, topP - (if (k < 3) 0 else (k - 2) / 4), x * sc + 2 + k, topP + 2 - (if (k < 3) 0 else (k - 2) / 4), post)
+            val head = lerp(post, rgb(30, 32, 38), 0.5f)
+            fillOval(x + 3.2f, ROAD_TOP - h + 0.6f, x + 7f, ROAD_TOP - h + 2.2f, head, 1f)
+            val bulbC = if (night > 0.2f) rgb(255, 238, 176) else solid(s, rgb(214, 214, 204), 0.0f)
+            fillOval(x + 3.8f, ROAD_TOP - h + 1.4f, x + 6.4f, ROAD_TOP - h + 2.3f, bulbC, 1f)
+        } else {
+            fill(x, ROAD_TOP - h, x + 1, ROAD_TOP, post)
+            fill(x, ROAD_TOP - h, x + 5, ROAD_TOP - h + 1, post)
+            fill(x + 3, ROAD_TOP - h + 1, x + 6, ROAD_TOP - h + 2, if (night > 0.2f) rgb(255, 236, 170) else solid(s, rgb(210, 210, 200), 0.0f))
+        }
         // Festive lights hang in a swag from each lamp to the next across the street.
         if (s.season.festive > 0.02f && h > 18 && s.cityAt(wx.toDouble(), 1.0) > 0.5f && s.cityAt((wx + spacing).toDouble(), 1.0) > 0.5f) {
             var px = 5
@@ -457,7 +472,11 @@ internal fun PixelScene.drawStreetLamps(s: SceneState) {
         }
         if (night > 0.05f && h > 18) {
             // A soft glow round the lamp.
-            fillAlpha(x + 2, ROAD_TOP - h, x + 8, ROAD_TOP - h + 5, rgb(255, 226, 150), night * 0.22f)
+            if (hiRes) {
+                // Round, in rings that fade outward, and a pool of light on the ground below.
+                for (k in 3 downTo 1) fillOval(x + 5f - k * 2.6f, ROAD_TOP - h + 1.8f - k * 2.2f, x + 5f + k * 2.6f, ROAD_TOP - h + 1.8f + k * 2.2f, rgb(255, 226, 150), night * 0.09f)
+                fillOval(x - 2f, ROAD_TOP - 2.5f, x + 12f, ROAD_TOP + 0.5f, rgb(255, 226, 150), night * 0.10f)
+            } else fillAlpha(x + 2, ROAD_TOP - h, x + 8, ROAD_TOP - h + 5, rgb(255, 226, 150), night * 0.22f)
         }
     }
 }
