@@ -121,6 +121,7 @@ internal fun PixelScene.drawAirport(s: SceneState) {
             var jx: Float
             var jy: Float
             var wheels = true
+            var fade = 1f
             val y0 = runwayY.toFloat() - 4f   // the jet's feet on the runway
             if (landing) {
                 val tTouch = 6f
@@ -135,10 +136,13 @@ internal fun PixelScene.drawAirport(s: SceneState) {
                     jx = xTouch + v0 * r - 0.5f * 1.9f * r * r
                     jx = minOf(jx, xTouch + v0 * v0 / (2f * 1.9f))
                     jy = y0
+                    // Once it has stopped it taxis off to the terminal: it fades out rather than sitting there.
+                    fade = (1f - (r - v0 / 1.9f - 0.5f) / 2f).coerceIn(0f, 1f)
                 }
             } else {
                 val tLift = 8f
                 val a = 2f * (len * 0.7f - 8f) / (tLift * tLift)
+                fade = (t / 1.5f).coerceIn(0f, 1f)
                 if (t < tLift) {
                     jx = x + 8f + 0.5f * a * t * t
                     jy = y0
@@ -150,10 +154,12 @@ internal fun PixelScene.drawAirport(s: SceneState) {
                     wheels = c < 1.2f
                 }
             }
-            if (jx < -30f || jx > W + 30f) continue
+            if (jx < -30f || jx > W + 30f || fade <= 0.02f) continue
+            spritePaint.alpha = (fade * 255).toInt()
             spritePaint.colorFilter = filter(s, 0.12f + s.look.haze * 0.3f)
             sprite(if (wheels) JetSprites.down else JetSprites.clean, jx.toInt(), jy.toInt() + 5)
             spritePaint.colorFilter = null
+            spritePaint.alpha = 255
             // Engine smoke along the runway on take-off, a puff of tyre smoke on touching down, and lights at night.
             if (!landing && t < 10f) for (k in 1..6) fillAlpha((jx - 4 - k * 3).toInt(), (y0 + 4 - k * 0.4f).toInt(), (jx - 3 - k * 3).toInt(), (y0 + 5 - k * 0.4f).toInt(), rgb(214, 214, 220), 0.35f * (1f - k / 7f))
             if (landing && t in 6f..9f) for (k in 0..3) fillAlpha((jx + 4 - k * 2).toInt(), (y0 + 3).toInt(), (jx + 6 - k * 2).toInt(), (y0 + 5).toInt(), rgb(220, 220, 226), 0.4f * (1f - (t - 6f) / 3f))
