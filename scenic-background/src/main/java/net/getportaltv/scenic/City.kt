@@ -199,6 +199,12 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
     fill(x + w - 2, top, x + w, bottom, shade)
     // The parapet.
     fill(x - 1, top - 1, x + w + 1, top + 1, shade)
+    // (16-bit) courses of brick on the older buildings, a falling off of the light down the wall, a shadow under the parapet.
+    if (hiRes) {
+        if (base == BLOCK_COLORS[0] || base == BLOCK_COLORS[5] || base == BLOCK_COLORS[4]) brickTexture(x + 1, top + 1, x + w - 2, bottom - 11, i)
+        wallFalloff(x + 1, top + 1, x + w - 2, bottom)
+        eaveShadow(x + 1, x + w - 1, top + 1)
+    }
     // Snow lies along the roof edge.
     if (s.snowCover > 0.03f) fillAlpha(x - 1, top - 2, x + w + 1, top, solid(s, rgb(238, 242, 250), 0.04f), s.snowCover)
     // Windows in rows, lit at night here and there.
@@ -214,6 +220,7 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
             val glass = if (on && night > 0f) lerp(glassDay, lamp, night) else if (night > 0f) lerp(glassDay, dark, night) else glassDay
             fill(wx, wy, wx + 3, wy + 4, glass)
             fill(wx, wy + 4, wx + 3, wy + 5, shade)
+            if (hiRes) windowDetail(wx, wy, 3, 4, shade, if (on) night else 0f, lamp, s.look.day)
             wx += 6
             col++
         }
@@ -230,6 +237,8 @@ private fun PixelScene.building(s: SceneState, i: Int, x: Int, w: Int, bottom: I
         while (bx < x + w - 3) { bulb(s, bx, shopTop - 1, i * 13 + k, night); bx += 3; k++ }
     }
     fill(x + 2, shopTop + 3, x + w - 2, bottom, lerp(glassDay, lerp(WARM, body, 0.35f), night * 0.8f))
+    storefrontGlints(x + 2, shopTop + 3, x + w - 2, bottom, s.look.day * (1f - night))
+    eaveShadow(x + 2, x + w - 2, shopTop + 3)
     var mx = x + 2 + 8
     while (mx < x + w - 4) { fill(mx, shopTop + 3, mx + 1, bottom, lerp(body, rgb(20, 20, 30), 0.4f)); mx += 9 }
     fill(x + w / 2 - 1, shopTop + 4, x + w / 2 + 2, bottom, lerp(body, rgb(40, 30, 30), 0.5f))
