@@ -38,7 +38,7 @@ data class Config(
 
 object Settings {
     val ENVIRONMENTS = Places.CHOICES
-    val STYLES = listOf("8-bit")
+    val STYLES = listOf("8-bit", "16-bit")
     val SEASONS = Seasons.CHOICES
     /** The frame rates offered in settings. */
     val FRAME_RATES = listOf(15, 30, 60, 90, 120)

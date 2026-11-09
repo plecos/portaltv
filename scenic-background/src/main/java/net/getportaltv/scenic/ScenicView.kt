@@ -70,7 +70,7 @@ class ScenicView(
         // The picture is shown on every screen refresh but only worked out again when its turn comes (a little early is fine, so
         // a refresh that comes slightly before the time doesn't cost a whole extra one): the rate is then a steady whole number
         // of refreshes apart, instead of whatever a timer happens to land on.
-        if (scene.dither != config().dither) applyQuality()
+        if (scene.dither != config().dither || scene.style != config().style) applyQuality()
         val interval = 1_000_000_000L / steps[step]
         if (last == 0L || now - last >= interval - EARLY_NANOS) renderFrame(now)
         target.set(0, 0, width, height)
@@ -122,6 +122,7 @@ class ScenicView(
     /** Dithering is a setting; at 15 frames a second or less there is half the rain and snow. */
     private fun applyQuality() {
         scene.dither = config().dither
+        scene.style = config().style
         scene.particleScale = if (steps[step] <= 15) 0.5f else 1f
     }
 

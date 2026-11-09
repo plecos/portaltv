@@ -23,8 +23,18 @@ import kotlin.math.sqrt
  */
 class PixelScene {
 
+    /** The 8-bit picture, one pixel to each of the scene's. */
+    private val bitmapLow: Bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+    /** The 16-bit picture: twice as many pixels across and down, made when that style is on. */
+    private val bitmapHigh: Bitmap by lazy { Bitmap.createBitmap(W * 2, H * 2, Bitmap.Config.ARGB_8888) }
+    private val highPixels: IntArray by lazy { IntArray(W * 2 * H * 2) }
+
+    /** Which drawing style is on: see [Settings.STYLES]. */
+    var style = Settings.STYLES[0]
+    private val high get() = style == "16-bit"
+
     /** The finished picture, which the view scales up. */
-    val bitmap: Bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+    val bitmap: Bitmap get() = if (high) bitmapHigh else bitmapLow
 
     /**
      * The picture as it is drawn: every pixel an opaque colour. Everything is drawn straight into this array rather than through a
@@ -1072,7 +1082,7 @@ class PixelScene {
     private var lutDither = false
 
     /** For each of the 16 dither thresholds and each colour value, the value it becomes: the limited palette as a table, so drawing it is lookups. */
-    private fun buildLut() {
+    private fun buildLut(levels: Int, dither: Boolean) {
         val n = (levels - 1).coerceAtLeast(1)
         val step = 255 / n
         lut = IntArray(16 * 256)
@@ -1086,7 +1096,10 @@ class PixelScene {
 
     /** Dithers the picture and limits it to [levels] steps per colour, in place. */
     private fun finish() {
-        if (lutLevels != levels || lutDither != dither || lut.isEmpty()) buildLut()
+        // 16-bit: many more colours and no grain (smooth shading), then the whole picture is doubled with the edges smoothed.
+        val wantLevels = if (high) 32 else levels
+        val wantDither = if (high) false else dither
+        if (lutLevels != wantLevels || lutDither != wantDither || lut.isEmpty()) buildLut(wantLevels, wantDither)
         val pixels = fb
         val table = lut
         for (y in 0 until H) {
@@ -1099,7 +1112,38 @@ class PixelScene {
                 i++
             }
         }
-        bitmap.setPixels(pixels, 0, W, 0, 0, W, H)
+        if (!high) { bitmapLow.setPixels(pixels, 0, W, 0, 0, W, H); return }
+        scale2x(pixels, highPixels)
+        bitmapHigh.setPixels(highPixels, 0, W * 2, 0, 0, W * 2, H * 2)
+    }
+
+    /**
+     * Doubles the picture with the edges between flat areas smoothed (the Scale2x rule): each pixel becomes four, and where two
+     * neighbours of one colour meet at a corner the pixel's matching quarter takes their colour, so diagonals and curves are
+     * stepped half as coarsely instead of in big squares.
+     */
+    private fun scale2x(src: IntArray, out: IntArray) {
+        val w2 = W * 2
+        for (y in 0 until H) {
+            val up = if (y > 0) y - 1 else y
+            val down = if (y < H - 1) y + 1 else y
+            for (x in 0 until W) {
+                val p = src[y * W + x]
+                val a = src[up * W + x]
+                val d = src[down * W + x]
+                val c = src[y * W + (if (x > 0) x - 1 else x)]
+                val b = src[y * W + (if (x < W - 1) x + 1 else x)]
+                var e0 = p; var e1 = p; var e2 = p; var e3 = p
+                if (c != b && a != d) {
+                    if (a == c) e0 = a
+                    if (a == b) e1 = b
+                    if (d == c) e2 = c
+                    if (d == b) e3 = d
+                }
+                val o = y * 2 * w2 + x * 2
+                out[o] = e0; out[o + 1] = e1; out[o + w2] = e2; out[o + w2 + 1] = e3
+            }
+        }
     }
 
     private fun quant(v: Int, n: Int): Int {

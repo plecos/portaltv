@@ -58,6 +58,7 @@ class PreviewActivity : Activity() {
         if (intent.hasExtra("speed")) config = config.copy(speed = intent.getFloatExtra("speed", 1f).coerceIn(0.1f, 20f))
         if (intent.hasExtra("fps")) config = config.copy(fps = intent.getIntExtra("fps", 30))
         if (intent.hasExtra("yearday")) config = config.copy(yearDay = intent.getFloatExtra("yearday", 0f))
+        intent.getStringExtra("style")?.let { if (it in Settings.STYLES) config = config.copy(style = it) }
         intent.getStringExtra("season")?.let { if (it in Seasons.CHOICES) config = config.copy(season = it) }
         yearLapse = intent.getBooleanExtra("yearlapse", false)
         if (intent.hasExtra("cam")) config = config.copy(startCam = intent.getFloatExtra("cam", 0f).toDouble())
