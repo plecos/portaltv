@@ -276,6 +276,13 @@ internal fun SceneState.beachOnScreen(x: Int): Float {
     return maxOf(beachAt((c + x - BAY).toDouble(), 1.0), beachAt((c + x).toDouble(), 1.0), beachAt((c + x + BAY).toDouble(), 1.0))
 }
 
+/**
+ * How much the far land (mountains, hills and the trees on them) has been taken by the sea at screen column [x]: 0 on land, 1 where the
+ * sea reaches the horizon, with a short slope between. The beach itself comes in slowly over a long stretch of road; the land should
+ * not shrink along with it but stay whole up to the edge of the bay and be gone beyond it.
+ */
+internal fun SceneState.seaCut(x: Int): Float = Colors.smoothstep(0.4f, 0.6f, beachOnScreen(x))
+
 /** How much of the land is built or sand (city or beach) at screen column [x]: where there is no room for wild country (trees, fences, farms). */
 internal fun SceneState.hardOnScreen(x: Int): Float =
     if (x >= -SCREEN_PAD && x < W + SCREEN_PAD) maxOf(cityCols[x + SCREEN_PAD], beachCols[x + SCREEN_PAD])
@@ -506,7 +513,7 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
     drawLighthouse(s, night)
     // Sailboats, nearer in, going with the wind.
     for (ev in LifeSchedule.events(s.time, 45.0, 90.0, 0.55f, 811, s.boost)) {
-        if (ev.unit(6) < s.offSeason() * 0.9f) continue
+        if (ev.unit(6) < s.offSeason() * 0.9f || night > 0.5f) continue
         val dir = if (s.windDir > 0) 1 else -1
         val v = dir * (3f + ev.unit(1) * 3f) - travelV * 0.15f
         val age = (s.time - ev.spawn).toFloat()
@@ -704,7 +711,8 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             }
         }
         // Swimmers: a head and an arm showing above the water, now and then.
-        if (Noise.unit(i, 895) < 0.4f * crowd * crowd) {
+        val after = s.look.day < 0.31f
+        if (!after && Noise.unit(i, 895) < 0.4f * crowd * crowd) {
             val sx = left + 10 + (Noise.unit(i, 896) * 70).toInt()
             val sy = SHORE - 5 - (Noise.unit(i, 897) * 6).toInt() + (sin(t * 1.3 + i) * 1).toInt()
             val swimSkin = solid(s, People.SKIN[People.skinIndex(Noise.unit(i, 917))], 0.04f)
@@ -737,7 +745,7 @@ internal fun PixelScene.drawBeachFront(s: SceneState) {
             }
         }
         // A surfer on the water.
-        if (Noise.unit(i, 898) < 0.18f * (1f - 0.8f * (1f - crowd))) {
+        if (!after && Noise.unit(i, 898) < 0.18f * (1f - 0.8f * (1f - crowd))) {
             val sx = left + 20 + (Noise.unit(i, 899) * 60).toInt()
             sprite(BeachSprites.surfer(People.skinIndex(Noise.unit(i, 916))), sx, SHORE - 2 + (sin(t * 1.1 + i) * 1.5).toInt())
         }

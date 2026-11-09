@@ -526,7 +526,7 @@ class PixelScene {
         shape.moveTo(offset.toInt() - 4)
         city.moveTo(offset.toInt() - 4)
         for (i in 0 until W + 8) {
-            heights[i] = shape[i] * (1f - maxOf(city[i], s.beachOnScreen(i - 4)))
+            heights[i] = shape[i] * (1f - maxOf(city[i], s.seaCut(i - 4)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
         for (x in 0 until W) {
@@ -567,7 +567,7 @@ class PixelScene {
             // Toward the city the hills flatten and go grey, hidden behind the towers.
             val c = cityShare[x + 4]
             // Toward the sea they flatten to low dunes.
-            val b = s.beachOnScreen(x)
+            val b = s.seaCut(x)
             val top = (base - h * amp * (1f - 0.85f * maxOf(c, b))).toInt()
             var bodyColor = if (f > 0f) lerp(body, forestBody, f) else body
             var crestColor = if (f > 0f) lerp(crest, forestCrest, f) else crest
@@ -604,7 +604,7 @@ class PixelScene {
             if (Noise.unit(i, seed, 76 + extra) < s.hardOnScreen(x) * 1.2f) continue
             val h = Noise.ridge(worldX.toFloat() * freq, seed, 3)
             // They stand on the hill as drawn: lower where it sinks toward the city or the sea.
-            val y = (base - h * amp * (1f - 0.85f * maxOf(s.cityAt(worldX.toDouble(), factor.toDouble()), s.beachOnScreen(x)))).toInt() + 3
+            val y = (base - h * amp * (1f - 0.85f * maxOf(s.cityAt(worldX.toDouble(), factor.toDouble()), s.seaCut(x)))).toInt() + 3
             val firs = 0.5f + 0.45f * f
             sprite(if (Noise.unit(i, seed, 73 + extra) < firs) (if (f > 0.5f && Noise.unit(i, seed, 75) < 0.4f) Sprites.pine else Sprites.pineSmall) else Sprites.roundSmallYear.at(s.season, worldX * 3 + extra), x, y)
         }
@@ -703,7 +703,7 @@ class PixelScene {
                     windmill(s, bx, FIELD_TOP + 12)
                 }
                 // Animals grazing in a group.
-                if (Noise.unit(i, 60) < 0.5f) {
+                if (s.look.day >= 0.31f && Noise.unit(i, 60) < 0.5f) {
                     val kind = animals[(Noise.unit(i, 61) * animals.size).toInt().coerceIn(0, animals.size - 1)]
                     val n = 2 + (Noise.unit(i, 62) * 3).toInt()
                     val ax = left + 10 + (Noise.unit(i, 63) * 120).toInt()
@@ -852,7 +852,7 @@ class PixelScene {
             // In the suburbs, by day, an occasional school bus.
             val school = cityCar && suburbThen > 0.5f && cityThen < 0.2f && s.look.day > 0.4f && kind < 0.12f
             val suburbRoll = cityCar && suburbThen > 0.35f && cityThen < 0.35f
-            val sp = if (school) schoolBus else if (suburbRoll && kind >= 0.12f && kind < 0.18f) ambulance else if (suburbRoll && kind >= 0.18f && kind < 0.24f) fireEngine else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
+            val sp = if (school) schoolBus else if (suburbRoll && kind >= 0.12f && kind < 0.135f) ambulance else if (suburbRoll && kind >= 0.18f && kind < 0.195f) fireEngine else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
             val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9

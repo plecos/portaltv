@@ -103,7 +103,7 @@ internal fun PixelScene.drawWalkers(s: SceneState) {
         }
     }
     // A rabbit hops across now and then, in the day.
-    if (s.stormy() < 0.4f && !s.anyBeach) for (ev in LifeSchedule.events(s.time, 16.0, 70.0, 0.22f, 211, s.boost)) {
+    if (s.stormy() < 0.4f && !s.anyBeach && s.day() >= 0.31f) for (ev in LifeSchedule.events(s.time, 16.0, 70.0, 0.22f, 211, s.boost)) {
         val dir = if (ev.unit(1) < 0.5f) 1 else -1
         val vScreen = dir * 14f - travelV
         val age = (s.time - ev.spawn).toFloat()
@@ -151,7 +151,7 @@ internal fun PixelScene.drawPonds(s: SceneState) {
         }
         // Two ducks, going back and forth.
         spritePaint.colorFilter = filter(s, 0.04f)
-        for (d in 0 until 2) {
+        if (s.day() >= 0.31f) for (d in 0 until 2) {
             val travel = LifeSchedule.pingPong(s.time * (2.0 + d * 0.7) + d * 9, (halfW * 2 - 16).toDouble()).toInt()
             val toRight = ((s.time * (2.0 + d * 0.7) + d * 9) % (2 * (halfW * 2 - 16))) < (halfW * 2 - 16)
             sprite(LifeSprites.duck, cx - halfW + 4 + travel, top + 4 + d, flip = !toRight)
@@ -170,7 +170,7 @@ internal fun PixelScene.drawFieldAnimals(s: SceneState) {
         val left = (i * chunk - offset).toInt()
         val forest = s.forestAt(i * chunk + chunk / 2.0, 0.5)
         if (s.builtOnScreen(left + chunk / 2) > 0.2f) continue
-        if (Noise.unit(i, 150) < 0.24f + forest * 0.4f) {
+        if (s.day() >= 0.31f && Noise.unit(i, 150) < 0.24f + forest * 0.4f) {
             val n = 1 + (Noise.unit(i, 151) * 3).toInt()
             val dx = left + 10 + (Noise.unit(i, 152) * 120).toInt()
             for (d in 0 until n) {
