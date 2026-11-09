@@ -1279,7 +1279,7 @@ class PixelScene {
             val sp = if (school) schoolBus else if (suburbRoll && kind >= 0.12f && kind < 0.135f) ambulance else if (suburbRoll && kind >= 0.18f && kind < 0.195f) fireEngine else if (cityCar && cityThen > 0.35f && kind < 0.22f) taxi else if (cityCar && cityThen > 0.35f && kind < 0.30f) police else if (cityCar && cityThen > 0.35f && kind < 0.42f) buses[(Noise.unit(k, 108) * buses.size).toInt().coerceIn(0, buses.size - 1)] else if (truck) trucks[(Noise.unit(k, 106) * trucks.size).toInt().coerceIn(0, trucks.size - 1)] else cars[(Noise.unit(k, 106) * cars.size).toInt().coerceIn(0, cars.size - 1)]
             val x = if (vScreen < 0) W + 30 + vScreen * e else -sp.width - 30 + vScreen * e
             val movingRight = ourLane
-            val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 9
+            val y = if (ourLane) ROAD_BOTTOM - 2 else ROAD_TOP + 5
             sprite(sp, x.toInt(), y, !movingRight)
             if (sp === police || sp === ambulance || sp === fireEngine) {
                 // The lights flash red and blue, a little out of step from one vehicle to the next.
