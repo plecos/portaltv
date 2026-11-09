@@ -12,6 +12,9 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     /** The picture's pixels, as colours (alpha first), for drawing it without a Canvas. */
     val pixels: IntArray by lazy { IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) } }
 
+    /** The same picture twice as big with its edges smoothed (see [doubled]), for the 16-bit style. */
+    val pixelsHi: IntArray by lazy { doubled(pixels, width, height) }
+
     constructor(rows: List<String>, palette: Map<Char, Int>) : this(
         rows.maxOf { it.length }, rows.size,
         Bitmap.createBitmap(rows.maxOf { it.length }, rows.size, Bitmap.Config.ARGB_8888).also { b ->
@@ -22,6 +25,37 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     )
 
     companion object {
+        /**
+         * Doubles a picture, rounding the corners: each pixel becomes four, and where two neighbours of one colour meet at a
+         * corner the pixel's matching quarter takes their colour (the Scale2x rule), so diagonals and curves are half as stepped.
+         * Colours are compared whole, transparency included, so the outline stays clean.
+         */
+        fun doubled(src: IntArray, w: Int, h: Int): IntArray {
+            val out = IntArray(w * 2 * h * 2)
+            val w2 = w * 2
+            for (y in 0 until h) {
+                val up = if (y > 0) y - 1 else y
+                val down = if (y < h - 1) y + 1 else y
+                for (x in 0 until w) {
+                    val p = src[y * w + x]
+                    val a = src[up * w + x]
+                    val d = src[down * w + x]
+                    val c = src[y * w + (if (x > 0) x - 1 else x)]
+                    val b = src[y * w + (if (x < w - 1) x + 1 else x)]
+                    var e0 = p; var e1 = p; var e2 = p; var e3 = p
+                    if (c != b && a != d) {
+                        if (a == c) e0 = a
+                        if (a == b) e1 = b
+                        if (d == c) e2 = c
+                        if (d == b) e3 = d
+                    }
+                    val o = y * 2 * w2 + x * 2
+                    out[o] = e0; out[o + 1] = e1; out[o + w2] = e2; out[o + w2 + 1] = e3
+                }
+            }
+            return out
+        }
+
         /** A sprite made from a picture that is already drawn. */
         fun of(bitmap: Bitmap) = Sprite(bitmap.width, bitmap.height, bitmap)
     }
