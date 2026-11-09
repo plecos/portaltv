@@ -13,7 +13,21 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     val pixels: IntArray by lazy { IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) } }
 
     /** The same picture twice as big with its edges smoothed (see [doubled]), for the 16-bit style. */
-    val pixelsHi: IntArray by lazy { shaded(doubled(pixels, width, height), width * 2, height * 2) }
+    val pixelsHi: IntArray by lazy { hiOverride ?: shaded(doubled(pixels, width, height), width * 2, height * 2) }
+
+    /** A finer drawing of this sprite, twice the size, drawn by hand for the 16-bit style (see [detail]). */
+    private var hiOverride: IntArray? = null
+
+    /** Gives this sprite a hand-drawn finer version for the 16-bit style (twice the width and height); returns the sprite. */
+    fun detail(hiRows: List<String>, hiPalette: Map<Char, Int>): Sprite {
+        val w = hiRows.maxOf { it.length }
+        check(w == width * 2 && hiRows.size == height * 2) { "the fine drawing is ${w}x${hiRows.size}, not ${width * 2}x${height * 2}" }
+        val px = IntArray(w * hiRows.size)
+        hiRows.forEachIndexed { y, row -> row.forEachIndexed { x, ch -> hiPalette[ch]?.let { px[y * w + x] = it } } }
+        hiOverride = px
+        return this
+    }
+
 
     constructor(rows: List<String>, palette: Map<Char, Int>) : this(
         rows.maxOf { it.length }, rows.size,
@@ -415,7 +429,7 @@ object Sprites {
             ".kkk......kkk.",
             ".kkk......kkk."
         ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.72f))
-    )
+    ).let { s -> HiSprites.car(body).let { (r, p) -> s.detail(r, p) } }
 
     /** A taxi: a yellow-style car with a checker stripe and a light on the roof. */
     fun taxi(body: Int): Sprite = Sprite(
@@ -429,7 +443,7 @@ object Sprites {
             ".kkk......kkk.",
             ".kkk......kkk."
         ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.72f))
-    )
+    ).let { s -> HiSprites.taxi(body).let { (r, p) -> s.detail(r, p) } }
 
     /** A police car: white with a dark stripe along the doors; the light bar on the roof is drawn on top, flashing. */
     fun police(): Sprite = Sprite(
@@ -443,7 +457,7 @@ object Sprites {
             ".kkk......kkk.",
             ".kkk......kkk."
         ), CAR + mapOf('c' to rgb(240, 240, 244), 'C' to rgb(40, 52, 96), 'L' to rgb(60, 60, 70))
-    )
+    ).let { s -> HiSprites.police().let { (r, p) -> s.detail(r, p) } }
 
     private val EMERGENCY = CAR + mapOf('r' to rgb(206, 38, 38), 'R' to rgb(206, 38, 38), 'c' to rgb(244, 244, 246), 'Y' to rgb(240, 212, 70), 'L' to rgb(176, 176, 184))
 
@@ -459,7 +473,7 @@ object Sprites {
             ".kkk" + ".".repeat(8) + "kkk" + "...",
             ".kkk" + ".".repeat(8) + "kkk" + "..."
         ), EMERGENCY
-    )
+    ).let { s -> HiSprites.ambulance().let { (r, p) -> s.detail(r, p) } }
 
     /** A fire engine, 26 wide: red with a ladder along the top, a yellow stripe and the cab at the front. */
     fun fireEngine(): Sprite = Sprite(
@@ -473,7 +487,7 @@ object Sprites {
             ".kkk" + ".".repeat(5) + "kkk" + ".".repeat(8) + "kkk" + "...",
             ".kkk" + ".".repeat(5) + "kkk" + ".".repeat(8) + "kkk" + "..."
         ), EMERGENCY
-    )
+    ).let { s -> HiSprites.fireEngine().let { (r, p) -> s.detail(r, p) } }
 
     /** A city bus, 30 wide: a row of windows along the side. */
     fun bus(body: Int): Sprite {
@@ -482,7 +496,7 @@ object Sprites {
         return Sprite(
             listOf("c".repeat(w), windows, windows, "c".repeat(w), "c" + "C".repeat(w - 2) + "c", "c".repeat(w), "c".repeat(w), ".kkkk" + ".".repeat(w - 10) + ".kkkk", ".kkkk" + ".".repeat(w - 10) + ".kkkk"),
             CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.78f))
-        )
+        ).let { s -> HiSprites.bus(body).let { (r, p) -> s.detail(r, p) } }
     }
 
     /** A school bus, 32 wide: yellow with a black stripe, windows along the side and red lights at the corners. */
@@ -492,7 +506,7 @@ object Sprites {
         return Sprite(
             listOf("r" + "y".repeat(w - 2) + "r", windows, windows, "y".repeat(w), "y" + "K".repeat(w - 2) + "y", "y".repeat(w), "y".repeat(w), ".kkkk" + ".".repeat(w - 10) + ".kkkk", ".kkkk" + ".".repeat(w - 10) + ".kkkk"),
             CAR + mapOf('y' to rgb(250, 190, 30), 'r' to rgb(230, 50, 40), 'K' to rgb(30, 30, 36))
-        )
+        ).let { s -> HiSprites.schoolBus().let { (r, p) -> s.detail(r, p) } }
     }
 
     fun truck(body: Int): Sprite = Sprite(
@@ -506,7 +520,7 @@ object Sprites {
             ".kkk.....kkk.....kkk.kk",
             ".kkk.....kkk.....kkk.kk"
         ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.78f), 'w' to rgb(214, 216, 222))
-    )
+    ).let { s -> HiSprites.truck(body).let { (r, p) -> s.detail(r, p) } }
 
     /** Cloud blobs: lumpy white on top, a darker underside. [seed] picks the lumps. */
     fun cloud(width: Int, height: Int, seed: Int): Bitmap {
