@@ -13,40 +13,31 @@ internal object HiSky {
     /** A cloud of lumps, drawn at twice the size from the same lumps with finer puffs: lit white on top, soft blue-grey beneath. */
     fun cloud(sp: Sprite, seed: Int) = Fine(sp, blank = true).apply {
         val width = sp.width; val height = sp.height
-        val lumps = 4 + width / 14
-        val cx = FloatArray(lumps); val cy = FloatArray(lumps); val cr = FloatArray(lumps)
-        for (i in 0 until lumps) {
-            val u = (i + 0.5f) / lumps
-            cx[i] = 3f + u * (width - 6)
-            val mid = 1f - kotlin.math.abs(u - 0.5f) * 1.6f
-            cr[i] = (height * (0.28f + 0.30f * mid)) * (0.8f + 0.5f * Noise.unit(seed, i))
-            cy[i] = height - 2f - cr[i] * 0.55f - Noise.unit(seed, i, 1) * height * 0.12f
-        }
+        val lumps = Sprites.cloudLumps(width, height, seed)
         val white = rgb(255, 255, 255); val light = rgb(240, 243, 250); val mid = rgb(216, 224, 238); val shade = rgb(188, 198, 218)
         for (py in 0 until h) for (px in 0 until w) {
             val x = (px + 0.5f) / 2f; val y = (py + 0.5f) / 2f
             var inside = false
             var lightest = -9f
-            for (i in 0 until lumps) {
+            for ((i, l) in lumps.withIndex()) {
                 // Each lump is a little rough at its edge, so the outline is puffy instead of smooth.
                 val rough = 1f + 0.10f * (Noise.unit(px shr 1, py shr 1, seed + 7 + i) - 0.5f)
-                val dx = x - cx[i]; val dy = y - cy[i]
-                val r = cr[i] * rough
+                val dx = x - l[0]; val dy = y - l[1]
+                if (l[3] == 0f && y > Sprites.cloudBase(width, height, x)) continue
+                val r = l[2] * rough
                 if (dx * dx + dy * dy <= r * r) {
                     inside = true
-                    val l = (-dx * 0.12f - dy * 1.0f) / cr[i]
-                    if (l > lightest) lightest = l
+                    val lt = (-dx * 0.12f - dy * 1.0f) / l[2]
+                    if (lt > lightest) lightest = lt
                 }
             }
             if (!inside) continue
             val fromBottom = (height - 1 - y) / height
-            val edge = kotlin.math.abs(x - width / 2f) / (width / 2f)
-            if (fromBottom < 0.28f && edge > 0.45f + fromBottom * 1.6f) continue
             val v = lightest + 0.22f * (Noise.unit(px shr 1, py shr 1, seed + 91) - 0.5f)
             px(px, py, when {
                 v > 0.50f -> white
                 v > 0.12f -> light
-                fromBottom < 0.30f -> shade
+                fromBottom < 0.26f -> shade
                 else -> mid
             })
         }

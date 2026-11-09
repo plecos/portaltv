@@ -548,38 +548,56 @@ object Sprites {
         ), CAR + mapOf('c' to body, 'C' to Colors.scale(body, 0.78f), 'w' to rgb(214, 216, 222))
     ).let { s -> HiSprites.truck(body).let { (r, p) -> s.detail(r, p) } }
 
-    /** Cloud blobs: lumpy white on top, a darker underside. [seed] picks the lumps. */
+    /**
+     * The lumps a cloud is made of: big ones along its top, lowest at the ends and highest in the middle, and a row of small
+     * puffs along the bottom, so the underside is bumpy like the rest instead of a smooth curve. Each lump is (x, y, radius).
+     */
+    internal fun cloudLumps(width: Int, height: Int, seed: Int): List<FloatArray> {
+        val lumps = ArrayList<FloatArray>()
+        val big = 4 + width / 14
+        for (i in 0 until big) {
+            val u = (i + 0.5f) / big
+            val mid = 1f - kotlin.math.abs(u - 0.5f) * 1.6f
+            val r = (height * (0.28f + 0.30f * mid)) * (0.8f + 0.5f * Noise.unit(seed, i))
+            val x = 3f + u * (width - 6)
+            lumps += floatArrayOf(x, height - 2f - r * 0.55f - Noise.unit(seed, i, 1) * height * 0.12f, r, 0f)
+        }
+        // A row of small puffs hanging along the underside, so it is bumpy like the top (they are marked 1).
+        val puffs = 3 + width / 8
+        for (i in 0 until puffs) {
+            val u = (i + 0.5f) / puffs
+            val x = 3f + u * (width - 6) + (Noise.unit(seed, i, 5) - 0.5f) * 3f
+            val r = height * (0.10f + 0.09f * Noise.unit(seed, i, 6))
+            lumps += floatArrayOf(x, cloudBase(width, height, x) - r * 0.35f - Noise.unit(seed, i, 7) * 1.5f, r, 1f)
+        }
+        return lumps
+    }
+
+    /** Where the underside of a cloud runs at column [x]: low in the middle, curving up toward the ends. Big lumps are cut off below it; the puffs hang beyond. */
+    internal fun cloudBase(width: Int, height: Int, x: Float): Float {
+        val u = (x / width).coerceIn(0f, 1f)
+        val taper = (1f - kotlin.math.abs(u - 0.5f) * 1.8f).coerceIn(0f, 1f)
+        return height - 0.17f * height - (1f - taper) * (1f - taper) * height * 0.30f
+    }
+
+    /** Cloud blobs: lumpy white on top, bumpy underneath, a darker underside. [seed] picks the lumps. */
     fun cloud(width: Int, height: Int, seed: Int): Bitmap {
         val b = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val lumps = 4 + width / 14
-        val cx = FloatArray(lumps)
-        val cy = FloatArray(lumps)
-        val cr = FloatArray(lumps)
-        for (i in 0 until lumps) {
-            val u = (i + 0.5f) / lumps
-            cx[i] = 3f + u * (width - 6)
-            // Lumps are tallest in the middle.
-            val mid = 1f - kotlin.math.abs(u - 0.5f) * 1.6f
-            cr[i] = (height * (0.28f + 0.30f * mid)) * (0.8f + 0.5f * Noise.unit(seed, i))
-            cy[i] = height - 2f - cr[i] * 0.55f - Noise.unit(seed, i, 1) * height * 0.12f
-        }
+        val lumps = cloudLumps(width, height, seed)
         for (y in 0 until height) for (x in 0 until width) {
             var inside = false
             var top = false
-            for (i in 0 until lumps) {
-                val dx = x - cx[i]
-                val dy = y - cy[i]
-                if (dx * dx + dy * dy <= cr[i] * cr[i]) {
+            for (l in lumps) {
+                val dx = x - l[0]
+                val dy = y - l[1]
+                if (l[3] == 0f && y > cloudBase(width, height, x.toFloat())) continue
+                if (dx * dx + dy * dy <= l[2] * l[2]) {
                     inside = true
                     // The lit side is the upper left of each lump.
-                    if (dx * 0.4f + dy * 0.9f < cr[i] * 0.15f) top = true
+                    if (dx * 0.4f + dy * 0.9f < l[2] * 0.15f) top = true
                 }
             }
             if (!inside) continue
-            // The underside curves up toward the ends instead of ending in a flat line.
-            val fromBottom = (height - 1 - y).toFloat() / height
-            val edge = kotlin.math.abs(x - width / 2f) / (width / 2f)
-            if (fromBottom < 0.28f && edge > 0.45f + fromBottom * 1.6f) continue
             b.setPixel(x, y, if (top) rgb(255, 255, 255) else rgb(196, 204, 218))
         }
         return b
