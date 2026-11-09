@@ -12,6 +12,9 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     /** The picture's pixels, as colours (alpha first), for drawing it without a Canvas. */
     val pixels: IntArray by lazy { IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) } }
 
+    /** The same picture twice as big with its edges smoothed (see [doubled]), for the 16-bit style. */
+    val pixelsHi: IntArray by lazy { shaded(doubled(pixels, width, height), width * 2, height * 2) }
+
     constructor(rows: List<String>, palette: Map<Char, Int>) : this(
         rows.maxOf { it.length }, rows.size,
         Bitmap.createBitmap(rows.maxOf { it.length }, rows.size, Bitmap.Config.ARGB_8888).also { b ->
@@ -22,6 +25,65 @@ class Sprite private constructor(val width: Int, val height: Int, val bitmap: Bi
     )
 
     companion object {
+        /**
+         * Doubles a picture, rounding the corners: each pixel becomes four, and where two neighbours of one colour meet at a
+         * corner the pixel's matching quarter takes their colour (the Scale2x rule), so diagonals and curves are half as stepped.
+         * Colours are compared whole, transparency included, so the outline stays clean.
+         */
+        fun doubled(src: IntArray, w: Int, h: Int): IntArray {
+            val out = IntArray(w * 2 * h * 2)
+            val w2 = w * 2
+            for (y in 0 until h) {
+                val up = if (y > 0) y - 1 else y
+                val down = if (y < h - 1) y + 1 else y
+                for (x in 0 until w) {
+                    val p = src[y * w + x]
+                    val a = src[up * w + x]
+                    val d = src[down * w + x]
+                    val c = src[y * w + (if (x > 0) x - 1 else x)]
+                    val b = src[y * w + (if (x < w - 1) x + 1 else x)]
+                    var e0 = p; var e1 = p; var e2 = p; var e3 = p
+                    if (c != b && a != d) {
+                        if (a == c) e0 = a
+                        if (a == b) e1 = b
+                        if (d == c) e2 = c
+                        if (d == b) e3 = d
+                    }
+                    val o = y * 2 * w2 + x * 2
+                    out[o] = e0; out[o + 1] = e1; out[o + w2] = e2; out[o + w2 + 1] = e3
+                }
+            }
+            return out
+        }
+
+        private fun alphaAt(p: IntArray, w: Int, h: Int, x: Int, y: Int): Int = if (x < 0 || y < 0 || x >= w || y >= h) 0 else p[y * w + x] ushr 24
+
+        /**
+         * Gives a doubled picture some form, once: the edges facing up and left (toward the light) are lightened and the ones facing
+         * down and right darkened, it is a little lighter at the top than at the foot, and leaves get a grain of light and shade.
+         * Only solid pixels are touched, so soft edges and glows stay as they are.
+         */
+        fun shaded(p: IntArray, w: Int, h: Int): IntArray {
+            val out = p.copyOf()
+            for (y in 0 until h) for (x in 0 until w) {
+                val c = p[y * w + x]
+                if (c ushr 24 != 255) continue
+                var f = 1.07f - 0.14f * y / h
+                val lit = alphaAt(p, w, h, x, y - 1) == 0 || alphaAt(p, w, h, x - 1, y) == 0
+                val dark = alphaAt(p, w, h, x, y + 1) == 0 || alphaAt(p, w, h, x + 1, y) == 0
+                if (lit && !dark) f *= 1.17f else if (dark && !lit) f *= 0.80f
+                val r = (c shr 16) and 0xFF
+                val g = (c shr 8) and 0xFF
+                val b = c and 0xFF
+                if (g > r + 12 && g > b + 12) {
+                    // Leaves: clumps of light and shade with a finer grain on top.
+                    f *= 0.90f + 0.12f * Noise.unit(x shr 1, y shr 1, 778) + 0.10f * Noise.unit(x, y, 779)
+                }
+                out[y * w + x] = (0xFF shl 24) or (minOf(255, (r * f).toInt()) shl 16) or (minOf(255, (g * f).toInt()) shl 8) or minOf(255, (b * f).toInt())
+            }
+            return out
+        }
+
         /** A sprite made from a picture that is already drawn. */
         fun of(bitmap: Bitmap) = Sprite(bitmap.width, bitmap.height, bitmap)
     }

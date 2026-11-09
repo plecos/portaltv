@@ -23,14 +23,28 @@ import kotlin.math.sqrt
  */
 class PixelScene {
 
+    /** The 8-bit picture, one pixel to each of the scene's. */
+    private val bitmapLow: Bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+    /** The 16-bit picture: twice as many pixels across and down, made when that style is on. */
+    private val bitmapHigh: Bitmap by lazy { Bitmap.createBitmap(W * 2, H * 2, Bitmap.Config.ARGB_8888) }
+
+    /** Which drawing style is on: see [Settings.STYLES]. */
+    var style = Settings.STYLES[0]
+    private val high get() = style == "16-bit"
+
     /** The finished picture, which the view scales up. */
-    val bitmap: Bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+    val bitmap: Bitmap get() = if (high) bitmapHigh else bitmapLow
 
     /**
      * The picture as it is drawn: every pixel an opaque colour. Everything is drawn straight into this array rather than through a
      * Canvas, because a slow TV spends far longer setting up each Canvas call (thousands a frame) than the few pixels each one fills.
      */
-    private val fb = IntArray(W * H)
+    private val fb = IntArray(W * 2 * H * 2)
+
+    /** How many real pixels to each of the scene's, across and down: 1 in the 8-bit style, 2 in the 16-bit. */
+    internal var scale = 1
+    private var pw = W
+    private var ph = H
 
     /** How sprites are drawn now: how opaque, and the light and haze they are given (see [filter]). */
     internal val spritePaint = SpritePaint()
@@ -73,6 +87,9 @@ class PixelScene {
 
     fun render(s: SceneState) {
         scene = s
+        scale = if (high) 2 else 1
+        pw = W * scale
+        ph = H * scale
         val l = s.look
         val cam = s.cam
         s.prepareColumns()
@@ -101,17 +118,17 @@ class PixelScene {
         phase("drawPonds") { drawPonds(s) }
         phase("drawFieldSeason") { drawFieldSeason(s) }
         phase("drawFieldAnimals") { drawFieldAnimals(s) }
-        phase("drawFarm") { drawFarm(s, cam) }
+        phase("drawFarm") { shadowed { drawFarm(s, cam) } }
         phase("drawSuburbBlocks") { drawSuburbBlocks(s) }
         phase("drawParkRides") { drawParkRides(s) }
         phase("drawCityBlocks") { drawCityBlocks(s) }
         phase("drawStreetLamps") { drawStreetLamps(s) }
         phase("drawBeachFront") { drawBeachFront(s) }
         phase("drawSubwayEntrances") { drawSubwayEntrances(s) }
-        phase("drawCityPeople") { drawCityPeople(s) }
-        phase("drawSuburbPeople") { drawSuburbPeople(s) }
-        phase("drawParkFront") { drawParkFront(s) }
-        phase("drawRoadsideTrees") { drawRoadsideTrees(s) }
+        phase("drawCityPeople") { shadowed { drawCityPeople(s) } }
+        phase("drawSuburbPeople") { shadowed { drawSuburbPeople(s) } }
+        phase("drawParkFront") { shadowed { drawParkFront(s) } }
+        phase("drawRoadsideTrees") { shadowed { drawRoadsideTrees(s) } }
         phase("drawCampsites") { drawCampsites(s) }
         phase("drawForestMist") { drawForestMist(s) }
         phase("drawDepthFog") { drawDepthFog(s) }
@@ -121,14 +138,14 @@ class PixelScene {
         phase("drawCityRoad") { drawCityRoad(s) }
         phase("drawBeachRoad") { drawBeachRoad(s) }
         phase("drawRiverFront") { drawRiverFront(s) }
-        phase("drawTraffic") { drawTraffic(s) }
+        phase("drawTraffic") { shadowed { drawTraffic(s) } }
         phase("drawBridge") { drawBridge(s) }
-        phase("drawWalkers") { drawWalkers(s) }
+        phase("drawWalkers") { shadowed { drawWalkers(s) } }
         phase("drawBirds") { drawBirds(s) }
         phase("drawMigration") { drawMigration(s) }
         phase("drawBats") { drawBats(s) }
         phase("drawFireflies") { drawFireflies(s) }
-        phase("drawFrontTrees") { drawFrontTrees(s) }
+        phase("drawFrontTrees") { shadowed { drawFrontTrees(s) } }
         phase("drawForeground") { drawForeground(s, cam) }
         phase("drawRain") { drawRain(s) }
         phase("drawSnow") { drawSnow(s) }
@@ -164,50 +181,61 @@ class PixelScene {
         return Tint(mul, add)
     }
 
-    internal fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
+    /** Fills the box, given in the scene's own pixels (in the 16-bit style each of them is a 2 by 2 block of the real picture). */
+    internal fun fill(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) = fillPhys(x0 * scale, y0 * scale, x1 * scale, y1 * scale, color)
+
+    /** The same in the real picture's own pixels, for the 16-bit style's finer detail (the same as [fill] in the 8-bit style). */
+    internal fun fillPhys(x0: Int, y0: Int, x1: Int, y1: Int, color: Int) {
         Profile.draws++
         val xa = if (x0 < 0) 0 else x0
-        val xb = if (x1 > W) W else x1
+        val xb = if (x1 > pw) pw else x1
         val ya = if (y0 < 0) 0 else y0
-        val yb = if (y1 > H) H else y1
+        val yb = if (y1 > ph) ph else y1
         if (xa >= xb || ya >= yb) return
         val c = color or OPAQUE
         val clip = clipCols
-        if (xb - xa == 1 && (clip == null || clip[xa])) {
-            // A single column (the hills and mountains are drawn so): step down it without a call for each row.
-            var i = ya * W + xa
-            for (y in ya until yb) { fb[i] = c; i += W }
+        val sh = scale - 1
+        if (xb - xa <= 2) {
+            // One or two columns (the hills and mountains are drawn so): step down each without a call for each row.
+            for (x in xa until xb) {
+                if (clip != null && !clip[x shr sh]) continue
+                var i = ya * pw + x
+                for (y in ya until yb) { fb[i] = c; i += pw }
+            }
             return
         }
         for (y in ya until yb) {
-            var i = y * W + xa
+            var i = y * pw + xa
             if (clip == null) {
                 java.util.Arrays.fill(fb, i, i + (xb - xa), c)
             } else {
-                for (x in xa until xb) { if (clip[x]) fb[i] = c; i++ }
+                for (x in xa until xb) { if (clip[x shr sh]) fb[i] = c; i++ }
             }
         }
     }
 
-    internal fun fillAlpha(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) {
+    internal fun fillAlpha(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) = fillAlphaPhys(x0 * scale, y0 * scale, x1 * scale, y1 * scale, color, alpha)
+
+    internal fun fillAlphaPhys(x0: Int, y0: Int, x1: Int, y1: Int, color: Int, alpha: Float) {
         val a = (alpha.coerceIn(0f, 1f) * 255).toInt()
-        if (a >= 255) { fill(x0, y0, x1, y1, color); return }
+        if (a >= 255) { fillPhys(x0, y0, x1, y1, color); return }
         Profile.draws++
         if (a <= 0) return
         val xa = if (x0 < 0) 0 else x0
-        val xb = if (x1 > W) W else x1
+        val xb = if (x1 > pw) pw else x1
         val ya = if (y0 < 0) 0 else y0
-        val yb = if (y1 > H) H else y1
+        val yb = if (y1 > ph) ph else y1
         if (xa >= xb || ya >= yb) return
         val clip = clipCols
+        val sh = scale - 1
         val sr = (color shr 16) and 0xFF
         val sg = (color shr 8) and 0xFF
         val sb = color and 0xFF
         val ia = 255 - a
         for (y in ya until yb) {
-            var i = y * W + xa
+            var i = y * pw + xa
             for (x in xa until xb) {
-                if (clip == null || clip[x]) {
+                if (clip == null || clip[x shr sh]) {
                     val d = fb[i]
                     fb[i] = OPAQUE or ((d255(sr * a + ((d shr 16) and 0xFF) * ia)) shl 16) or
                         ((d255(sg * a + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255(sb * a + (d and 0xFF) * ia))
@@ -220,12 +248,12 @@ class PixelScene {
     /** [v] divided by 255 and rounded, for [v] up to 65534, without a division (which a slow TV is slow at). */
     private fun d255(v: Int): Int { val t = v + 128; return (t + (t shr 8)) shr 8 }
 
-    /** One pixel, [color] over what is there at strength [a] (0 to 255). */
+    /** One pixel of the real picture, [color] over what is there at strength [a] (0 to 255). */
     private fun dot(x: Int, y: Int, color: Int, a: Int) {
-        if (x < 0 || x >= W || y < 0 || y >= H) return
+        if (x < 0 || x >= pw || y < 0 || y >= ph) return
         val clip = clipCols
-        if (clip != null && !clip[x]) return
-        val i = y * W + x
+        if (clip != null && !clip[x shr (scale - 1)]) return
+        val i = y * pw + x
         if (a >= 255) { fb[i] = color or OPAQUE; return }
         val d = fb[i]
         val ia = 255 - a
@@ -236,32 +264,34 @@ class PixelScene {
     internal fun fillCircle(cx: Float, cy: Float, r: Float, color: Int, alpha: Float) = fillOval(cx - r, cy - r, cx + r, cy + r, color, alpha)
 
     /** An ellipse inside the box (no smoothing: every pixel whose middle is inside it). */
-    internal fun fillOval(left: Float, top: Float, right: Float, bottom: Float, color: Int, alpha: Float) {
+    internal fun fillOval(leftIn: Float, topIn: Float, rightIn: Float, bottomIn: Float, color: Int, alpha: Float) {
         Profile.draws++
         val a = (alpha.coerceIn(0f, 1f) * 255).toInt()
         if (a <= 0) return
+        val left = leftIn * scale; val top = topIn * scale; val right = rightIn * scale; val bottom = bottomIn * scale
         val cx = (left + right) / 2f
         val cy = (top + bottom) / 2f
         val rx = (right - left) / 2f
         val ry = (bottom - top) / 2f
         if (rx <= 0f || ry <= 0f) return
         val ya = floor(top).toInt().coerceAtLeast(0)
-        val yb = kotlin.math.ceil(bottom).toInt().coerceAtMost(H - 1)
+        val yb = kotlin.math.ceil(bottom).toInt().coerceAtMost(ph - 1)
         val sr = (color shr 16) and 0xFF
         val sg = (color shr 8) and 0xFF
         val sb = color and 0xFF
         val ia = 255 - a
         val clip = clipCols
+        val sh = scale - 1
         for (y in ya..yb) {
             val dy = (y + 0.5f - cy) / ry
             val rest = 1f - dy * dy
             if (rest < 0f) continue
             val half = rx * sqrt(rest)
             val xa = kotlin.math.ceil(cx - half - 0.5f).toInt().coerceAtLeast(0)
-            val xb = floor(cx + half - 0.5f).toInt().coerceAtMost(W - 1)
-            var i = y * W + xa
+            val xb = floor(cx + half - 0.5f).toInt().coerceAtMost(pw - 1)
+            var i = y * pw + xa
             for (x in xa..xb) {
-                if (clip == null || clip[x]) {
+                if (clip == null || clip[x shr sh]) {
                     if (a >= 255) fb[i] = color or OPAQUE
                     else {
                         val d = fb[i]
@@ -274,19 +304,24 @@ class PixelScene {
         }
     }
 
-    /** A line one pixel wide from ([x0], [y0]) to ([x1], [y1]), [color] at strength [a] (0 to 255). */
+    /** A line one scene pixel wide from ([x0], [y0]) to ([x1], [y1]), [color] at strength [a] (0 to 255); in the 16-bit style it is stepped finely, so slopes are smooth. */
     internal fun line(x0: Float, y0: Float, x1: Float, y1: Float, color: Int, a: Int = 255) {
         Profile.draws++
-        val dx = x1 - x0
-        val dy = y1 - y0
+        val s = scale
+        val dx = (x1 - x0) * s
+        val dy = (y1 - y0) * s
         val n = kotlin.math.max(abs(dx), abs(dy)).toInt().coerceAtLeast(1)
+        // A solid line is a block of s by s real pixels at each step; a see-through one is a single real pixel, so steps don't pile up.
+        val block = if (a >= 255) s else 1
         for (k in 0..n) {
             val t = k.toFloat() / n
-            dot(floor(x0 + dx * t).toInt(), floor(y0 + dy * t).toInt(), color, a)
+            val px = floor((x0 * s + dx * t)).toInt()
+            val py = floor((y0 * s + dy * t)).toInt()
+            for (oy in 0 until block) for (ox in 0 until block) dot(px + ox, py + oy, color, a)
         }
     }
 
-    /** Draws a picture's pixels at ([x], [top]), mirrored if [flip], at the sprite paint's strength and light. */
+    /** Draws a picture's pixels at ([x], [top]) of the real picture, mirrored if [flip], at the sprite paint's strength and light. */
     private fun blit(px: IntArray, sw: Int, sh: Int, x: Int, top: Int, flip: Boolean, alpha: Int) {
         if (alpha <= 0) return
         val tint = spritePaint.colorFilter
@@ -297,13 +332,14 @@ class PixelScene {
         val ag = if (tint == null) 0 else (tint.add shr 8) and 0xFF
         val ab = if (tint == null) 0 else tint.add and 0xFF
         val clip = clipCols
+        val csh = scale - 1
         for (sy in 0 until sh) {
             val y = top + sy
-            if (y < 0 || y >= H) continue
+            if (y < 0 || y >= ph) continue
             for (sx in 0 until sw) {
                 val dx = x + sx
-                if (dx < 0 || dx >= W) continue
-                if (clip != null && !clip[dx]) continue
+                if (dx < 0 || dx >= pw) continue
+                if (clip != null && !clip[dx shr csh]) continue
                 val c = px[sy * sw + (if (flip) sw - 1 - sx else sx)]
                 val sa = c ushr 24
                 if (sa == 0) continue
@@ -312,7 +348,7 @@ class PixelScene {
                 val r = kotlin.math.min(255, d255(((c shr 16) and 0xFF) * mr) + ar)
                 val g = kotlin.math.min(255, d255(((c shr 8) and 0xFF) * mg) + ag)
                 val b = kotlin.math.min(255, d255((c and 0xFF) * mb) + ab)
-                val i = y * W + dx
+                val i = y * pw + dx
                 if (a >= 255) { fb[i] = OPAQUE or (r shl 16) or (g shl 8) or b; continue }
                 val d = fb[i]
                 val ia = 255 - a
@@ -322,24 +358,55 @@ class PixelScene {
         }
     }
 
+    /** True while the things that stand on the ground (trees, cars, people) are drawn, so the 16-bit style gives each a shadow. */
+    private var casting = false
+
+    private inline fun shadowed(block: () -> Unit) {
+        casting = true
+        block()
+        casting = false
+    }
+
+    /** A soft shadow on the ground under a sprite [width] wide with its feet at [bottom]: it falls away from the sun, long when the sun is low, and fades in cloud. */
+    private fun castShadow(width: Int, x: Int, bottom: Int) {
+        val s = scene ?: return
+        val l = s.look
+        val strength = 0.30f * l.day * (1f - 0.8f * maxOf(l.grey, l.gloom)) * spritePaint.alpha / 255f
+        if (strength < 0.03f) return
+        val sunX = skyX(s.sunAz)
+        val away = ((W / 2f - sunX) / (W / 2f)).coerceIn(-1f, 1f)
+        val low = (1f - (s.sunAlt.toFloat() / 60f).coerceIn(0f, 1f))
+        val shift = away * (2f + 8f * low)
+        val half = width * 0.5f
+        fillOval(x + half + shift - half * (0.9f + 0.4f * low), bottom - 1.4f, x + half + shift + half * (0.9f + 0.4f * low), bottom + 1.4f, rgb(18, 22, 40), strength)
+    }
+
     internal fun sprite(sp: Sprite, x: Int, bottom: Int, flip: Boolean = false) {
         Profile.sprites++
         if (x > W || x + sp.width < 0) return
         val top = bottom - sp.height
-        blit(sp.pixels, sp.width, sp.height, x, top, flip, spritePaint.alpha)
+        val hi = scale > 1
+        if (hi && casting) castShadow(sp.width, x, bottom)
+        if (hi) blit(sp.pixelsHi, sp.width * 2, sp.height * 2, x * 2, top * 2, flip, spritePaint.alpha)
+        else blit(sp.pixels, sp.width, sp.height, x, top, flip, spritePaint.alpha)
         // Evergreens grow white as snow builds up on them.
         val s = scene
         val frost = if (s != null && s.snowCover > 0.03f) Sprites.frosted(sp) else null
-        if (frost != null) blit(frost.pixels, frost.width, frost.height, x, top, flip, (spritePaint.alpha * s!!.snowCover).toInt().coerceIn(0, 255))
+        if (frost != null) {
+            val a = (spritePaint.alpha * s!!.snowCover).toInt().coerceIn(0, 255)
+            if (hi) blit(frost.pixelsHi, frost.width * 2, frost.height * 2, x * 2, top * 2, flip, a)
+            else blit(frost.pixels, frost.width, frost.height, x, top, flip, a)
+        }
     }
 
     // ---------- sky ----------
 
     private fun drawSky(s: SceneState) {
         val l = s.look
-        for (y in 0 until HORIZON + 30) {
-            val t = min(1f, y / (HORIZON + 4f))
-            fill(0, y, W, y + 1, lerp(l.skyTop, l.skyBottom, t * t * 0.5f + t * 0.5f))
+        // One row of the real picture at a time, so in the 16-bit style the sky shades twice as finely.
+        for (py in 0 until (HORIZON + 30) * scale) {
+            val t = min(1f, py / scale.toFloat() / (HORIZON + 4f))
+            fillPhys(0, py, pw, py + 1, lerp(l.skyTop, l.skyBottom, t * t * 0.5f + t * 0.5f))
         }
         fill(0, HORIZON + 30, W, H, l.skyBottom)
         // Around a low sun the sky glows.
@@ -529,16 +596,30 @@ class PixelScene {
             heights[i] = shape[i] * (1f - maxOf(city[i], s.seaCut(i - 4)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
-        for (x in 0 until W) {
+        // One column of the real picture at a time: in the 16-bit style the outline is found between the scene's columns too, so the
+        // slopes are smooth.
+        val sc = scale
+        for (px in 0 until W * sc) {
+            val x = px / sc
             val i = x + 4
-            val top = tops[i]
+            val frac = (px - x * sc) / sc.toFloat()
+            val h = if (frac == 0f) heights[i] else heights[i] + (heights[i + 1] - heights[i]) * frac
+            val top = if (h < 0.02f) H * sc else ((base - h * maxH) * sc).toInt()
             // Which way the slope faces: rising to the right faces left, into the light.
-            val facingLeft = tops[i + 3] <= tops[i - 3]
-            fill(x, top, x + 1, H, if (facingLeft) lit else shade)
-            val h = heights[i]
+            val facingLeft = if (sc == 1) tops[i + 3] <= tops[i - 3] else heights[i + 3] >= heights[i - 3]
+            val side = if (facingLeft) lit else shade
+            if (sc > 1) {
+                // Lighter near the summit, deeper toward the foot.
+                var y0 = top
+                for (k in 0 until 6) {
+                    val y1 = if (k == 5) H * sc else top + (k + 1) * 14 * sc
+                    fillPhys(px, y0, px + 1, y1, Colors.scale(side, 1.06f - 0.028f * k))
+                    y0 = y1
+                }
+            } else fillPhys(px, top, px + 1, H * sc, side)
             if (h > snowLine) {
-                val depth = ((h - snowLine) * 34f).toInt() + 1 + (Noise.hash((x + offset.toInt()) / 2, seed, 9) and 1)
-                fill(x, top, x + 1, top + depth, if (facingLeft) snow else snowShade)
+                val depth = (((h - snowLine) * 34f).toInt() + 1 + (Noise.hash((x + offset.toInt()) / 2, seed, 9) and 1)) * sc
+                fillPhys(px, top, px + 1, top + depth, if (facingLeft) snow else snowShade)
             }
         }
     }
@@ -562,20 +643,31 @@ class PixelScene {
         val forest = strip("hf$seed", s.placeMode) { wx -> s.forestAt(wx.toDouble(), factor.toDouble()) }
         val cityShare = strip("hc$seed", s.placeMode) { wx -> s.cityAt(wx.toDouble(), factor.toDouble()) }
         ridge.moveTo(offset.toInt() - 4); forest.moveTo(offset.toInt() - 4); cityShare.moveTo(offset.toInt() - 4)
-        for (x in 0 until W) {
-            val h = ridge[x + 4]
+        val sc = scale
+        for (px in 0 until W * sc) {
+            val x = px / sc
+            val frac = (px - x * sc) / sc.toFloat()
+            val h = if (frac == 0f) ridge[x + 4] else ridge[x + 4] + (ridge[x + 5] - ridge[x + 4]) * frac
             val f = forest[x + 4]
             // Toward the city the hills flatten and go grey, hidden behind the towers.
             val c = cityShare[x + 4]
             // Toward the sea they flatten to low dunes.
             val b = s.seaCut(x)
-            val top = (base - h * amp * (1f - 0.85f * maxOf(c, b))).toInt()
+            val top = ((base - h * amp * (1f - 0.85f * maxOf(c, b))) * sc).toInt()
             var bodyColor = if (f > 0f) lerp(body, forestBody, f) else body
             var crestColor = if (f > 0f) lerp(crest, forestCrest, f) else crest
             if (c > 0f) { bodyColor = lerp(bodyColor, cityHill, c); crestColor = lerp(crestColor, cityHill, c) }
             if (b > 0f) { bodyColor = lerp(bodyColor, duneHill, b); crestColor = lerp(crestColor, duneHill, b) }
-            fill(x, top, x + 1, H, bodyColor)
-            fill(x, top, x + 1, top + 1, crestColor)
+            if (sc > 1) {
+                // Lit along the ridge, shaded toward the foot.
+                var y0 = top
+                for (k in 0 until 5) {
+                    val y1 = if (k == 4) H * sc else top + (k + 1) * 8 * sc
+                    fillPhys(px, y0, px + 1, y1, Colors.scale(bodyColor, 1.05f - 0.04f * k))
+                    y0 = y1
+                }
+            } else fillPhys(px, top, px + 1, H * sc, bodyColor)
+            fillPhys(px, top, px + 1, top + sc, crestColor)
         }
         // Fields on the slopes: a darker band, so the hills read as farmland.
         if (airTop < 0.5f) for (x in 0 until W step 2) {
@@ -1072,7 +1164,7 @@ class PixelScene {
     private var lutDither = false
 
     /** For each of the 16 dither thresholds and each colour value, the value it becomes: the limited palette as a table, so drawing it is lookups. */
-    private fun buildLut() {
+    private fun buildLut(levels: Int, dither: Boolean) {
         val n = (levels - 1).coerceAtLeast(1)
         val step = 255 / n
         lut = IntArray(16 * 256)
@@ -1084,22 +1176,24 @@ class PixelScene {
         lutDither = dither
     }
 
-    /** Dithers the picture and limits it to [levels] steps per colour, in place. */
+    /** Dithers the picture and limits it to [levels] steps per colour, in place (the 16-bit style has many more colours and no grain). */
     private fun finish() {
-        if (lutLevels != levels || lutDither != dither || lut.isEmpty()) buildLut()
+        val wantLevels = if (high) 32 else levels
+        val wantDither = if (high) false else dither
+        if (lutLevels != wantLevels || lutDither != wantDither || lut.isEmpty()) buildLut(wantLevels, wantDither)
         val pixels = fb
         val table = lut
-        for (y in 0 until H) {
+        for (y in 0 until ph) {
             val row = (y and 3) * 4
-            var i = y * W
-            for (x in 0 until W) {
+            var i = y * pw
+            for (x in 0 until pw) {
                 val c = pixels[i]
                 val base = (row + (x and 3)) shl 8
                 pixels[i] = (0xFF shl 24) or (table[base + ((c shr 16) and 0xFF)] shl 16) or (table[base + ((c shr 8) and 0xFF)] shl 8) or table[base + (c and 0xFF)]
                 i++
             }
         }
-        bitmap.setPixels(pixels, 0, W, 0, 0, W, H)
+        if (high) bitmapHigh.setPixels(pixels, 0, pw, 0, 0, pw, ph) else bitmapLow.setPixels(pixels, 0, pw, 0, 0, pw, ph)
     }
 
     private fun quant(v: Int, n: Int): Int {
