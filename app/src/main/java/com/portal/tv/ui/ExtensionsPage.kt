@@ -176,7 +176,7 @@ class ExtensionsPage(
         }
         all.forEach { ext ->
             val row = TextView(context).apply {
-                text = ext.name + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
+                text = ext.name + (ext.versionName?.let { "  ·  $it" } ?: "") + if (ext.state == ExtensionState.REVOKED) "  ·  Withdrawn" else ""
                 textSize = 18f
                 typeface = context.resources.getFont(R.font.inter)
                 setTextColor(context.resources.getColor(R.color.text_primary, null))
@@ -217,6 +217,7 @@ class ExtensionsPage(
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
         }
+        ext.versionName?.let { box.addView(text("Version $it", 15f, soft)) }
         // One line says whether to trust it. Verified: one of ours, or the one the catalog lists (same signer). Otherwise a warning.
         // Only judged once the catalog has been loaded.
         val listing = catalog?.let { CatalogLabels.listing(it, ext.packageName, ext.signer) }
@@ -259,7 +260,7 @@ class ExtensionsPage(
 
         when (val parsed = ext.parsed) {
             is ManifestParser.Result.Invalid -> box.addView(text("\n" + parsed.reason, 16f, soft))
-            is ManifestParser.Result.NeedsNewerPortal -> box.addView(text("\nIt was written for a newer version of the extension contract (${parsed.contract}) than this Portal speaks (${ManifestParser.CONTRACT_VERSION}).", 16f, soft))
+            is ManifestParser.Result.NeedsNewerPortal -> box.addView(text("\nIt needs a newer version of Portal than this one. Update Portal, then look again.", 16f, soft))
             is ManifestParser.Result.Ok -> if (ext.state == ExtensionState.REVOKED) {
                 // Nothing to allow: it is off. Only Uninstall is left.
             } else {
