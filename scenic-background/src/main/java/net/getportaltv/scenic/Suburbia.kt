@@ -180,8 +180,26 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
         else -> sprite(Sprites.bushYear.at(s.season, seed * 3 + 1), treeX + 1, BASE + 3)
     }
     val mbx = if (garageLeft) gx + gw + 3 else gx - 3
+    if (hiRes) {
+        // A mailbox on the finer grid: a wooden post with a brace, a rounded box with a door seam and handle, a flag, and a shadow.
+        val sc = scale
+        val boxC = solid(s, if (Noise.unit(seed, 13, 970) < 0.5f) rgb(60, 90, 150) else rgb(170, 60, 56), haze)
+        val post = solid(s, rgb(110, 90, 70), haze)
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        fillOval(mbx - 1.4f, SIDEWALK - 0.7f, mbx + 2.6f, SIDEWALK + 0.6f, ink, 0.22f)
+        fillPhys(mbx * sc, (SIDEWALK - 4) * sc, mbx * sc + 3, SIDEWALK * sc, post)
+        fillAlphaPhys(mbx * sc, (SIDEWALK - 4) * sc, mbx * sc + 1, SIDEWALK * sc, white, 0.2f)
+        line(mbx + 0.8f, SIDEWALK - 1f, mbx + 2.4f, SIDEWALK - 3.8f, post, 255)
+        fillOval(mbx - 1.4f, SIDEWALK - 6.3f, mbx + 2.9f, SIDEWALK - 3.8f, boxC, 1f)
+        fillPhys((mbx - 1) * sc, (SIDEWALK - 5) * sc, (mbx + 2) * sc + 2, (SIDEWALK - 4) * sc + 1, boxC)
+        fillAlphaPhys((mbx - 1) * sc + 1, (SIDEWALK - 6) * sc, (mbx + 2) * sc, (SIDEWALK - 6) * sc + 1, white, 0.35f)
+        fillAlphaPhys((mbx + 2) * sc + 1, (SIDEWALK - 6) * sc, (mbx + 2) * sc + 2, (SIDEWALK - 4) * sc, ink, 0.3f)
+        fillPhys((mbx + 2) * sc, (SIDEWALK - 5) * sc, (mbx + 2) * sc + 1, (SIDEWALK - 5) * sc + 1, rgb(230, 226, 214))
+        fillPhys((mbx - 1) * sc + 1, (SIDEWALK - 8) * sc, (mbx - 1) * sc + 2, (SIDEWALK - 5) * sc, rgb(214, 60, 52)); fillPhys((mbx - 1) * sc + 1, (SIDEWALK - 8) * sc, (mbx - 1) * sc + 5, (SIDEWALK - 8) * sc + 2, rgb(214, 60, 52))
+    } else {
     fill(mbx, SIDEWALK - 4, mbx + 1, SIDEWALK, solid(s, rgb(90, 80, 70), haze))
     fill(mbx - 1, SIDEWALK - 6, mbx + 2, SIDEWALK - 4, solid(s, if (Noise.unit(seed, 13, 970) < 0.5f) rgb(60, 90, 150) else rgb(170, 60, 56), haze))
+    }
     val extra = Noise.unit(seed, 14, 970)
     when {
         extra < 0.22f -> {
@@ -207,6 +225,20 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
         extra < 0.58f && s.look.day > 0.5f && s.cond.rain < 0.1f && s.snowCover < 0.1f && s.cond.tempC > 12f -> {
             // A sprinkler throwing water over the lawn.
             val sx = mx + wm / 2
+            if (hiRes) {
+                // A sprinkler head on a damp patch of lawn, throwing arcs of drops that fall in a spray, with a fine mist and glints.
+                val head = rgb(150, 154, 164)
+                fillOval(sx - 7f, SIDEWALK - 2.4f, sx + 7f, SIDEWALK - 0.8f, rgb(20, 60, 24), 0.20f)
+                fillPhys(sx * scale, (SIDEWALK - 2) * scale, sx * scale + 3, (SIDEWALK - 1) * scale, head)
+                fillOval(sx - 0.2f, SIDEWALK - 2.6f, sx + 1.8f, SIDEWALK - 1.8f, Colors.mul(head, 1.2f, 1.2f, 1.2f), 1f)
+                for (k in 0 until 7) for (d in 0 until 7) {
+                    val a = ((((s.time * 1.8) + k / 7.0) % 1.0) - d * 0.03).toFloat().let { if (it < 0f) it + 1f else it }
+                    val dxs = (k - 3) * 2f * (0.4f + a)
+                    val yy = SIDEWALK - 3f - sin(a * Math.PI).toFloat() * 4f
+                    fillOval(sx + dxs, yy, sx + dxs + 0.9f, yy + 0.9f, rgb(190, 225, 255), (0.85f - d * 0.11f).coerceAtLeast(0.1f))
+                }
+                fillOval(sx - 7f, SIDEWALK - 5.5f, sx + 8f, SIDEWALK - 1.2f, rgb(210, 235, 255), 0.07f)
+            } else
             for (k in 0 until 7) {
                 val a = (((s.time * 1.8) + k / 7.0) % 1.0).toFloat()
                 val dxs = ((k - 3) * 2f * (0.4f + a)).toInt()
@@ -634,6 +666,42 @@ private fun PixelScene.pool(s: SceneState, seed: Int, x: Int, night: Float, haze
     val deck = solid(s, rgb(214, 208, 196), haze)
     val water = lerp(solid(s, rgb(70, 170, 224), haze), rgb(20, 40, 90), night * 0.6f)
     val fence = solid(s, rgb(150, 112, 76), haze)
+    if (hiRes) {
+        // A pool on the finer grid: a tiled deck with a pale coping, water that is deeper and darker toward the far side, caustic
+        // lines and glints that drift over it, a chrome ladder, a lounger with a cushion, and a picket fence behind.
+        val sc = scale
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        fillPhys((x - 1) * sc, (SIDEWALK - 7) * sc, (x + 15) * sc, (SIDEWALK - 1) * sc, deck)
+        var ty = (SIDEWALK - 7) * sc
+        while (ty < (SIDEWALK - 1) * sc) { fillAlphaPhys((x - 1) * sc, ty, (x + 15) * sc, ty + 1, ink, 0.10f); ty += 4 }
+        var tx = (x - 1) * sc
+        while (tx < (x + 15) * sc) { fillAlphaPhys(tx, (SIDEWALK - 7) * sc, tx + 1, (SIDEWALK - 1) * sc, ink, 0.07f); tx += 6 }
+        val shallow = lerp(solid(s, rgb(96, 200, 236), haze), rgb(30, 60, 110), night * 0.6f)
+        val wx0 = (x + 1) * sc; val wx1 = (x + 13) * sc; val wy0 = (SIDEWALK - 6) * sc; val wy1 = (SIDEWALK - 3) * sc
+        for (r in 0 until wy1 - wy0) fillPhys(wx0, wy0 + r, wx1, wy0 + r + 1, lerp(water, shallow, r / (wy1 - wy0 - 1f)))
+        fillAlphaPhys(wx0 - 1, wy0 - 1, wx1 + 1, wy0, white, 0.55f)
+        fillAlphaPhys(wx0 - 1, wy1, wx1 + 1, wy1 + 1, white, 0.35f)
+        fillAlphaPhys(wx0, wy0, wx1, wy0 + 2, ink, 0.22f)
+        for (k in 0 until 6) {
+            val rx = wx0 + 3 + (((s.time * 5 + k * 5) % 20).toInt())
+            val ry = wy0 + 1 + (k % 3) * 2 + (sin(s.time * 2 + k).toFloat() * 0.8f).toInt()
+            if (rx + 4 < wx1) { fillAlphaPhys(rx, ry, rx + 4, ry + 1, rgb(230, 248, 255), 0.5f); fillAlphaPhys(rx + 1, ry + 1, rx + 3, ry + 2, rgb(230, 248, 255), 0.25f) }
+        }
+        for (g in 0 until 5) if (Noise.unit(g, (s.time * 4).toInt(), seed + 977) < 0.5f) { val gx = wx0 + 2 + (Noise.unit(g, seed, 978) * (wx1 - wx0 - 4)).toInt(); val gy = wy0 + 1 + (Noise.unit(g, seed, 979) * (wy1 - wy0 - 2)).toInt(); fillAlphaPhys(gx, gy, gx + 1, gy + 1, white, 0.8f) }
+        if (night > 0.3f) fillOval(x + 1f, SIDEWALK - 6.4f, x + 13f, SIDEWALK - 2.6f, rgb(120, 220, 255), night * 0.30f)
+        line(x + 12.2f, SIDEWALK - 6.4f, x + 12.2f, SIDEWALK - 3.4f, rgb(214, 218, 226)); line(x + 11.2f, SIDEWALK - 6.4f, x + 11.2f, SIDEWALK - 3.4f, rgb(214, 218, 226)); line(x + 11.2f, SIDEWALK - 6.4f, x + 12.2f, SIDEWALK - 6.4f, rgb(214, 218, 226))
+        // The picket fence behind.
+        fillPhys((x - 1) * sc, (SIDEWALK - 8) * sc, (x + 15) * sc, (SIDEWALK - 8) * sc + 2, fence)
+        var pk = (x - 1) * sc
+        while (pk < (x + 15) * sc) { fillPhys(pk, (SIDEWALK - 9) * sc, pk + 2, (SIDEWALK - 7) * sc, fence); fillAlphaPhys(pk, (SIDEWALK - 9) * sc, pk + 1, (SIDEWALK - 7) * sc, white, 0.2f); fillAlphaPhys(pk, (SIDEWALK - 9) * sc, pk + 2, (SIDEWALK - 9) * sc + 1, white, 0.3f); pk += 4 }
+        // A lounger: a frame, a cushion with a stripe, and a raised back.
+        val cush = solid(s, rgb(250, 250, 246), haze)
+        fillPhys((x + 4) * sc, (SIDEWALK - 2) * sc, (x + 11) * sc, (SIDEWALK - 2) * sc + 3, cush)
+        fillPhys((x + 4) * sc, (SIDEWALK - 2) * sc + 1, (x + 11) * sc, (SIDEWALK - 2) * sc + 2, solid(s, rgb(80, 150, 220), haze))
+        line(x + 4f, SIDEWALK - 2f, x + 5.4f, SIDEWALK - 3.8f, cush)
+        fillPhys((x + 4) * sc, (SIDEWALK - 1) * sc, (x + 4) * sc + 1, SIDEWALK * sc, fence); fillPhys((x + 11) * sc - 1, (SIDEWALK - 1) * sc, (x + 11) * sc, SIDEWALK * sc, fence)
+        return
+    }
     fill(x - 1, SIDEWALK - 7, x + 15, SIDEWALK - 1, deck)
     fill(x + 1, SIDEWALK - 6, x + 13, SIDEWALK - 3, water)
     // Light ripples moving over the water.
@@ -651,6 +719,36 @@ private fun PixelScene.pool(s: SceneState, seed: Int, x: Int, night: Float, haze
 private fun PixelScene.trampoline(s: SceneState, seed: Int, x: Int, haze: Float) {
     val frame = solid(s, rgb(60, 66, 78), haze)
     val mat = solid(s, rgb(34, 36, 44), haze)
+    if (hiRes) {
+        // A trampoline on the finer grid: a round mat seen at a slant, a padded rim with springs, splayed legs, a safety net of poles and
+        // mesh, and a child bouncing with arms up and legs tucked.
+        val sc = scale
+        val white = rgb(255, 255, 255); val ink = rgb(8, 10, 24)
+        val pad = solid(s, rgb(60, 110, 200), haze)
+        fillOval(x - 1f, SIDEWALK - 0.8f, x + 13f, SIDEWALK + 0.8f, ink, 0.25f)
+        line(x + 1.5f, SIDEWALK - 4f, x + 0.3f, SIDEWALK - 0.2f, frame); line(x + 10.5f, SIDEWALK - 4f, x + 11.7f, SIDEWALK - 0.2f, frame); line(x + 4f, SIDEWALK - 4.2f, x + 3.6f, SIDEWALK - 0.4f, frame, 200); line(x + 8f, SIDEWALK - 4.2f, x + 8.4f, SIDEWALK - 0.4f, frame, 200)
+        fillOval(x - 0.2f, SIDEWALK - 5.6f, x + 12.2f, SIDEWALK - 3.4f, pad, 1f)
+        fillOval(x + 0.5f, SIDEWALK - 5.3f, x + 11.5f, SIDEWALK - 3.8f, mat, 1f)
+        fillAlphaPhys((x + 1) * sc, (SIDEWALK - 5) * sc, (x + 6) * sc, (SIDEWALK - 5) * sc + 1, white, 0.18f)
+        for (k in 0 until 9) { val a = k * Math.PI / 8; fillAlphaPhys(((x + 6f + kotlin.math.cos(a).toFloat() * 5.4f) * sc).toInt(), ((SIDEWALK - 4.5f + sin(a).toFloat() * 0.7f) * sc).toInt(), ((x + 6f + kotlin.math.cos(a).toFloat() * 5.4f) * sc).toInt() + 1, ((SIDEWALK - 4.5f + sin(a).toFloat() * 0.7f) * sc).toInt() + 1, white, 0.3f) }
+        if (s.look.day > 0.5f) {
+            val jump = kotlin.math.abs(sin(s.time * 3.0 + seed)).toFloat() * 5f
+            val skin = solid(s, People.SKIN[People.skinIndex(Noise.unit(seed, 40, 970))], haze)
+            val shirt = solid(s, SHIRTS[pick(seed, 41, SHIRTS.size)], haze)
+            val by = SIDEWALK - 5.4f - jump
+            line(x + 5.2f, by - 2.4f, x + 3.8f, by - 4.6f, skin); line(x + 6.8f, by - 2.4f, x + 8.2f, by - 4.6f, skin)
+            fillOval(x + 4.9f, by - 4.9f, x + 7.1f, by - 2.7f, skin, 1f)
+            fillOval(x + 4.7f, by - 5.3f, x + 7.3f, by - 3.7f, solid(s, rgb(70, 46, 34), haze), 1f)
+            fillOval(x + 4.7f, by - 2.8f, x + 7.3f, by - 0.2f, shirt, 1f)
+            line(x + 5.4f, by - 0.2f, x + 4.6f, by + 1.2f, solid(s, rgb(60, 70, 110), haze)); line(x + 6.6f, by - 0.2f, x + 7.4f, by + 1.2f, solid(s, rgb(60, 70, 110), haze))
+        }
+        var nx2 = x
+        while (nx2 <= x + 12) { line(nx2 + 0.5f, SIDEWALK - 11f, nx2 + 0.5f, SIDEWALK - 5f, rgb(200, 204, 210), 90); nx2 += 3 }
+        for (r in 0 until 4) fillAlphaPhys(x * sc, (SIDEWALK - 11) * sc + r * 3 + 2, (x + 12) * sc, (SIDEWALK - 11) * sc + r * 3 + 3, rgb(200, 204, 210), 0.22f)
+        line(x + 0.2f, SIDEWALK - 11f, x + 0.2f, SIDEWALK - 4.5f, frame); line(x + 11.8f, SIDEWALK - 11f, x + 11.8f, SIDEWALK - 4.5f, frame)
+        fillPhys(x * sc, (SIDEWALK - 11) * sc, (x + 12) * sc, (SIDEWALK - 11) * sc + 2, frame)
+        return
+    }
     fill(x, SIDEWALK - 5, x + 12, SIDEWALK - 4, mat)
     fill(x, SIDEWALK - 4, x + 1, SIDEWALK - 1, frame); fill(x + 11, SIDEWALK - 4, x + 12, SIDEWALK - 1, frame)
     // The safety net.

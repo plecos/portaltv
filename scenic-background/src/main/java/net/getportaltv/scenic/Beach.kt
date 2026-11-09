@@ -481,6 +481,10 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
         s.whaleAt = if (s.boost || Noise.unit(v, 1601) < 0.6f) s.time + (if (s.boost) -1.5 else 14.0 + Noise.unit(v, 1602) * 70.0) else -1.0
         s.finAt = if (s.boost || Noise.unit(v, 1603) < 0.7f) s.time + (if (s.boost) -7.0 else 8.0 + Noise.unit(v, 1604) * 80.0) else -1.0
     }
+    // The lighthouse stands far out on its rock, so it is drawn first: the whale, the ships and the boats all pass in front of it.
+    spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
+    spritePaint.alpha = 255
+    drawLighthouse(s, (1f - s.look.day * 1.6f).coerceIn(0f, 1f))
     if (s.whaleAt >= 0.0 || s.finAt >= 0.0) { drawWhale(s); drawFin(s) }
     // Out on the sea only (each boat checks the sea is under it), so nothing sails over the land at either end of the beach.
     if (s.beachAt(s.cam - BAY, 1.0) < 0.5f && s.beachAt(s.cam + W / 2.0, 1.0) < 0.5f && s.beachAt(s.cam + W + BAY, 1.0) < 0.5f) return
@@ -522,8 +526,6 @@ internal fun PixelScene.drawSeaLife(s: SceneState) {
             spritePaint.colorFilter = filter(s, 0.2f + s.look.haze * 0.4f)
         }
     }
-    // A lighthouse on a rock out on the water, very rarely, with its light turning at night.
-    drawLighthouse(s, night)
     // Sailboats, nearer in, going with the wind.
     for (ev in LifeSchedule.events(s.time, 45.0, 90.0, 0.55f, 811, s.boost)) {
         if (ev.unit(6) < s.offSeason() * 0.9f || night > 0.5f) continue
