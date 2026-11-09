@@ -509,6 +509,58 @@ class PixelScene {
 
     // ---------- clouds ----------
 
+    /** The colours every cloud picture is made of (a few dozen, since the clouds are shaded), so each pixel can be a palette number instead of a colour worked out when drawn. */
+    private class CloudPalette(sprites: List<Sprite>) {
+        val colors = ArrayList<Int>().also { it.add(0) }
+        private val index = HashMap<Int, Int>()
+        /** For each cloud, its pixels as palette numbers (0 is clear). */
+        val pictures: List<ByteArray>
+        init {
+            pictures = sprites.map { sp ->
+                val px = sp.pixelsHi
+                ByteArray(px.size) { i ->
+                    val c = px[i]
+                    if (c ushr 24 == 0) 0 else {
+                        // Rounded to steps of 3 so near-identical shades share an entry.
+                        val q = (((c shr 16 and 0xFF) / 3 * 3) shl 16) or (((c shr 8 and 0xFF) / 3 * 3) shl 8) or ((c and 0xFF) / 3 * 3)
+                        index.getOrPut(q) { colors.add(q); (colors.size - 1).coerceAtMost(255) }.coerceAtMost(255).toByte()
+                    }
+                }
+            }
+        }
+    }
+    private val cloudPalette by lazy { CloudPalette(clouds) }
+    private var cloudPal = IntArray(0)
+
+    /** Draws a cloud from its palette picture: the tones already tinted for this layer, at [alpha] (0 to 255). */
+    private fun blitCloud(pic: ByteArray, aw: Int, ah: Int, x: Int, top: Int, alpha: Int) {
+        if (alpha <= 0) return
+        val clip = clipCols
+        val csh = scale - 1
+        val pal = cloudPal
+        val ia = 255 - alpha
+        for (sy in 0 until ah) {
+            val y = top + sy
+            if (y < 0 || y >= ph) continue
+            val row = sy * aw
+            var o = y * pw + x
+            for (sx in 0 until aw) {
+                val dx = x + sx
+                val k = pic[row + sx].toInt() and 0xFF
+                if (k != 0 && dx >= 0 && dx < pw && (clip == null || clip[dx shr csh])) {
+                    val c = pal[k]
+                    if (alpha >= 255) fb[o] = c
+                    else {
+                        val d = fb[o]
+                        fb[o] = OPAQUE or ((d255(((c shr 16) and 0xFF) * alpha + ((d shr 16) and 0xFF) * ia)) shl 16) or
+                            ((d255(((c shr 8) and 0xFF) * alpha + ((d shr 8) and 0xFF) * ia)) shl 8) or (d255((c and 0xFF) * alpha + (d and 0xFF) * ia))
+                    }
+                }
+                o++
+            }
+        }
+    }
+
     private fun drawClouds(s: SceneState, layer: Int) {
         val cover = s.cond.cloud
         if (cover < 0.01f) return
@@ -526,6 +578,16 @@ class PixelScene {
         val fogMix = (l.haze * 0.8f + if (low3) 0.3f else 0f).coerceIn(0f, 0.95f)
         val fogged = lerp(mul, l.fogColor, fogMix)
         spritePaint.colorFilter = Tint(fogged, rgb(0, 0, 0))
+        if (scale > 1) {
+            // Every tone of the clouds in this layer shares one tint, worked out once here.
+            val cols = cloudPalette.colors
+            if (cloudPal.size < cols.size) cloudPal = IntArray(cols.size)
+            val mr = (fogged shr 16) and 0xFF; val mg = (fogged shr 8) and 0xFF; val mb = fogged and 0xFF
+            for (k in 1 until cols.size) {
+                val t = cols[k]
+                cloudPal[k] = OPAQUE or (d255(((t shr 16) and 0xFF) * mr) shl 16) or (d255(((t shr 8) and 0xFF) * mg) shl 8) or d255((t and 0xFF) * mb)
+            }
+        }
         val baseAlpha = 1f - l.haze * 0.55f
         // More cloud means more clouds and bigger ones, until the whole sky is covered. Each cloud has its own level of cover at
         // which it is there: below it the cloud is gone, above it the cloud is whole, and in between (a little more than a tenth
@@ -547,7 +609,7 @@ class PixelScene {
                 val left = centerX - bmp.width / 2
                 if (left > W || left + bmp.width < 0) continue
                 val a = (baseAlpha * fade * weight * 255).toInt().coerceIn(0, 255)
-                if (scale > 1) blit(bmp.pixelsHi, bmp.width * 2, bmp.height * 2, left * 2, (centerY - bmp.height / 2) * 2, false, a)
+                if (scale > 1) blitCloud(cloudPalette.pictures[index], bmp.width * 2, bmp.height * 2, left * 2, (centerY - bmp.height / 2) * 2, a)
                 else blit(bmp.pixels, bmp.width, bmp.height, left, centerY - bmp.height / 2, false, a)
             }
         }
@@ -558,6 +620,12 @@ class PixelScene {
     // ---------- land ----------
 
     private val tops = IntArray(W + 8)
+    /** Scratch for drawing the far land row by row in the 16-bit style: where each real column's land starts, its snow depth and which way it faces. */
+    private val hiTop = IntArray(W * 2)
+    private val hiSnow = IntArray(W * 2)
+    private val hiFace = BooleanArray(W * 2)
+    private val hiBody = IntArray(W * 2 * 5)
+    private val hiCrest = IntArray(W * 2)
 
     private val strips = HashMap<String, Strip>()
 
@@ -598,27 +666,49 @@ class PixelScene {
             heights[i] = shape[i] * (1f - maxOf(city[i], s.seaCut(i - 4)))
             tops[i] = if (heights[i] < 0.02f) H else (base - heights[i] * maxH).toInt()
         }
-        // One column of the real picture at a time: in the 16-bit style the outline is found between the scene's columns too, so the
-        // slopes are smooth.
         val sc = scale
+        if (sc > 1) {
+            // The 16-bit style finds the outline between the scene's columns too (smooth slopes), then fills the whole range row by row,
+            // lighter near the summit and deeper toward the foot: rows are contiguous in memory, which a slow TV draws far faster than columns.
+            val n = W * sc
+            val tp = hiTop; val sn = hiSnow; val fc = hiFace
+            var minTop = H * sc
+            for (px in 0 until n) {
+                val x = px / sc
+                val i = x + 4
+                val frac = (px - x * sc) / sc.toFloat()
+                val h = if (frac == 0f) heights[i] else heights[i] + (heights[i + 1] - heights[i]) * frac
+                val top = if (h < 0.02f) H * sc else ((base - h * maxH) * sc).toInt()
+                tp[px] = top
+                if (top < minTop) minTop = top
+                fc[px] = heights[i + 3] >= heights[i - 3]
+                sn[px] = if (h > snowLine) (((h - snowLine) * 34f).toInt() + 1 + (Noise.hash((x + offset.toInt()) / 2, seed, 9) and 1)) * sc else 0
+            }
+            val litB = IntArray(6) { OPAQUE or (Colors.scale(lit, 1.06f - 0.028f * it) and 0xFFFFFF) }
+            val shadeB = IntArray(6) { OPAQUE or (Colors.scale(shade, 1.06f - 0.028f * it) and 0xFFFFFF) }
+            val snowC = OPAQUE or (snow and 0xFFFFFF); val snowShadeC = OPAQUE or (snowShade and 0xFFFFFF)
+            val bandH = 14 * sc
+            // Only as far down as the field, which always covers what is below it.
+            for (y in minTop.coerceAtLeast(0) until (FIELD_TOP + 2) * sc) {
+                val row = y * pw
+                for (px in 0 until n) {
+                    val d = y - tp[px]
+                    if (d < 0) continue
+                    fb[row + px] = if (d < sn[px]) (if (fc[px]) snowC else snowShadeC)
+                    else { val k = d / bandH; (if (fc[px]) litB else shadeB)[if (k > 5) 5 else k] }
+                }
+            }
+            return
+        }
         for (px in 0 until W * sc) {
             val x = px / sc
             val i = x + 4
             val frac = (px - x * sc) / sc.toFloat()
             val h = if (frac == 0f) heights[i] else heights[i] + (heights[i + 1] - heights[i]) * frac
             val top = if (h < 0.02f) H * sc else ((base - h * maxH) * sc).toInt()
-            // Which way the slope faces: rising to the right faces left, into the light.
-            val facingLeft = if (sc == 1) tops[i + 3] <= tops[i - 3] else heights[i + 3] >= heights[i - 3]
+            val facingLeft = tops[i + 3] <= tops[i - 3]
             val side = if (facingLeft) lit else shade
-            if (sc > 1) {
-                // Lighter near the summit, deeper toward the foot.
-                var y0 = top
-                for (k in 0 until 6) {
-                    val y1 = if (k == 5) H * sc else top + (k + 1) * 14 * sc
-                    fillPhys(px, y0, px + 1, y1, Colors.scale(side, 1.06f - 0.028f * k))
-                    y0 = y1
-                }
-            } else fillPhys(px, top, px + 1, H * sc, side)
+            fillPhys(px, top, px + 1, H * sc, side)
             if (h > snowLine) {
                 val depth = (((h - snowLine) * 34f).toInt() + 1 + (Noise.hash((x + offset.toInt()) / 2, seed, 9) and 1)) * sc
                 fillPhys(px, top, px + 1, top + depth, if (facingLeft) snow else snowShade)
@@ -646,6 +736,7 @@ class PixelScene {
         val cityShare = strip("hc$seed", s.placeMode) { wx -> s.cityAt(wx.toDouble(), factor.toDouble()) }
         ridge.moveTo(offset.toInt() - 4); forest.moveTo(offset.toInt() - 4); cityShare.moveTo(offset.toInt() - 4)
         val sc = scale
+        var hillMin = H * sc
         for (px in 0 until W * sc) {
             val x = px / sc
             val frac = (px - x * sc) / sc.toFloat()
@@ -661,15 +752,29 @@ class PixelScene {
             if (c > 0f) { bodyColor = lerp(bodyColor, cityHill, c); crestColor = lerp(crestColor, cityHill, c) }
             if (b > 0f) { bodyColor = lerp(bodyColor, duneHill, b); crestColor = lerp(crestColor, duneHill, b) }
             if (sc > 1) {
-                // Lit along the ridge, shaded toward the foot.
-                var y0 = top
-                for (k in 0 until 5) {
-                    val y1 = if (k == 4) H * sc else top + (k + 1) * 8 * sc
-                    fillPhys(px, y0, px + 1, y1, Colors.scale(bodyColor, 1.05f - 0.04f * k))
-                    y0 = y1
-                }
-            } else fillPhys(px, top, px + 1, H * sc, bodyColor)
+                // Lit along the ridge, shaded toward the foot (filled row by row after this loop).
+                hiTop[px] = top
+                hiCrest[px] = OPAQUE or (crestColor and 0xFFFFFF)
+                for (k in 0 until 5) hiBody[px * 5 + k] = OPAQUE or (Colors.scale(bodyColor, 1.05f - 0.04f * k) and 0xFFFFFF)
+                if (top < hillMin) hillMin = top
+                continue
+            }
+            fillPhys(px, top, px + 1, H * sc, bodyColor)
             fillPhys(px, top, px + 1, top + sc, crestColor)
+        }
+        if (sc > 1) {
+            // Row by row: contiguous in memory, which a slow TV draws far faster than a column at a time.
+            val n = W * sc
+            val bandH = 8 * sc
+            // Only as far down as the field, which always covers what is below it.
+            for (y in hillMin.coerceAtLeast(0) until (FIELD_TOP + 2) * sc) {
+                val row = y * pw
+                for (px in 0 until n) {
+                    val d = y - hiTop[px]
+                    if (d < 0) continue
+                    fb[row + px] = if (d < sc) hiCrest[px] else { val k = d / bandH; hiBody[px * 5 + (if (k > 4) 4 else k)] }
+                }
+            }
         }
         // Fields on the slopes: a darker band, so the hills read as farmland.
         if (airTop < 0.5f) for (x in 0 until W step 2) {
@@ -1180,10 +1285,12 @@ class PixelScene {
 
     /** Dithers the picture and limits it to [levels] steps per colour, in place (the 16-bit style has many more colours and no grain). */
     private fun finish() {
-        val wantLevels = if (high) 32 else levels
-        val wantDither = if (high) false else dither
-        if (lutLevels != wantLevels || lutDither != wantDither || lut.isEmpty()) buildLut(wantLevels, wantDither)
         val pixels = fb
+        // The 16-bit style keeps every shade, so there is nothing to limit or dither: the picture goes straight to the screen.
+        if (high) { bitmapHigh.setPixels(pixels, 0, pw, 0, 0, pw, ph); return }
+        val wantLevels = levels
+        val wantDither = dither
+        if (lutLevels != wantLevels || lutDither != wantDither || lut.isEmpty()) buildLut(wantLevels, wantDither)
         val table = lut
         for (y in 0 until ph) {
             val row = (y and 3) * 4
