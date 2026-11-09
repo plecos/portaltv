@@ -64,8 +64,11 @@ internal fun personSprite(shirt: Int, skin: Int, hair: Int, frame: Int, umbrella
     return personCache.getOrPut(key) {
         val sk = People.SKIN[skin]
         val hr = People.hair(hair)
-        if (bike) LifeSprites.cyclist(SHIRTS[shirt], frame, sk, hr)
-        else LifeSprites.person(SHIRTS[shirt], PANTS, frame, if (umbrella >= 0) UMBRELLAS[umbrella] else null, sk, hr, if (bag >= 0) BAGS[bag] else null)
+        // About half the people are women or girls, a look that is a fixed part of who they are (long hair and a dress, or a ponytail).
+        val h = Math.floorMod(Noise.hash(shirt, skin * 7 + hair, 5821), 4)
+        val style = when (h) { 2 -> 1; 3 -> 2; else -> 0 }
+        if (bike) LifeSprites.cyclist(SHIRTS[shirt], frame, sk, hr, if (style == 0) 0 else 2)
+        else LifeSprites.person(SHIRTS[shirt], PANTS, frame, if (umbrella >= 0) UMBRELLAS[umbrella] else null, sk, hr, if (bag >= 0) BAGS[bag] else null, style)
     }
 }
 

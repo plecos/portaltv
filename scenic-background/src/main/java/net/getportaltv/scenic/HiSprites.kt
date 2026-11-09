@@ -175,7 +175,7 @@ internal object HiSprites {
     private fun shirtTones(shirt: Int) = mapOf('b' to shirt, 'L' to Colors.mul(shirt, 1.2f, 1.2f, 1.2f), 'D' to Colors.scale(shirt, 0.72f))
 
     /** A walker, 10 wide and 16 tall (6 more under an umbrella), facing right. */
-    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int?): Pair<List<String>, Map<Char, Int>> {
+    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int?, style: Int = 0): Pair<List<String>, Map<Char, Int>> {
         val top = if (umbrella != null) 6 else 0
         val d = Draw(10, 16 + top)
         if (umbrella != null) {
@@ -183,20 +183,42 @@ internal object HiSprites {
             d.px(5, 4, 'k'); d.px(5, 5, 'k')
         }
         val y = top
-        d.put(y + 0, 3, "hhhh"); d.put(y + 1, 2, "hhhhhh"); d.put(y + 2, 2, "hsssss")
+        d.put(y + 0, 3, "hhhh"); d.put(y + 1, 2, "hhhhhh")
+        if (style == 1) d.put(y + 2, 2, "hhssss") else d.put(y + 2, 2, "hsssss")
         d.put(y + 3, 2, "SssssK"); d.put(y + 4, 3, "ssss")
         d.put(y + 5, 4, "ss")
-        // The shirt, lit on the left and shaded on the right, with the arms either side.
-        d.put(y + 6, 2, "LbbbbD"); d.put(y + 7, 1, "bLbbbDb"); d.put(y + 8, 1, "bLbbbDb"); d.put(y + 9, 1, "sLbbbDs"); d.put(y + 10, 2, "LbbbbD")
-        d.put(y + 7, 1, "b"); d.put(y + 7, 8, "b")
-        if (frame == 1) { d.px(1, y + 9, '.'); d.px(1, y + 10, 's'); d.px(8, y + 9, '.'); d.px(8, y + 8, 's') }
-        // The trousers and legs, and the shoes.
-        d.put(y + 11, 2, "pppppq"); d.put(y + 12, 2, "ppppqq")
-        if (frame == 0) {
-            d.put(y + 13, 2, "pp"); d.put(y + 13, 6, "qq"); d.put(y + 14, 2, "pp"); d.put(y + 14, 6, "qq")
-            d.put(y + 15, 1, "kkk"); d.put(y + 15, 6, "kkk")
+        when (style) {
+            1 -> {
+                // Long hair falling down the back to the shoulders.
+                for (r in 3..8) d.px(2, y + r, 'h')
+                for (r in 4..7) d.px(1, y + r, 'H')
+                d.px(1, y + 3, 'h')
+            }
+            2 -> {
+                // A ponytail swinging behind.
+                d.px(1, y + 2, 'h'); d.px(1, y + 3, 'H'); d.px(0, y + 4, 'H'); d.px(0, y + 5, 'h')
+            }
+        }
+        if (style == 1) {
+            // A dress: a fitted top, short sleeves with bare forearms, a flared skirt and bare legs.
+            d.put(y + 6, 3, "LbbbD"); d.put(y + 7, 2, "bLbbDb"); d.put(y + 8, 2, "bLbbDb"); d.put(y + 9, 1, "sLbbbDs"); d.put(y + 10, 2, "bLbbbD")
+            d.put(y + 7, 2, "b"); d.put(y + 7, 7, "b")
+            d.put(y + 11, 2, "LbbbbD"); d.put(y + 12, 1, "LbbbbbbD"); d.put(y + 13, 1, "DDDDDDDD")
+            if (frame == 0) { d.px(3, y + 14, 's'); d.px(6, y + 14, 's'); d.put(y + 15, 2, "kk"); d.put(y + 15, 6, "kk") }
+            else { d.put(y + 14, 4, "ss"); d.put(y + 15, 3, "kkkk") }
         } else {
-            d.put(y + 13, 3, "ppqq"); d.put(y + 14, 4, "pq"); d.put(y + 15, 3, "kkkk")
+            // The shirt, lit on the left and shaded on the right, with the arms either side.
+            d.put(y + 6, 2, "LbbbbD"); d.put(y + 7, 1, "bLbbbDb"); d.put(y + 8, 1, "bLbbbDb"); d.put(y + 9, 1, "sLbbbDs"); d.put(y + 10, 2, "LbbbbD")
+            d.put(y + 7, 1, "b"); d.put(y + 7, 8, "b")
+            if (frame == 1) { d.px(1, y + 9, '.'); d.px(1, y + 10, 's'); d.px(8, y + 9, '.'); d.px(8, y + 8, 's') }
+            // The trousers and legs, and the shoes.
+            d.put(y + 11, 2, "pppppq"); d.put(y + 12, 2, "ppppqq")
+            if (frame == 0) {
+                d.put(y + 13, 2, "pp"); d.put(y + 13, 6, "qq"); d.put(y + 14, 2, "pp"); d.put(y + 14, 6, "qq")
+                d.put(y + 15, 1, "kkk"); d.put(y + 15, 6, "kkk")
+            } else {
+                d.put(y + 13, 3, "ppqq"); d.put(y + 14, 4, "pq"); d.put(y + 15, 3, "kkkk")
+            }
         }
         if (bag != null) { d.rect(0, y + 10, 2, y + 13, 'g'); d.px(1, y + 9, 's') }
         val pal = HashMap<Char, Int>()
@@ -208,9 +230,11 @@ internal object HiSprites {
     }
 
     /** Somebody on a bicycle facing right, 16 by 12. */
-    fun cyclist(shirt: Int, frame: Int, skin: Int, hair: Int): Pair<List<String>, Map<Char, Int>> {
+    fun cyclist(shirt: Int, frame: Int, skin: Int, hair: Int, style: Int = 0): Pair<List<String>, Map<Char, Int>> {
         val d = Draw(16, 12)
         d.put(0, 8, "hhhh"); d.put(1, 7, "hhhhh"); d.put(2, 8, "hssss"); d.put(3, 9, "sss")
+        // A ponytail streaming back.
+        if (style != 0) { d.put(1, 5, "hh"); d.put(2, 4, "Hh"); d.put(3, 3, "H") }
         d.put(3, 4, "LbD"); d.put(4, 3, "LbbbD"); d.put(5, 3, "LbbbbD"); d.put(6, 4, "bbbD")
         d.put(4, 11, "s"); d.put(5, 10, "ss")
         // The bicycle: two wheels and a frame, and the leg pedalling.

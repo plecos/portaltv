@@ -7,35 +7,36 @@ import net.getportaltv.scenic.Colors.rgb
 object LifeSprites {
 
     /** A person on foot, 5 wide: [frame] 0 or 1 is the step, [umbrella] holds one up for the rain. */
-    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int? = null): Sprite {
+    fun person(shirt: Int, pants: Int, frame: Int, umbrella: Int?, skin: Int, hair: Int, bag: Int? = null, style: Int = 0): Sprite {
+        // [style]: 0 short hair and trousers, 1 long hair and a dress, 2 a ponytail and trousers.
         val body = listOf(
             "..h..",
             ".hhh.",
-            ".sss.",
-            ".bbb.",
+            when (style) { 1 -> "hsssh"; 2 -> "hsss."; else -> ".sss." },
+            if (style == 1) "hbbbh" else ".bbb.",
             "sbbbs",
-            ".ppp.",
-            if (frame == 0) ".p.p." else "..p..",
-            if (frame == 0) ".p.p." else "..p.."
+            if (style == 1) "bbbbb" else ".ppp.",
+            if (style == 1) (if (frame == 0) ".s.s." else "..s..") else if (frame == 0) ".p.p." else "..p..",
+            if (style == 1) (if (frame == 0) ".s.s." else "..s..") else if (frame == 0) ".p.p." else "..p.."
         )
         // A shopping bag swings from one hand.
         val carried = if (bag == null) body else body.mapIndexed { y, row -> if (y == 5 || y == 6) "g" + row.substring(1) else row }
         val rows = if (umbrella != null) listOf(".uuu.", "uuuuu", "..k..") + carried else carried
         return Sprite(rows, mapOf('g' to (bag ?: 0), 'h' to hair, 's' to skin, 'b' to shirt, 'p' to pants, 'u' to (umbrella ?: 0), 'k' to rgb(50, 50, 56)))
-            .let { s -> HiSprites.person(shirt, pants, frame, umbrella, skin, hair, bag).let { (r, p) -> s.detail(r, p) } }
+            .let { s -> HiSprites.person(shirt, pants, frame, umbrella, skin, hair, bag, style).let { (r, p) -> s.detail(r, p) } }
     }
 
     /** Somebody on a bicycle, facing right. */
-    fun cyclist(shirt: Int, frame: Int, skin: Int, hair: Int): Sprite = Sprite(
+    fun cyclist(shirt: Int, frame: Int, skin: Int, hair: Int, style: Int = 0): Sprite = Sprite(
         listOf(
-            "...hh...",
+            if (style == 0) "...hh..." else "..hhh...",
             "...bb.s.",
             "..bbb...",
             if (frame == 0) ".k.bb.k." else ".k.bp.k.",
             "kkk..kkk",
             ".k....k."
         ), mapOf('h' to hair, 's' to skin, 'b' to shirt, 'p' to rgb(52, 60, 96), 'k' to rgb(40, 40, 46))
-    ).let { s -> HiSprites.cyclist(shirt, frame, skin, hair).let { (r, p) -> s.detail(r, p) } }
+    ).let { s -> HiSprites.cyclist(shirt, frame, skin, hair, style).let { (r, p) -> s.detail(r, p) } }
 
     val dog = Sprite(listOf("d...dd", "dddddd", ".d..d."), mapOf('d' to rgb(140, 96, 60)))
     val dogStep = Sprite(listOf("d...dd", "dddddd", "d....d"), mapOf('d' to rgb(140, 96, 60)))
