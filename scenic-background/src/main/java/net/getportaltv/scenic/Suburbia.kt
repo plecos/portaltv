@@ -101,17 +101,28 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
     // The walls and the roof over them (stepping in to a ridge).
     fill(mx, BASE - hm, mx + wm, BASE, siding)
     fill(mx + wm - 2, BASE - hm, mx + wm, BASE, shade)
+    sidingTexture(mx + 1, BASE - hm + 1, mx + wm - 2, BASE)
+    wallFalloff(mx + 1, BASE - hm, mx + wm - 2, BASE)
     val rows = if (stories == 1) 6 else 7
     for (r in 0 until rows) {
         val inset = r * (wm / 2 + 2) / rows
         fill(mx - 2 + inset, BASE - hm - 1 - r, mx + wm + 2 - inset, BASE - hm - r, if (r == rows - 1) roofLight else roof)
+        shingleRow(mx - 2 + inset, mx + wm + 2 - inset, BASE - hm - 1 - r, seed + r)
     }
+    eaveShadow(mx, mx + wm, BASE - hm)
     // The garage: lower, with a panelled door.
     fill(gx, BASE - 8, gx + gw, BASE, siding)
     fill(gx - 1, BASE - 10, gx + gw + 1, BASE - 8, roof)
     fill(gx + 2, BASE - 7, gx + gw - 2, BASE, lerp(trim, shade, 0.25f))
     var py = BASE - 5
     while (py < BASE) { fill(gx + 2, py, gx + gw - 2, py + 1, shade); py += 2 }
+    if (hiRes) {
+        // The garage door's row of little windows, and its handle.
+        val sc = scale
+        var wxp = (gx + 3) * sc
+        while (wxp < (gx + gw - 3) * sc - 2) { fillAlphaPhys(wxp, (BASE - 7) * sc + 1, wxp + 3, (BASE - 7) * sc + 3, glassDay, 0.75f); wxp += 5 }
+        fillAlphaPhys((gx + gw / 2) * sc, (BASE - 2) * sc, (gx + gw / 2) * sc + 3, (BASE - 2) * sc + 1, rgb(255, 255, 255), 0.5f)
+    }
     // A chimney, with smoke on a cold day.
     val chimneyX = mx + (if (garageLeft) wm - 6 else 3)
     fill(chimneyX, BASE - hm - rows - 3, chimneyX + 3, BASE - hm - 2, solid(s, rgb(150, 84, 70), haze))
@@ -130,6 +141,7 @@ private fun PixelScene.house(s: SceneState, seed: Int, cellX: Int) {
         fill(wx + 2, wy, wx + 3, wy + 4, trim)
         fill(wx - 1, wy, wx, wy + 4, shade)
         fill(wx + 4, wy, wx + 5, wy + 4, shade)
+        windowDetail(wx, wy, 4, 4, shade, if (night > 0f && on) night else 0f, WARM, s.look.day)
     }
     val lowY = BASE - 8
     for ((k, wx) in intArrayOf(mx + 3, mx + wm - 8).withIndex()) if (abs(wx - dx) > 6) window(wx, lowY, k)
@@ -294,6 +306,9 @@ private fun PixelScene.grocery(s: SceneState, seed: Int, x: Int, w: Int, night: 
     if (night > 0.2f) fillAlpha(x + 3, BASE - h + 3, x + w - 3, BASE - h + 9, rgb(255, 255, 220), night * 0.18f)
     // The glass front with its mullions, and a canopy over the doors.
     fill(x + 3, BASE - 9, x + w - 3, BASE, glass)
+    storefrontGlints(x + 3, BASE - 9, x + w - 3, BASE, s.look.day * (1f - night))
+    wallFalloff(x + 1, BASE - h + 1, x + w - 2, BASE)
+    eaveShadow(x + 3, x + w - 3, BASE - h + 9)
     var mx = x + 3
     while (mx < x + w - 3) { fill(mx, BASE - 9, mx + 1, BASE, shade); mx += 9 }
     fill(x + w / 2 - 9, BASE - 11, x + w / 2 + 9, BASE - 9, solid(s, rgb(196, 60, 52), haze))
@@ -312,7 +327,8 @@ private fun PixelScene.restaurant(s: SceneState, seed: Int, x: Int, w: Int, nigh
     // A red roof that slopes in.
     for (r in 0 until 4) fill(x - 1 + r * 2, BASE - h - 1 - r, x + w + 1 - r * 2, BASE - h - r, if (r == 3) lerp(red, rgb(255, 255, 255), 0.15f) else red)
     // Windows, the door, and the drive-through window at the end.
-    for (wx in intArrayOf(x + 4, x + 14, x + 24)) { fill(wx, BASE - 9, wx + 6, BASE - 3, glass); fill(wx + 3, BASE - 9, wx + 4, BASE - 3, shade) }
+    for (wx in intArrayOf(x + 4, x + 14, x + 24)) { fill(wx, BASE - 9, wx + 6, BASE - 3, glass); fill(wx + 3, BASE - 9, wx + 4, BASE - 3, shade); windowDetail(wx, BASE - 9, 6, 6, shade, night, WARM, s.look.day) }
+    wallFalloff(x + 1, BASE - h, x + w - 2, BASE)
     fill(x + 33, BASE - 8, x + 37, BASE, solid(s, rgb(226, 170, 50), haze))
     fill(x + w - 7, BASE - 8, x + w - 2, BASE - 4, glass)
     fill(x + w - 8, BASE - 4, x + w - 1, BASE - 3, red)
@@ -348,6 +364,9 @@ private fun PixelScene.department(s: SceneState, seed: Int, x: Int, w: Int, nigh
     while (bx < x + w - 10) { if (abs(bx - (x + w / 2)) > 22) fill(bx, BASE - h + 4, bx + 3, BASE - 11, if ((bx / 8) % 2 == 0) solid(s, rgb(52, 98, 170), haze) else red); bx += 14 }
     // The glass front in bays, and the entrance.
     fill(x + 6, BASE - 9, x + w - 6, BASE, glass)
+    storefrontGlints(x + 6, BASE - 9, x + w - 6, BASE, s.look.day * (1f - night))
+    wallFalloff(x + 1, BASE - h + 1, x + w - 2, BASE)
+    eaveShadow(x + 6, x + w - 6, BASE - 12)
     var gx = x + 6
     while (gx < x + w - 6) { fill(gx, BASE - 9, gx + 1, BASE, shade); gx += 12 }
     fill(x + w / 2 - 10, BASE - 12, x + w / 2 + 10, BASE - 9, shade)
