@@ -64,7 +64,7 @@ internal fun PixelScene.drawAirport(s: SceneState) {
         val x = wx - offset
         if (x < -170 || x > W + 20) continue
         val len = 150
-        val ground = FIELD_TOP + 2
+        val ground = FIELD_TOP - 6
         val runwayY = ground - 1
         val concrete = lit(s, rgb(150, 152, 160), haze)
         val dark = lit(s, rgb(96, 100, 112), haze)
