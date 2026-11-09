@@ -11,6 +11,8 @@ Nothing an extension asks for happens until an adult allows it, one capability a
 > items while running (see *Calling Portal*), and can show a background an extension draws (see *Drawing the home screen
 > background*), and put a badge and a line on its own tiles. Contract version **1**.
 
+How it is built, and how its trust and permission model works, is in [EXTENSIONS-ARCHITECTURE.md](EXTENSIONS-ARCHITECTURE.md).
+
 ## Writing one
 
 You need no SDK and no library. Any Android app can be an extension, written in any language. The

@@ -4,6 +4,8 @@ An animated background for Portal, made as a Portal extension: a side-scrolling 
 the real sky, sun, moon and weather. It is a plain Android app with no libraries; Portal binds its background service and
 shows the picture it draws (see [docs/EXTENSIONS.md](../docs/EXTENSIONS.md)).
 
+How it works inside (the frame pipeline, the world model, the animation techniques and how to add to it) is in [docs/SCENIC-ARCHITECTURE.md](../docs/SCENIC-ARCHITECTURE.md).
+
 ## What it does
 
 - **Travels.** The world scrolls right to left, each layer at its own speed: mountains, hills, trees, farms, fences, the road and
