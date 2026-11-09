@@ -89,6 +89,10 @@ class Director(private val config: () -> Config, private val weather: WeatherInp
         val s = state
         if (!started && c.startTime > 0.0) s.time = c.startTime
         if (!started && c.startCam > 0.0) s.cam = c.startCam
+        // Each time the journey starts it begins somewhere different along the road (the preview can still ask for a spot).
+        if (!started && c.startCam <= 0.0 && c.environment == Places.JOURNEY) {
+            s.cam = (1 + kotlin.random.Random.nextInt(9) + 0.15 + kotlin.random.Random.nextDouble() * 0.7) * Places.STRETCH
+        }
         s.time += dtSeconds
 
         // The journey.

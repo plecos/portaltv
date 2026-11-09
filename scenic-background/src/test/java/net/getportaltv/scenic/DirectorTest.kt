@@ -42,11 +42,19 @@ class DirectorTest {
 
     @Test
     fun theJourneyMovesOnlyWhenScrollingIsOn() {
-        val on = director(Config(scroll = true))
-        val off = director(Config(scroll = false))
+        val on = director(Config(scroll = true, startCam = 100.0))
+        val off = director(Config(scroll = false, startCam = 100.0))
         repeat(10) { on.step(0.5f); off.step(0.5f) }
-        assertEquals(5 * Director.SPEED.toDouble(), on.state.cam, 0.01)
-        assertEquals(0.0, off.state.cam, 0.0)
+        assertEquals(100.0 + 5 * Director.SPEED.toDouble(), on.state.cam, 0.01)
+        assertEquals(100.0, off.state.cam, 0.0)
+    }
+
+    @Test
+    fun theJourneyStartsSomewhereAlongTheRoadAndAChosenPlaceStaysPut() {
+        val starts = (1..40).map { director(Config(scroll = false)).also { d -> d.step(0.04f) }.state.cam }
+        assertTrue(starts.all { it > Places.STRETCH && it < 10 * Places.STRETCH })
+        assertTrue("different every time", starts.toSet().size > 20)
+        assertEquals(0.0, director(Config(scroll = false, environment = Places.BEACH)).also { it.step(0.04f) }.state.cam, 0.0)
     }
 
     @Test
