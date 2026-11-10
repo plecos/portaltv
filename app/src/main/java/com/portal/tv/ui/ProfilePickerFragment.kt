@@ -468,7 +468,8 @@ class ProfilePickerFragment : Fragment() {
                     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                         val row = super.getView(position, convertView, parent) as CheckedTextView
                         val app = getItem(position)!!
-                        row.text = app.label
+                        // An extension's screen is a screen of someone else's app: like any app a kid is allowed, it can open others.
+                        row.text = if (com.portal.tv.extensions.ExtensionTileKey.isTile(app.packageName)) "${app.label}  ·  extension (can open other apps)" else app.label
                         // Each row gets its own copy so the shared icon keeps its bounds.
                         val icon = app.icon.constantState?.newDrawable()?.mutate() ?: app.icon
                         icon.setBounds(0, 0, iconSize, iconSize)

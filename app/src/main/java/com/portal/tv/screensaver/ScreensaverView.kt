@@ -79,6 +79,8 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
 
     /** The shader being shown instead of videos, when the profile's background is a shader. */
     private var shader: ShaderBackgroundView? = null
+    /** The extension's picture, when the screen saver is one an extension draws. */
+    private var extensionView: com.portal.tv.ui.ExtensionBackgroundView? = null
 
     private val tick = object : Runnable {
         override fun run() {
@@ -101,6 +103,15 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     private var speedY = 0f
     private var placed = false
     private var lastFrameNanos = 0L
+    /** How the time shows ([ScreensaverSettings.CLOCK_BOUNCE] and so on), read each time the screen saver starts. */
+    private var clockMode = ScreensaverSettings.CLOCK_BOUNCE
+    private var cornerIndex = -1
+    private val drift = object : Runnable {
+        override fun run() {
+            moveClock()
+            ui.postDelayed(this, DRIFT_MS)
+        }
+    }
     private val bounce = object : Runnable {
         override fun run() {
             stepBounce()
@@ -134,11 +145,11 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         buildPlaylist()
         if (shader != null) ui.postDelayed({ if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }, 300)
         showGreeting()
+        applyClockMode()
         tick.run()
         ui.postDelayed(minuteTick, MINUTE_MS)
-        postOnAnimation(bounce)
         applyNight()
-        refreshWeatherLoop()
+        if (clockMode != ScreensaverSettings.CLOCK_OFF && ScreensaverSettings.showWeather(context)) refreshWeatherLoop()
 
         textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
@@ -164,6 +175,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         ui.removeCallbacksAndMessages(null)
         removeCallbacks(bounce)
         stopShader()
+        stopExtension()
         stopPlaylist()
         scope?.cancel()
         scope = null
@@ -174,7 +186,44 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     /** With the shader look, the screen saver is a slowly moving shader in the colors and style chosen for it. */
     private fun startShaderIfWanted() {
         stopShader()
-        if (ScreensaverSettings.look(context) != ScreensaverSettings.LOOK_SHADER) return
+        stopExtension()
+        val look = ScreensaverSettings.look(context)
+        val chosen = ScreensaverSettings.extension(context)
+        if (look == ScreensaverSettings.LOOK_EXTENSION && chosen != null) { startExtension(chosen); return }
+        if (look != ScreensaverSettings.LOOK_SHADER) return
+        startShader()
+    }
+
+    /**
+     * An extension draws the screen saver in its own process and Portal only shows the result, as it does for the home
+     * screen's background. The screen stays black until its first picture arrives and then fades in; if it can't be used
+     * (not answering, no longer allowed) the screen saver turns into the shader instead, so it is never left black.
+     */
+    private fun startExtension(packageName: String) {
+        val scope = scope ?: return
+        val bg = com.portal.tv.ui.ExtensionBackgroundView(context, followsProfile = false)
+        bg.onReady = { if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }
+        bg.onFailed = { reason ->
+            android.util.Log.w("Portal", "Extension screen saver $packageName not used: $reason")
+            stopExtension()
+            startShader()
+            if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start()
+        }
+        addView(bg, 0, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        extensionView = bg
+        textureView.visibility = View.GONE
+        bg.start(packageName, scope)
+    }
+
+    private fun stopExtension() {
+        extensionView?.let {
+            it.stop()
+            removeView(it)
+        }
+        extensionView = null
+    }
+
+    private fun startShader() {
         val view = ShaderBackgroundView(
             context,
             ShaderPalettes.find(ScreensaverSettings.shaderColor(context)),
@@ -200,7 +249,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     // ---------- Video ----------
 
     private fun buildPlaylist() {
-        if (shader != null) {
+        if (shader != null || extensionView != null) {
             playlist = emptyList()
             return
         }
@@ -334,8 +383,9 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         if (black == blackout) { applyVolume(); return }
         blackout = black
         applyVolume()
-        clockBlock.visibility = if (black) View.INVISIBLE else View.VISIBLE
-        if (black) removeCallbacks(bounce) else { lastFrameNanos = 0L; postOnAnimation(bounce) }
+        clockBlock.visibility = if (black || clockMode == ScreensaverSettings.CLOCK_OFF) View.INVISIBLE else View.VISIBLE
+        removeCallbacks(bounce)
+        if (!black && clockMode == ScreensaverSettings.CLOCK_BOUNCE) { lastFrameNanos = 0L; postOnAnimation(bounce) }
         if (black) {
             fade.alpha = 1f
             stopPlaylist()
@@ -387,6 +437,53 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         clockBlock.translationY = bounceY
     }
 
+    /** Reads how the time should show and sets it up: moving round the screen, in a corner, or hidden altogether. */
+    private fun applyClockMode() {
+        clockMode = ScreensaverSettings.clockMode(context)
+        removeCallbacks(bounce)
+        ui.removeCallbacks(drift)
+        weatherRow.visibility = View.GONE
+        when (clockMode) {
+            ScreensaverSettings.CLOCK_OFF -> {
+                clockBlock.visibility = View.GONE
+                greetingText.visibility = View.GONE
+            }
+            ScreensaverSettings.CLOCK_CORNERS -> {
+                clockBlock.translationX = 0f
+                clockBlock.translationY = 0f
+                moveClock(animate = false)
+                ui.postDelayed(drift, DRIFT_MS)
+            }
+            else -> postOnAnimation(bounce)
+        }
+    }
+
+    /** Moves the clock to a different corner, fading out and back in. */
+    private fun moveClock(animate: Boolean = true) {
+        val gravities = listOf(
+            Gravity.TOP or Gravity.START, Gravity.TOP or Gravity.END,
+            Gravity.BOTTOM or Gravity.START, Gravity.BOTTOM or Gravity.END
+        )
+        var next: Int
+        do { next = gravities.indices.random() } while (next == cornerIndex && gravities.size > 1)
+        val apply = {
+            cornerIndex = next
+            clockBlock.layoutParams = (clockBlock.layoutParams as LayoutParams).apply {
+                gravity = gravities[next]
+                setMargins(dp(72), dp(56), dp(72), dp(56))
+            }
+            clockBlock.requestLayout()
+        }
+        if (!animate || cornerIndex == -1) {
+            apply()
+            return
+        }
+        clockBlock.animate().alpha(0f).setDuration(CLOCK_FADE_MS).withEndAction {
+            apply()
+            clockBlock.animate().alpha(1f).setDuration(CLOCK_FADE_MS).start()
+        }.start()
+    }
+
     private fun refreshWeatherLoop() {
         scope?.launch {
             while (true) {
@@ -403,7 +500,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         weatherIcon.removeAllViews()
         weatherIcon.addView(WeatherIcons.layered(context, 44, r.code, r.isDay))
         weatherText.text = "$temp  ·  ${WeatherIcons.describe(r.code)}"
-        weatherRow.visibility = View.VISIBLE
+        weatherRow.visibility = if (ScreensaverSettings.showWeather(context)) View.VISIBLE else View.GONE
     }
 
     private fun showGreeting() {
@@ -437,6 +534,9 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         const val MINUTE_MS = 60_000L
         /** How fast the clock moves sideways, in dp a second; up and down it is 70% of that, so it doesn't just trace the diagonal. */
         const val PACE_DP = 70
+        /** How long the clock stays in one corner before stepping to another, and how long it takes to fade out and in. */
+        const val DRIFT_MS = 60_000L
+        const val CLOCK_FADE_MS = 600L
         const val WEATHER_REFRESH_MS = 15 * 60 * 1000L
         const val NIGHT_DIM_ALPHA = 0.55f
     }

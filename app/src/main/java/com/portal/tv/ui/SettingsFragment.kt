@@ -9,7 +9,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.portal.tv.R
 import com.portal.tv.repo.ParentPin
 import com.portal.tv.repo.WeatherRepository
@@ -40,15 +42,23 @@ class SettingsFragment : Fragment() {
 
     companion object {
         private const val ARG_UPDATES = "updates"
+        private const val ARG_EXTENSIONS = "extensions"
 
         /** Settings opened straight at System, Updates, with the update's button selected. */
         fun forUpdates() = SettingsFragment().apply { arguments = Bundle().apply { putBoolean(ARG_UPDATES, true) } }
+
+        /** Settings opened straight at Extensions (an extension has an update). */
+        fun forExtensions() = SettingsFragment().apply { arguments = Bundle().apply { putBoolean(ARG_EXTENSIONS, true) } }
     }
 
     private var onBackgroundChanged: (() -> Unit)? = null
 
     /** Shows or hides the shader color picker to match the background mode. */
     private var refreshShaderColors: (() -> Unit)? = null
+    /** Looks again at which extensions may draw the background and updates the choices on the Background page. */
+    private var refreshBackgroundChoices: (() -> Unit)? = null
+    /** Looks up the extensions that can draw the screen saver again (one was just allowed, changed or removed). */
+    private var refreshSaverLooks: (() -> Unit)? = null
 
 
     fun setBackgroundChangedListener(listener: () -> Unit) {
@@ -69,6 +79,7 @@ class SettingsFragment : Fragment() {
         setupWeatherLocation(view)
         setupShaderColors(view)
         setupSpeed(view)
+        setupBrightness(view)
         setupSound(view)
         setupVideoChoices(view)
         setupKidsVideoAccess(view)
@@ -77,6 +88,7 @@ class SettingsFragment : Fragment() {
         setupScreensaver(view)
         setupBirthdays(view)
         setupReminders(view)
+        setupExtensions(view)
         setupPin(view)
         setupSystemSettings(view)
         setupAbout(view)
@@ -492,11 +504,17 @@ class SettingsFragment : Fragment() {
 
     private var refreshOverlayPermission: (() -> Unit)? = null
     private var refreshReminderOverlay: (() -> Unit)? = null
+    private var refreshExtensions: (() -> Unit)? = null
+    private var extensionsPage: ExtensionsPage? = null
+    /** The category to show when this screen is drawn again, after something opened from it was closed. */
+    private var returnToCategory = 0
+    private var extensionsSummary = ""
 
     override fun onResume() {
         super.onResume()
         refreshOverlayPermission?.invoke() // back from the system's permission screen
         refreshReminderOverlay?.invoke()
+        refreshExtensions?.invoke() // an extension may have been installed or removed
     }
 
     /**
@@ -668,6 +686,10 @@ class SettingsFragment : Fragment() {
             Category(R.id.cat_background, R.id.page_background) {
                 when (BackgroundSettings.getMode(context)) {
                     "off" -> "Off"
+                    com.portal.tv.extensions.BackgroundChoice.MODE ->
+                        "Extension" + (BackgroundSettings.getExtension(context)?.let { pkg ->
+                            com.portal.tv.extensions.ExtensionRegistry.find(context, pkg)?.name?.let { " · $it" }
+                        } ?: "")
                     "shader" -> "Shader · " + ShaderStyles.find(BackgroundSettings.getShaderStyle(context)).label +
                         " · " + ShaderPalettes.find(BackgroundSettings.getShaderColor(context)).label
                     else -> {
@@ -719,6 +741,7 @@ class SettingsFragment : Fragment() {
                 val count = profile?.let { com.portal.tv.reminders.ReminderStore.forProfile(context, it.id).size } ?: 0
                 when (count) { 0 -> "None yet"; 1 -> "1 reminder"; else -> "$count reminders" }
             },
+            Category(R.id.cat_extensions, R.id.page_extensions) { extensionsSummary },
             Category(R.id.cat_family, R.id.page_family) {
                 val count = BirthdayStore.all(context).size
                 val birthdays = if (count == 1) "1 birthday" else "$count birthdays"
@@ -829,8 +852,16 @@ class SettingsFragment : Fragment() {
             val install = view.findViewById<View>(R.id.opt_update_install)
             val target = if (install.visibility == View.VISIBLE) install else view.findViewById(R.id.opt_update_check)
             target.post { target.requestFocus() }
+        } else if (arguments?.getBoolean(ARG_EXTENSIONS) == true && shown.any { it.itemId == R.id.cat_extensions }) {
+            val at = shown.indexOfFirst { it.itemId == R.id.cat_extensions }
+            active = at
+            refresh()
+            items[at].post { items[at].requestFocus() }
         } else {
-            items[0].post { items[0].requestFocus() }
+            val back = shown.indexOfFirst { it.itemId == returnToCategory }.takeIf { returnToCategory != 0 && it >= 0 } ?: 0
+            active = back
+            refresh()
+            items[back].post { items[back].requestFocus() }
         }
     }
 
@@ -909,6 +940,29 @@ class SettingsFragment : Fragment() {
             { ScreensaverSettings.setNight(context, it) }
         )
 
+        // The time and weather over the screen saver: moving round the screen, in a corner (a new one each minute), or not at all;
+        // and the weather under the time can be left off.
+        fun refreshWeatherRow() {
+            view.findViewById<View>(R.id.screensaver_weather_row).visibility =
+                if (ScreensaverSettings.clockMode(context) == ScreensaverSettings.CLOCK_OFF) View.GONE else View.VISIBLE
+        }
+        choices(
+            R.id.screensaver_clock_row,
+            listOf(
+                "Moving" to ScreensaverSettings.CLOCK_BOUNCE,
+                "Corners" to ScreensaverSettings.CLOCK_CORNERS,
+                "Off" to ScreensaverSettings.CLOCK_OFF
+            ),
+            { ScreensaverSettings.clockMode(context) },
+            { ScreensaverSettings.setClockMode(context, it); refreshWeatherRow() }
+        )
+        choices(
+            R.id.screensaver_weather_row,
+            listOf("Show weather" to true, "No weather" to false),
+            { ScreensaverSettings.showWeather(context) },
+            { ScreensaverSettings.setShowWeather(context, it) }
+        )
+        refreshWeatherRow()
         choices(
             R.id.screensaver_sound_row,
             com.portal.tv.settings.VideoSound.levels,
@@ -945,20 +999,51 @@ class SettingsFragment : Fragment() {
             )
         )
         fun refreshSaverMode() {
-            val shader = ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_SHADER
-            view.findViewById<View>(R.id.screensaver_videos_title).visibility = if (shader) View.GONE else View.VISIBLE
-            view.findViewById<View>(R.id.opt_screensaver_videos).visibility = if (shader) View.GONE else View.VISIBLE
+            val videos = ScreensaverSettings.look(context) == ScreensaverSettings.LOOK_VIDEO
+            view.findViewById<View>(R.id.screensaver_videos_title).visibility = if (videos) View.VISIBLE else View.GONE
+            view.findViewById<View>(R.id.opt_screensaver_videos).visibility = if (videos) View.VISIBLE else View.GONE
             for (id in listOf(R.id.screensaver_sound_title, R.id.screensaver_sound_row, R.id.screensaver_sound_note)) {
-                view.findViewById<View>(id).visibility = if (shader) View.GONE else View.VISIBLE
+                view.findViewById<View>(id).visibility = if (videos) View.VISIBLE else View.GONE
             }
             refreshSaverShader()
         }
-        choices(
-            R.id.screensaver_look_row,
-            listOf("Videos" to ScreensaverSettings.LOOK_VIDEO, "Shaders" to ScreensaverSettings.LOOK_SHADER),
-            { ScreensaverSettings.look(context) },
-            { ScreensaverSettings.setLook(context, it); refreshSaverMode() }
-        )
+        // Videos, Shaders, and one choice for each extension an adult allowed to draw the background (the same ones the home
+        // screen's background can use): it draws the screen saver the same way, in its own process.
+        val lookRow = view.findViewById<android.widget.LinearLayout>(R.id.screensaver_look_row)
+        val lookTiles = mutableListOf<Pair<String, TextView>>()
+        fun currentLook() = ScreensaverSettings.choiceOf(ScreensaverSettings.look(context), ScreensaverSettings.extension(context))
+        fun refreshLook() = lookTiles.forEach { (choice, t) -> style(t, choice == currentLook()) }
+        fun addLook(label: String, choice: String) {
+            val t = tile(label)
+            t.setOnClickListener {
+                val (look, extension) = ScreensaverSettings.parseChoice(choice)
+                ScreensaverSettings.setLook(context, look)
+                if (extension != null) ScreensaverSettings.setExtension(context, extension)
+                refreshLook()
+                refreshSaverMode()
+            }
+            lookRow.addView(t)
+            lookTiles += choice to t
+        }
+        addLook("Videos", ScreensaverSettings.LOOK_VIDEO)
+        addLook("Shaders", ScreensaverSettings.LOOK_SHADER)
+        // Looked up again whenever an extension is allowed, changed or removed (from the Extensions page), so the choice is
+        // there as soon as it is allowed, without leaving Settings.
+        fun loadLooks() = viewLifecycleOwner.lifecycleScope.launch {
+            val drawers = withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
+                    com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
+                }
+            }
+            lookTiles.filter { it.first.startsWith("${ScreensaverSettings.LOOK_EXTENSION}:") }.forEach { lookRow.removeView(it.second) }
+            lookTiles.removeAll { it.first.startsWith("${ScreensaverSettings.LOOK_EXTENSION}:") }
+            drawers.forEach { addLook(it.name, "${ScreensaverSettings.LOOK_EXTENSION}:${it.packageName}") }
+            // An extension that was chosen but is no longer allowed no longer draws it: the screen saver falls back to the shader.
+            refreshLook()
+        }
+        refreshSaverLooks = { loadLooks() }
+        loadLooks()
+        refreshLook()
         refreshSaverMode()
 
         view.findViewById<TextView>(R.id.opt_screensaver_preview).setOnClickListener {
@@ -1122,21 +1207,25 @@ class SettingsFragment : Fragment() {
         val off = view.findViewById<TextView>(R.id.opt_bg_off)
         val shader = view.findViewById<TextView>(R.id.opt_bg_shader)
         val video = view.findViewById<TextView>(R.id.opt_bg_video)
+        val typeRow = view.findViewById<android.widget.LinearLayout>(R.id.bg_type_row)
+        // The extensions that may draw the background right now; one the person chose that no longer can is shown as Shader, which is what the home screen falls back to.
+        var drawable = emptySet<String>()
+        val dp = resources.displayMetrics.density
+        // One choice for each extension that may draw the background, named for it. Filled in below, once they are found.
+        val extensionTiles = mutableListOf<Pair<String, TextView>>()
+
+        fun style(tv: TextView, selected: Boolean) {
+            tv.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tv.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
+        }
 
         fun highlight() {
-            val mode = BackgroundSettings.getMode(requireContext())
-            listOf(off to "off", shader to "shader", video to "video").forEach { (tv, m) ->
-                val selected = mode == m
-                tv.setBackgroundResource(
-                    if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile
-                )
-                tv.setTextColor(
-                    resources.getColor(
-                        if (selected) R.color.text_primary else R.color.text_secondary,
-                        null
-                    )
-                )
-            }
+            val chosen = BackgroundSettings.getExtension(requireContext())
+            var mode = BackgroundSettings.getMode(requireContext())
+            if (mode == com.portal.tv.extensions.BackgroundChoice.MODE && (chosen == null || chosen !in drawable)) mode = "shader"
+            listOf(off to "off", shader to "shader", video to "video").forEach { (tv, m) -> style(tv, mode == m) }
+            // An extension's choice is lit when it is the one in use.
+            extensionTiles.forEach { (pkg, tv) -> style(tv, mode == com.portal.tv.extensions.BackgroundChoice.MODE && pkg == chosen) }
             view.findViewById<View>(R.id.background_video_pointer).visibility =
                 if (mode == "video") View.VISIBLE else View.GONE
             refreshShaderColors?.invoke()
@@ -1160,6 +1249,54 @@ class SettingsFragment : Fragment() {
             highlight()
             onBackgroundChanged?.invoke()
         }
+
+        // Each extension an adult allowed to draw the background is offered by name. A kid is offered them
+        // only if a parent turned it on for them (Settings, Extensions).
+        val context = requireContext()
+        val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
+        val kidId = com.portal.tv.repo.ProfileManager.getActiveId(context)
+        val kidMay = kid && kidId != null && BackgroundSettings.kidCanPickExtension(context, kidId)
+        // Looked up again whenever an extension is allowed or changed (from the Extensions page), so the choices are never out of date.
+        val load = { viewLifecycleOwner.lifecycleScope.launch {
+            val drawers = if (kid && !kidMay) emptyList() else withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
+                    com.portal.tv.extensions.Capability.BACKGROUND in it.granted && it.backgroundService != null
+                }
+            }
+            drawable = drawers.map { it.packageName }.toSet()
+
+            fun choose(pkg: String) {
+                BackgroundSettings.setExtension(context, pkg)
+                BackgroundSettings.setMode(context, com.portal.tv.extensions.BackgroundChoice.MODE)
+                Log.d("Portal", "settings: background=extension $pkg")
+                highlight()
+                onBackgroundChanged?.invoke()
+            }
+            fun tile(label: String, onClick: () -> Unit) = TextView(context).apply {
+                text = label
+                textSize = 18f
+                typeface = resources.getFont(R.font.inter)
+                gravity = android.view.Gravity.CENTER
+                setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+                maxWidth = (200 * dp).toInt()
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                isFocusable = true
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (48 * dp).toInt()
+                ).apply { marginStart = (12 * dp).toInt() }
+                contentDescription = "Background drawn by $label"
+                setOnClickListener { onClick() }
+            }
+            extensionTiles.forEach { typeRow.removeView(it.second) }
+            extensionTiles.clear()
+            // All of them, by name, in the same row; the row scrolls with the remote if there are more than fit.
+            drawers.forEach { ext -> extensionTiles += ext.packageName to tile(ext.name) { choose(ext.packageName) } }
+            extensionTiles.forEach { typeRow.addView(it.second) }
+            highlight()
+        } }
+        refreshBackgroundChoices = { load() }
+        load()
 
         highlight()
     }
@@ -1573,6 +1710,55 @@ class SettingsFragment : Fragment() {
         refresh()
     }
 
+    /**
+     * How bright the picture is behind the home screen, for the video and an extension's background: the higher, the less
+     * it is dimmed (and the harder the text on top is to read). The shader is left out: it is already dark.
+     */
+    private fun setupBrightness(view: View) {
+        val context = requireContext()
+        val group = view.findViewById<View>(R.id.brightness_group)
+        val row = view.findViewById<android.widget.LinearLayout>(R.id.brightness_row)
+        val px = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+        val chips = listOf(0.25f to "25%", 0.5f to "50%", 0.75f to "75%", 1f to "100%").map { (value, label) ->
+            val chip = TextView(context).apply {
+                text = label
+                textSize = 18f
+                typeface = resources.getFont(R.font.inter)
+                gravity = android.view.Gravity.CENTER
+                setPadding(px(24), 0, px(24), 0)
+                isFocusable = true
+                contentDescription = "Brightness $label"
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, px(48)
+                ).apply { marginEnd = px(8) }
+            }
+            row.addView(chip)
+            value to chip
+        }
+        fun refresh() {
+            val mode = BackgroundSettings.getMode(context)
+            group.visibility = if (mode == "video" || mode == com.portal.tv.extensions.BackgroundChoice.MODE) View.VISIBLE else View.GONE
+            val brightness = BackgroundSettings.getBrightness(context)
+            // The one nearest the saved value is lit (older saves may sit between steps).
+            val nearest = chips.minByOrNull { kotlin.math.abs(it.first - brightness) }?.first
+            chips.forEach { (value, chip) ->
+                val on = value == nearest
+                chip.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+                chip.setTextColor(resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null))
+            }
+        }
+        chips.forEach { (value, chip) ->
+            chip.setOnClickListener {
+                BackgroundSettings.setBrightness(context, value)
+                refresh()
+                onBackgroundChanged?.invoke()
+            }
+        }
+        val previous = refreshShaderColors
+        refreshShaderColors = { previous?.invoke(); refresh() }
+        refresh()
+    }
+
     /** How fast the video plays and the shader moves; shown for those two backgrounds. */
     private fun setupSpeed(view: View) {
         val context = requireContext()
@@ -1757,6 +1943,32 @@ class SettingsFragment : Fragment() {
         refresh()
     }
 
+    /** The Extensions page: what is installed, and what an adult has allowed. A kid's Settings never shows it. */
+    private fun setupExtensions(view: View) {
+        if (com.portal.tv.repo.ProfileManager.isActiveKids(requireContext())) return
+        val page = ExtensionsPage(requireContext(), viewLifecycleOwner.lifecycleScope, { startActivity(it) }, { found, allowed, updates ->
+            extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed, updates)
+            refreshCategories?.invoke()
+            refreshBackgroundChoices?.invoke()
+            refreshSaverLooks?.invoke()
+        }) {
+            // Back from the catalog lands on this page again.
+            returnToCategory = R.id.cat_extensions
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.container, ExtensionCatalogFragment())
+                .addToBackStack("extension_catalog")
+                .commit()
+        }
+        page.bind(view.findViewById(R.id.extensions_list))
+        extensionsPage = page
+        // After installing from the catalog, "Review" comes back here and opens that extension's page.
+        parentFragmentManager.setFragmentResultListener(ExtensionCatalogFragment.REVIEW_KEY, viewLifecycleOwner) { _, result ->
+            result.getString(ExtensionCatalogFragment.REVIEW_PACKAGE)?.let { page.review(it) }
+        }
+        refreshExtensions = page::refresh
+        page.refresh()
+    }
+
     /**
      * Reminders for the active profile: a row for each (select it to change or delete it), Add, what to do with a
      * reminder that came due while the TV was off, and the permission to show them over other apps.
@@ -1788,9 +2000,12 @@ class SettingsFragment : Fragment() {
                 })
             }
             val now = System.currentTimeMillis()
+            // One lookup for each extension, not one for each of its reminders.
+            val sourceNames = HashMap<String, String>()
             reminders.forEach { r ->
                 val whenText = com.portal.tv.reminders.ReminderLogic.whenLabel(r.atMillis, now) +
-                    if (r.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else "  ·  " + r.repeat.label.lowercase()
+                    (if (r.repeat == com.portal.tv.reminders.Reminder.Repeat.NONE) "" else "  ·  " + r.repeat.label.lowercase()) +
+                    (r.source?.let { src -> "  ·  via " + sourceNames.getOrPut(src) { com.portal.tv.extensions.ExtensionRegistry.find(context, src)?.name ?: src } } ?: "")
                 list.addView(TextView(context).apply {
                     text = "${r.title}  ·  $whenText"
                     textSize = 18f

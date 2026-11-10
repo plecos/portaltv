@@ -85,6 +85,21 @@
                 android:value="Keeps time for reminders people have set and shows a card over the open app when one is due" />
         </service>
 
+        <!-- The calls extensions make into Portal. Anyone can reach it, so every call checks who is calling and what an adult
+             allowed them (see HostProvider); it has no data to read or write. -->
+        <provider
+            android:name=".extensions.HostProvider"
+            android:authorities="net.getportaltv.host"
+            android:exported="true" />
+
+        <!-- An app was uninstalled: if it was an extension, what was allowed for it and what it made goes too. -->
+        <receiver android:name=".extensions.PackageRemovedReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".reminders.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -107,6 +122,7 @@
     
         <!-- Updates: Android's answer to an install, and reopening Portal once an update has replaced it. -->
         <receiver android:name=".update.UpdateInstallReceiver" android:exported="false" />
+        <receiver android:name=".extensions.CatalogInstallReceiver" android:exported="false" />
         <receiver android:name=".update.UpdatedReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

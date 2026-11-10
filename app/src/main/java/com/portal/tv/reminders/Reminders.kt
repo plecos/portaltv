@@ -22,7 +22,9 @@ data class Reminder(
     /** True: the card stays until someone dismisses it. False: it goes by itself after a while. */
     val manual: Boolean = false,
     /** Minutes a Snooze button puts it off for; 0 means the card has no Snooze button. */
-    val snoozeMinutes: Int = 0
+    val snoozeMinutes: Int = 0,
+    /** The package of the extension that made it, or null for one made in Portal. */
+    val source: String? = null
 ) {
     enum class Repeat(val label: String) {
         NONE("Once"), DAILY("Every day"), WEEKLY("Every week")
@@ -110,12 +112,15 @@ object ReminderLogic {
         now: Long,
         policy: MissedPolicy,
         zone: ZoneId = ZoneId.systemDefault(),
-        exists: (Int) -> Boolean = { true }
+        exists: (Int) -> Boolean = { true },
+        /** Says whether the extension that made a reminder may still make reminders; ones it may not are dropped. */
+        sourceAllowed: (String) -> Boolean = { true }
     ): Resolution {
         val fire = mutableListOf<Firing>()
         val keep = mutableListOf<Reminder>()
         for (r in reminders) {
             if (!exists(r.profileId)) continue
+            if (r.source != null && !sourceAllowed(r.source)) continue
             if (r.atMillis > now) { keep += r; continue }
             val lateBy = now - r.atMillis
             val late = lateBy > ON_TIME_MS

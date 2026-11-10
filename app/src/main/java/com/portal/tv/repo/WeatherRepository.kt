@@ -173,6 +173,9 @@ object WeatherRepository {
 
     // ---------- Loading ----------
 
+    /** When the last saved report was fetched, epoch millis (0 if there is none): a cheap way to tell it has changed. */
+    fun cachedStamp(context: Context): Long = prefs(context).getLong("body_time", 0L)
+
     /** The last saved report, without touching the network. */
     fun cached(context: Context): Outcome? {
         val p = prefs(context)

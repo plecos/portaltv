@@ -9,12 +9,12 @@ object ReminderJson {
     fun encode(reminders: List<Reminder>): String {
         val arr = JSONArray()
         reminders.forEach {
-            arr.put(
-                JSONObject()
-                    .put("id", it.id).put("profile", it.profileId).put("title", it.title)
-                    .put("at", it.atMillis).put("repeat", it.repeat.name)
-                    .put("tone", it.tone).put("manual", it.manual).put("snooze", it.snoozeMinutes)
-            )
+            val o = JSONObject()
+                .put("id", it.id).put("profile", it.profileId).put("title", it.title)
+                .put("at", it.atMillis).put("repeat", it.repeat.name)
+                .put("tone", it.tone).put("manual", it.manual).put("snooze", it.snoozeMinutes)
+            it.source?.let { source -> o.put("source", source) }
+            arr.put(o)
         }
         return arr.toString()
     }
@@ -33,7 +33,8 @@ object ReminderJson {
                     repeat = Reminder.Repeat.values().firstOrNull { it.name == o.optString("repeat") } ?: Reminder.Repeat.NONE,
                     tone = o.optString("tone").ifEmpty { ReminderTones.DEFAULT },
                     manual = o.optBoolean("manual", false),
-                    snoozeMinutes = o.optInt("snooze", 0).coerceAtLeast(0)
+                    snoozeMinutes = o.optInt("snooze", 0).coerceAtLeast(0),
+                    source = o.optString("source").ifEmpty { null }
                 )
             }.sortedBy { it.atMillis }
         } catch (e: Exception) {

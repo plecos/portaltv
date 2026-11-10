@@ -1,0 +1,6 @@
+# The signing keys of Portal's own extensions: the SHA-256 fingerprint of each, one a line.
+#
+# A catalog listing whose name or package name could pass for Portal's own (net.getportaltv.*, "Portal ...") is refused by the
+# checks on catalog pull requests, unless its signer is listed here. Add the fingerprint of the release key (the same one that
+# signs Portal) when the first of our own extensions goes in the catalog:
+#   apksigner verify --print-certs portal-release.apk | grep "SHA-256 digest"

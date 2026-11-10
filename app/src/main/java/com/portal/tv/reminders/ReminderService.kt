@@ -54,8 +54,14 @@ class ReminderService : Service() {
     private lateinit var windows: WindowManager
     private var banner: LinearLayout? = null
 
-    /** A reminder on the card. [until] is when it goes by itself (uptime milliseconds), or null if it waits to be dismissed. */
-    private class Active(val firing: Firing, val until: Long?)
+    /** A message an extension asked to show on the card: who it is from, a heading and a line of text. */
+    private class ExtensionCard(val from: String, val title: String, val text: String)
+
+    /**
+     * Something on the card: a reminder ([firing]) or a message from an extension ([card]). [until] is when it goes by
+     * itself (uptime milliseconds), or null if it waits to be dismissed.
+     */
+    private class Active(val firing: Firing?, val until: Long?, val card: ExtensionCard? = null)
     private val active = mutableListOf<Active>()
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -63,7 +69,9 @@ class ReminderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, notification())
         windows = getSystemService(WINDOW_SERVICE) as WindowManager
-        if (ReminderStore.all(this).isEmpty()) {
+        val card = if (intent?.action == ACTION_CARD) cardFrom(intent) else null
+        if (card != null) showExtensionCard(card, intent!!.getIntExtra(EXTRA_SECONDS, 10))
+        else if (ReminderStore.all(this).isEmpty() && active.isEmpty()) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -92,13 +100,43 @@ class ReminderService : Service() {
 
     private fun tick() {
         val all = ReminderStore.all(this)
+        // Whether an extension may still make reminders is looked up once for each extension, not once for each reminder.
+        val allowedSources = HashMap<String, Boolean>()
         val resolution = ReminderLogic.resolve(
             all, System.currentTimeMillis(), policy = ReminderStore.missedPolicy(this),
-            exists = { ProfileManager.getById(this, it) != null }
+            exists = { ProfileManager.getById(this, it) != null },
+            sourceAllowed = { src ->
+                allowedSources.getOrPut(src) {
+                    com.portal.tv.extensions.Capability.REMINDERS in com.portal.tv.extensions.ExtensionRegistry.granted(this, src)
+                }
+            }
         )
         if (resolution.keep == all) return
         ReminderStore.replace(this, resolution.keep)
         if (resolution.fire.isNotEmpty()) show(resolution.fire)
+    }
+
+    private fun cardFrom(intent: Intent): ExtensionCard? {
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: return null
+        return ExtensionCard(intent.getStringExtra(EXTRA_FROM).orEmpty(), title, intent.getStringExtra(EXTRA_TEXT).orEmpty())
+    }
+
+    /** A card an extension asked for: it goes by itself after [seconds], and has no buttons or sound. */
+    private fun showExtensionCard(card: ExtensionCard, seconds: Int) {
+        if (!Settings.canDrawOverlays(this)) {
+            // Without permission to draw over apps it is an ordinary notification, like a reminder.
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel(ALERT_CHANNEL, "Reminders", NotificationManager.IMPORTANCE_HIGH))
+            manager.notify(
+                ALERT_ID_BASE + 500 + (card.title.hashCode() and 0xff),
+                Notification.Builder(this, ALERT_CHANNEL).setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle(card.title).setContentText(card.from + if (card.text.isNotEmpty()) " · " + card.text else "")
+                    .setAutoCancel(true).build()
+            )
+            return
+        }
+        active += Active(null, SystemClock.uptimeMillis() + seconds * 1000L, card)
+        render()
     }
 
     private fun show(fired: List<Firing>) {
@@ -132,7 +170,7 @@ class ReminderService : Service() {
     }
 
     private fun snooze(a: Active) {
-        val later = ReminderLogic.snoozed(a.firing.reminder, System.currentTimeMillis())
+        val later = ReminderLogic.snoozed(a.firing?.reminder ?: return, System.currentTimeMillis())
         ReminderStore.add(this, later.profileId, later.title, later.atMillis, later.repeat, like = later)
         dismiss(a)
     }
@@ -178,7 +216,7 @@ class ReminderService : Service() {
             // Back dismisses what is on the card (Snooze is the button for putting it off).
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 if (event.keyCode != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event)
-                if (event.action == KeyEvent.ACTION_UP) { active.removeAll { it.firing.reminder.needsButtons }; render() }
+                if (event.action == KeyEvent.ACTION_UP) { active.removeAll { it.firing?.reminder?.needsButtons == true }; render() }
                 return true
             }
         }.apply {
@@ -193,7 +231,19 @@ class ReminderService : Service() {
         var firstButton: View? = null
         val shown = active.takeLast(MAX_SHOWN)
         shown.forEachIndexed { i, a ->
-            val f = a.firing
+            val card = a.card
+            if (card != null) {
+                val words = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    if (i > 0) setPadding(0, px(14), 0, 0)
+                }
+                words.addView(text(16f, false, Color.rgb(176, 176, 192)).apply { this.text = card.from.uppercase() })
+                words.addView(text(30f, true).apply { this.text = card.title })
+                if (card.text.isNotEmpty()) words.addView(text(20f, false, Color.rgb(220, 220, 232)).apply { this.text = card.text })
+                view.addView(words)
+                return@forEachIndexed
+            }
+            val f = a.firing ?: return@forEachIndexed
             val profile = ProfileManager.getById(this, f.reminder.profileId)
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -208,6 +258,7 @@ class ReminderService : Service() {
             words.addView(text(16f, false, Color.rgb(176, 176, 192)).apply {
                 this.text = (profile?.name ?: "Reminder").uppercase() + "  ·  " +
                     if (f.late) "MISSED, WAS DUE ${ReminderLogic.whenLabel(f.reminder.atMillis, now).uppercase()}" else "REMINDER"
+                    f.reminder.source?.let { src -> "  ·  FROM EXTENSION " + ((com.portal.tv.extensions.ExtensionRegistry.find(this@ReminderService, src)?.name)?.let { "$it · $src" } ?: src).uppercase() }.orEmpty()
             })
             words.addView(text(30f, true).apply { this.text = f.reminder.title })
             if (f.reminder.needsButtons) {
@@ -287,6 +338,24 @@ class ReminderService : Service() {
         const val BANNER_MS = 30_000L
 
         @Volatile private var looping = false
+
+        private const val ACTION_CARD = "com.portal.tv.reminders.CARD"
+        private const val EXTRA_FROM = "from"
+        private const val EXTRA_TITLE = "title"
+        private const val EXTRA_TEXT = "text"
+        private const val EXTRA_SECONDS = "seconds"
+
+        /**
+         * Shows a message from an extension on the same card reminders use: over whatever app is open, no buttons, and
+         * it goes by itself. [from] is the extension's name, so it can't pass for Portal. Returns false if the service
+         * couldn't be started.
+         */
+        fun showCard(context: Context, from: String, title: String, text: String, seconds: Int): Boolean = runCatching {
+            context.startForegroundService(
+                Intent(context, ReminderService::class.java).setAction(ACTION_CARD)
+                    .putExtra(EXTRA_FROM, "from extension $from").putExtra(EXTRA_TITLE, title).putExtra(EXTRA_TEXT, text).putExtra(EXTRA_SECONDS, seconds)
+            )
+        }.onFailure { Log.w(TAG, "Couldn't show a card: ${it.message}") }.isSuccess
 
         /** Starts watching if there are reminders to wait for; safe to call again and again. */
         fun ensureRunning(context: Context) {

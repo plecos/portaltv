@@ -38,6 +38,28 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      # Portal reads a catalog only if it is signed by a key built into the app. A release with no key built in would refuse
+      # every catalog (and so never hear of a withdrawal), so it is not published. This runs the real values through a test,
+      # not a text search, so how they are written doesn't matter. See docs/CATALOG.md, Signing.
+      - name: Catalog key and minimum serial must be set
+        run: PORTAL_RELEASE_CHECK=1 ./gradlew testDebugUnitTest --tests '*ReleaseReadinessTest' --rerun
+
+      # A new or reset TV accepts any signed, unexpired catalog at or above MIN_SERIAL, so it must not be lower than the live one.
+      - name: Minimum serial must not be below the live catalog
+        run: |
+          code=$(curl -s -o live.json -w '%{http_code}' --max-time 30 https://getportaltv.net/extensions/catalog.json || true)
+          if [ "$code" = "404" ]; then
+            echo "No live catalog yet (HTTP 404): nothing to compare."
+          elif [ "$code" != "200" ]; then
+            echo "::error::Couldn't read the live catalog (HTTP $code). Not releasing without knowing its serial."
+            exit 1
+          else
+            live=$(python3 -c "import json;print(json.load(open('live.json'))['serial'])")
+            min=$(grep -oE 'MIN_SERIAL = [0-9]+' app/src/main/java/com/portal/tv/extensions/CatalogPolicy.kt | grep -oE '[0-9]+')
+            echo "live catalog serial $live, MIN_SERIAL $min"
+            if [ "$min" -lt "$live" ]; then echo "::error::Raise CatalogPolicy.MIN_SERIAL to $live or more before releasing."; exit 1; fi
+          fi
+
       - name: Unit tests and lint
         run: ./gradlew testDebugUnitTest lintDebug
 
@@ -58,6 +80,15 @@ jobs:
           ./gradlew assembleRelease
           rm -f "$RUNNER_TEMP/portal-release.jks"
           cp app/build/outputs/apk/release/app-release.apk "portal-$VERSION.apk"
+
+      # Debug builds trust a test catalog key whose private half is public, so a debuggable APK must never be published.
+      - name: The APK must not be debuggable
+        run: |
+          aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          if "$aapt2" dump badging "portal-$VERSION.apk" | grep -q "application-debuggable"; then
+            echo "::error::The release APK is debuggable."
+            exit 1
+          fi
 
       - name: Publish the release
         env:

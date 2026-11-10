@@ -32,7 +32,7 @@ class AppRepository(private val context: Context) {
             .filter { it.activityInfo.packageName != context.packageName }
             .filter { it.activityInfo.packageName !in SYSTEM_SETTINGS_PACKAGES }
 
-        resolveInfos.mapNotNull { info ->
+        val installed = resolveInfos.mapNotNull { info ->
             val label = info.loadLabel(pm)?.toString() ?: return@mapNotNull null
             val packageName = info.activityInfo.packageName
             return@mapNotNull AppInfo(
@@ -41,6 +41,9 @@ class AppRepository(private val context: Context) {
                 icon = info.loadIcon(pm),
                 isSystem = (info.activityInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             )
-        }.sortedBy { it.label.lowercase() }
+        }
+        // Tiles that allowed extensions add sit among the apps, so the grid, hiding, ordering, search and the apps a kid
+        // may open all treat them like any other app.
+        (installed + com.portal.tv.extensions.ExtensionTiles.appInfos(context)).sortedBy { it.label.lowercase() }
     }
 }

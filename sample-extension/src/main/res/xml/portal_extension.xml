@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Describes this extension to Portal. See docs/EXTENSIONS.md in the Portal repository. -->
+<portal-extension
+    contract="1"
+    id="sample"
+    label="@string/ext_name"
+    description="@string/ext_description">
+
+    <!-- What it asks to be allowed to do. Tiles and a settings page are asked for by declaring them. -->
+    <uses capability="reminders" />
+    <uses capability="cards" />
+    <uses capability="weather" />
+
+    <tile id="lights" label="@string/tile_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
+    <tile id="cameras" label="@string/tile_cameras" icon="@drawable/ic_sample" activity=".CamerasActivity" />
+
+    <settings activity=".SettingsActivity" />
+
+    <!-- Draws the home screen background (in this app's own process) when chosen in Settings, Background. -->
+    <background service=".BackgroundService" />
+
+    <!-- Things on the home screen: Portal draws them. At most two per area. -->
+    <bar-button id="lights" label="@string/bar_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
+    <bar-text id="mode" text="@string/bar_mode" />
+    <clock-text id="status" text="@string/clock_status" />
+    <clock-button id="cameras" label="@string/clock_cameras" activity=".CamerasActivity" />
+</portal-extension>

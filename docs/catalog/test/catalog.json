@@ -1,0 +1,185 @@
+{
+  "serial": 2,
+  "updated": "2026-11-07",
+  "expires": "2027-05-06",
+  "format": 1,
+  "extensions": [
+    {
+      "package": "net.getportaltv.sample",
+      "name": "Portal sample",
+      "description": "Portal sample does useful things on your TV.",
+      "author": "Portal TV",
+      "source": "https://github.com/example/portal-sample",
+      "license": "MIT",
+      "capabilities": [
+        "tiles",
+        "settings",
+        "bar",
+        "clock",
+        "background",
+        "reminders",
+        "cards",
+        "weather"
+      ],
+      "signer": "abababababababababababababababababababababababababababababababab",
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "1.0",
+          "apk": "https://example.com/net.getportaltv.sample-1.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 1800001,
+          "contract": 1
+        },
+        {
+          "version_code": 2,
+          "version_name": "2.0",
+          "apk": "https://example.com/net.getportaltv.sample-2.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 1800002,
+          "contract": 1
+        }
+      ],
+      "tags": [
+        "sample",
+        "developer"
+      ],
+      "icon": "icons/portal-sample.png"
+    },
+    {
+      "package": "net.getportaltv.scenic",
+      "name": "Scenic Travel",
+      "description": "An animated background: a journey through the countryside that follows the real sky, sun, moon and weather.",
+      "author": "Portal TV",
+      "source": "https://github.com/plecos/portaltv",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "capabilities": [
+        "settings",
+        "background",
+        "weather"
+      ],
+      "signer": "abababababababababababababababababababababababababababababababab",
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "0.1",
+          "apk": "https://example.com/net.getportaltv.scenic-1.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 2700000,
+          "contract": 1
+        }
+      ],
+      "tags": [
+        "background",
+        "weather",
+        "scenery"
+      ],
+      "icon": "icons/portal-sample.png"
+    },
+    {
+      "package": "net.example.garage",
+      "name": "Garage door",
+      "description": "Garage door does useful things on your TV.",
+      "author": "Example Co",
+      "source": "https://github.com/example/garage-door",
+      "license": "MIT",
+      "capabilities": [
+        "bar",
+        "reminders"
+      ],
+      "signer": "abababababababababababababababababababababababababababababababab",
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "1.0",
+          "apk": "https://example.com/net.example.garage-1.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 1800001,
+          "contract": 1
+        }
+      ],
+      "tags": [
+        "home",
+        "garage",
+        "reminders"
+      ],
+      "icon": "icons/garage.png"
+    },
+    {
+      "package": "net.example.photos",
+      "name": "Photo frame",
+      "description": "Photo frame does useful things on your TV.",
+      "author": "A. Person",
+      "source": "https://github.com/example/photo-frame",
+      "license": "MIT",
+      "capabilities": [
+        "background"
+      ],
+      "signer": "abababababababababababababababababababababababababababababababab",
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "1.0",
+          "apk": "https://example.com/net.example.photos-1.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 1800001,
+          "contract": 1
+        }
+      ],
+      "tags": [
+        "photos",
+        "background",
+        "family"
+      ],
+      "icon": "icons/photos.png"
+    },
+    {
+      "package": "net.example.bad",
+      "name": "Bad one",
+      "description": "Bad one does useful things on your TV.",
+      "author": "X",
+      "source": "https://github.com/example/bad-one",
+      "license": "MIT",
+      "capabilities": [
+        "tiles"
+      ],
+      "signer": "abababababababababababababababababababababababababababababababab",
+      "versions": [
+        {
+          "version_code": 1,
+          "version_name": "1.0",
+          "apk": "https://example.com/net.example.bad-1.apk",
+          "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "size": 1800001,
+          "contract": 1
+        }
+      ],
+      "tags": []
+    },
+    {
+      "package": "net.example.paidpanel",
+      "name": "Paid panel",
+      "description": "A home panel sold on Google Play: free to try, with a paid upgrade.",
+      "author": "Example Co",
+      "source": "https://example.com/paid-panel",
+      "license": "Proprietary",
+      "capabilities": [
+        "tiles",
+        "bar"
+      ],
+      "signer": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "tags": [
+        "home",
+        "paid"
+      ],
+      "distribution": "play",
+      "price": "Free, with a paid upgrade"
+    }
+  ],
+  "revoked": [
+    {
+      "package": "net.example.bad",
+      "reason": "Withdrawn"
+    }
+  ]
+}

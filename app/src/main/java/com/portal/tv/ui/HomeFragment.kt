@@ -164,7 +164,11 @@ class HomeFragment : Fragment() {
         }
         view.findViewById<View>(R.id.btn_settings).setOnClickListener { openSettings(SettingsFragment()) }
         // A newer version has been found: the Update button goes straight to the update in Settings.
-        view.findViewById<View>(R.id.btn_update).setOnClickListener { openSettings(SettingsFragment.forUpdates()) }
+        // (If only an extension has an update, it opens Settings at Extensions instead.)
+        view.findViewById<View>(R.id.btn_update).setOnClickListener {
+            val portalUpdate = com.portal.tv.update.Updates.updateAvailable(requireContext(), com.portal.tv.BuildConfig.VERSION_NAME)
+            openSettings(if (portalUpdate) SettingsFragment.forUpdates() else SettingsFragment.forExtensions())
+        }
         refreshUpdateButton()
 
         setupBackground(view)
@@ -175,8 +179,64 @@ class HomeFragment : Fragment() {
         val context = context ?: return
         val button = view?.findViewById<View>(R.id.btn_update) ?: return
         val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
-        button.visibility = if (!kid && com.portal.tv.update.Updates.updateAvailable(context, com.portal.tv.BuildConfig.VERSION_NAME))
-            View.VISIBLE else View.GONE
+        val portal = !kid && com.portal.tv.update.Updates.updateAvailable(context, com.portal.tv.BuildConfig.VERSION_NAME)
+        button.visibility = if (portal) View.VISIBLE else View.GONE
+        // An extension with a newer version in the catalog (from the copy kept on the TV) also earns the button.
+        if (!kid && !portal) viewLifecycleOwner.lifecycleScope.launch {
+            val any = withContext(Dispatchers.IO) { com.portal.tv.extensions.ExtensionUpdates.pending(context).isNotEmpty() }
+            view?.findViewById<View>(R.id.btn_update)?.visibility = if (any) View.VISIBLE else View.GONE
+        }
+    }
+
+    /**
+     * Draws the buttons and text allowed extensions put in the top bar and under the clock. Kid profiles get none. The
+     * scan is off the main thread; Portal's own buttons are never touched.
+     */
+    private fun refreshExtensionItems() {
+        val context = context ?: return
+        val bar = view?.findViewById<android.widget.LinearLayout>(R.id.ext_bar_items) ?: return
+        val clock = view?.findViewById<android.widget.LinearLayout>(R.id.ext_clock_items) ?: return
+        val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.isKids == true
+        viewLifecycleOwner.lifecycleScope.launch {
+            val extensions = if (kid) emptyList() else withContext(Dispatchers.IO) { com.portal.tv.extensions.ExtensionRegistry.scan(context) }
+            val fill = { area: com.portal.tv.extensions.ItemArea, into: android.widget.LinearLayout ->
+                ExtensionItemViews.fill(
+                    into,
+                    com.portal.tv.extensions.ExtensionItems.pick(extensions, area),
+                    onOpen = { openExtensionItem(it, area) },
+                    onInfo = { showItemInfo(it) }
+                )
+            }
+            fill(com.portal.tv.extensions.ItemArea.BAR, bar)
+            fill(com.portal.tv.extensions.ItemArea.CLOCK, clock)
+        }
+    }
+
+    private fun openExtensionItem(shown: com.portal.tv.extensions.ShownItem, area: com.portal.tv.extensions.ItemArea) {
+        val context = context ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Checked again now, in case the extension changed since the screen was drawn.
+            val intent = withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionItems.resolve(context, shown.packageName, area, shown.item.id)
+            }
+            if (intent == null) {
+                android.widget.Toast.makeText(context, "${shown.item.text} isn't allowed to open any more", android.widget.Toast.LENGTH_LONG).show()
+                refreshExtensionItems()
+                return@launch
+            }
+            runCatching { startActivity(intent) }
+                .onFailure { android.widget.Toast.makeText(context, "Couldn't open ${shown.item.text}", android.widget.Toast.LENGTH_SHORT).show() }
+        }
+    }
+
+    /** Long press on an extension's item: whose it is, since it looks like part of Portal. */
+    private fun showItemInfo(shown: com.portal.tv.extensions.ShownItem) {
+        val context = context ?: return
+        PortalDialog.Builder(context)
+            .setTitle(shown.item.text)
+            .setMessage("Added by the extension ${shown.extensionName} (${shown.packageName}). It isn't part of Portal. An adult can turn it off in Settings, Extensions.")
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun setupBackground(view: View) {
@@ -184,6 +244,9 @@ class HomeFragment : Fragment() {
     }
 
     private var shaderView: ShaderBackgroundView? = null
+
+    /** The background an extension draws, while that is what is chosen and it is working. */
+    private var extensionBackground: ExtensionBackgroundView? = null
 
     /** What the background is showing now: "off", "shader", "video" or "birthday". */
     private var activeMode = "video"
@@ -252,6 +315,9 @@ class HomeFragment : Fragment() {
             view.findViewById<View>(R.id.panel_actions).setBackgroundResource(
                 if (dark) R.drawable.bg_header_panel_light else R.drawable.bg_header_panel
             )
+            view.findViewById<View>(R.id.ext_clock_items).setBackgroundResource(
+                if (dark) R.drawable.bg_header_panel_light else R.drawable.bg_header_panel
+            )
         }
         setPanels(false)
         if (mode == "video") {
@@ -272,6 +338,32 @@ class HomeFragment : Fragment() {
             root.removeView(it)
         }
         shaderView = null
+        extensionBackground?.let {
+            it.stop()
+            root.removeView(it)
+        }
+        extensionBackground = null
+
+        // The animated gradient: the "shader" background, and what an extension's background gives way to if it can't be used.
+        fun showShader() {
+            textureView.visibility = View.GONE
+            val shader = ShaderBackgroundView(
+                requireContext(),
+                ShaderPalettes.find(BackgroundSettings.getShaderColor(requireContext())),
+                ShaderStyles.find(BackgroundSettings.getShaderStyle(requireContext())),
+                BackgroundSettings.getSpeed(requireContext()),
+                BackgroundSettings.getShaderCycle(requireContext())
+            )
+            shader.onFirstFrame = { IntroAnimation.release(BACKGROUND_READY) }
+            root.addView(shader, 1, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ))
+            shaderView = shader
+            shader.onResume()
+            Log.d("Portal", "shader view added and started")
+            dimOverlay.visibility = View.GONE  // shader is already dark, no extra dim
+        }
 
         when (mode) {
             "off" -> {
@@ -279,24 +371,44 @@ class HomeFragment : Fragment() {
                 dimOverlay.visibility = View.GONE
                 IntroAnimation.release(BACKGROUND_READY)
             }
-            "shader" -> {
+            "shader" -> showShader()
+            com.portal.tv.extensions.BackgroundChoice.MODE -> {
+                // Drawn by an extension in its own process. It sits under the usual dim layer, so the screen stays readable.
                 textureView.visibility = View.GONE
-                val shader = ShaderBackgroundView(
-                    requireContext(),
-                    ShaderPalettes.find(BackgroundSettings.getShaderColor(requireContext())),
-                    ShaderStyles.find(BackgroundSettings.getShaderStyle(requireContext())),
-                    BackgroundSettings.getSpeed(requireContext()),
-                    BackgroundSettings.getShaderCycle(requireContext())
-                )
-                shader.onFirstFrame = { IntroAnimation.release(BACKGROUND_READY) }
-                root.addView(shader, 1, FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                ))
-                shaderView = shader
-                shader.onResume()
-                Log.d("Portal", "shader view added and started")
-                dimOverlay.visibility = View.GONE  // shader is already dark, no extra dim
+                dimOverlay.visibility = View.VISIBLE
+                val context = requireContext()
+                // The same dimming a video background gets (its brightness setting, 25% dark by default), not the layout's 50%,
+                // which left an extension's picture too dark. The extension's own colours are left alone.
+                dimOverlay.alpha = 1f - BackgroundSettings.getBrightness(context)
+                val chosen = BackgroundSettings.getExtension(context)
+                val profile = com.portal.tv.repo.ProfileManager.getActive(context)
+                // A kid gets it only if a parent turned it on for them (the background view checks again before it draws).
+                val kid = profile?.isKids == true && !(profile != null && BackgroundSettings.kidCanPickExtension(context, profile.id))
+                if (chosen == null || kid || this.view == null) {
+                    // The home screen's view is gone (Settings is open over it): the extension is started when it is back.
+                    showShader()
+                } else {
+                    val bg = ExtensionBackgroundView(context)
+                    // Until it shows its first picture the screen has Portal's own gradient, so there is never a blank.
+                    showShader()
+                    root.addView(bg, 1, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                    bg.onReady = {
+                        // The extension's picture is on, so the gradient under it can stop.
+                        shaderView?.let { it.onPause(); root.removeView(it) }
+                        shaderView = null
+                        dimOverlay.visibility = View.VISIBLE
+                        dimOverlay.alpha = 1f - BackgroundSettings.getBrightness(context)
+                        IntroAnimation.release(BACKGROUND_READY)
+                    }
+                    bg.onFailed = { reason ->
+                        Log.w("Portal", "Extension background $chosen not used: $reason")
+                        extensionBackground?.let { root.removeView(it) }
+                        extensionBackground = null
+                        if (shaderView == null) showShader()
+                    }
+                    extensionBackground = bg
+                    bg.start(chosen, lifecycleScope)
+                }
             }
             "video", "birthday" -> {
                 lifecycleScope.launch {
@@ -437,7 +549,8 @@ class HomeFragment : Fragment() {
             AppSettings.hideApp(context, app.packageName)
             loadApps()
         }
-        actions += "App info" to {
+        // An extension's tile isn't an installed app of its own, so it has no app info to show.
+        if (!com.portal.tv.extensions.ExtensionTileKey.isTile(app.packageName)) actions += "App info" to {
             startActivity(
                 Intent(
                     android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -477,6 +590,14 @@ class HomeFragment : Fragment() {
     /** [from] is the icon's view in the grid, or null when the app was opened from search or a menu. */
     private fun launchApp(app: AppInfo, from: android.widget.ImageView? = null) {
         if (launchAnimation?.active == true) return
+        // A tile from an extension opens one of the extension's own screens, if it is still allowed to.
+        val isTile = com.portal.tv.extensions.ExtensionTileKey.isTile(app.packageName)
+        val tile = if (isTile) com.portal.tv.extensions.ExtensionTiles.resolve(requireContext(), app.packageName) else null
+        if (isTile && tile == null) {
+            android.widget.Toast.makeText(requireContext(), "${app.label} isn't allowed to open any more", android.widget.Toast.LENGTH_LONG).show()
+            loadApps()
+            return
+        }
         // A kid's bedtime or daily limit can stop the launch.
         val kid = com.portal.tv.repo.ProfileManager.getActive(requireContext())?.takeIf { it.isKids }
         if (kid != null) {
@@ -487,13 +608,13 @@ class HomeFragment : Fragment() {
             }
             KidsSchedule.startSession(requireContext(), kid.id)
             // Keep watching the clock, and show the time left over the app, while it's open.
-            KidsSchedule.setSessionPackage(requireContext(), app.packageName)
+            KidsSchedule.setSessionPackage(requireContext(), tile?.packageName ?: app.packageName)
             if (!KidsSchedule.config(requireContext(), kid.id).isEmpty) KidsMonitorService.start(requireContext())
         }
         UsageTracker.recordLaunch(requireContext(), app.packageName)
         // TV apps usually only have a leanback entry point.
         val pm = requireContext().packageManager
-        val intent = pm.getLeanbackLaunchIntentForPackage(app.packageName)
+        val intent = tile?.intent ?: pm.getLeanbackLaunchIntentForPackage(app.packageName)
             ?: pm.getLaunchIntentForPackage(app.packageName)
         if (intent != null) {
             val root = view as? android.view.ViewGroup
@@ -817,9 +938,13 @@ class HomeFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        com.portal.tv.extensions.HostEvents.onItemsChanged = null
+        com.portal.tv.extensions.HostEvents.onTilesChanged = null
         com.portal.tv.alerts.SevereAlertService.homeShowing = false
         backgroundPlayer?.stop()
         shaderView?.onPause()
+        // An extension's background is let go of while the home screen isn't showing, so it isn't running for nothing.
+        extensionBackground?.stop()
         launchAnimation?.appStarted()
         timeHandler.removeCallbacks(timeRunnable)
         weatherHandler.removeCallbacksAndMessages(null)
@@ -842,9 +967,19 @@ class HomeFragment : Fragment() {
         timeHandler.postDelayed(timeRunnable, 1000)
         applySearchLevel()
         refreshUpdateButton()
+        refreshExtensionItems()
+        com.portal.tv.extensions.HostEvents.onItemsChanged = { refreshExtensionItems() }
+        com.portal.tv.extensions.HostEvents.onTilesChanged = { loadApps() }
         // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
         viewLifecycleOwner.lifecycleScope.launch {
             if (com.portal.tv.update.UpdateChecks.checkIfDue(requireContext())) refreshUpdateButton()
+            // The catalog's withdrawn list, kept fresh while extensions are installed.
+            if (com.portal.tv.extensions.CatalogChecks.checkIfDue(requireContext())) {
+                // A withdrawal may have switched something off, and a newer version may now be on offer.
+                refreshExtensionItems()
+                refreshUpdateButton()
+                loadApps()
+            }
         }
         // Rebuild the app lists so launches and installs made elsewhere show up.
         loadApps()
@@ -870,6 +1005,9 @@ class HomeFragment : Fragment() {
             backgroundPlayer?.start(lifecycleScope)
         } else if (activeMode == "shader") {
             shaderView?.onResume()
+        } else if (activeMode == com.portal.tv.extensions.BackgroundChoice.MODE) {
+            // Starts the extension again (Portal's gradient shows until its first picture is back).
+            applyBackground(view)
         }
     }
 

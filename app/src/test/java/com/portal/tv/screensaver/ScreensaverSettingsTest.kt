@@ -39,4 +39,15 @@ class ScreensaverSettingsTest {
         assertEquals(ScreensaverSettings.LOOK_VIDEO, ScreensaverSettings.lookFor("off"))
         assertEquals(ScreensaverSettings.LOOK_VIDEO, ScreensaverSettings.lookFor(null))
     }
+
+    @Test
+    fun anExtensionsScreenSaverIsPickedByItsPackage() {
+        val ext = ScreensaverSettings.LOOK_EXTENSION
+        assertEquals("$ext:net.getportaltv.scenic", ScreensaverSettings.choiceOf(ext, "net.getportaltv.scenic"))
+        assertEquals(ScreensaverSettings.LOOK_SHADER, ScreensaverSettings.choiceOf(ScreensaverSettings.LOOK_SHADER, "net.getportaltv.scenic"))
+        // An extension look with no extension chosen is nothing a tile can show as chosen.
+        assertEquals(ext, ScreensaverSettings.choiceOf(ext, null))
+        assertEquals(ext to "net.getportaltv.scenic", ScreensaverSettings.parseChoice("$ext:net.getportaltv.scenic"))
+        assertEquals(ScreensaverSettings.LOOK_VIDEO to null, ScreensaverSettings.parseChoice(ScreensaverSettings.LOOK_VIDEO))
+    }
 }
