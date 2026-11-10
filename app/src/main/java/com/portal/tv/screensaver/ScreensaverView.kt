@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.portal.tv.R
 import com.portal.tv.background.BackgroundRepository
+import com.portal.tv.repo.WeatherAlerts
 import com.portal.tv.repo.WeatherRepository
 import com.portal.tv.settings.AppSettings
 import com.portal.tv.settings.VideoSound
@@ -24,6 +25,7 @@ import com.portal.tv.ui.ShaderBackgroundView
 import com.portal.tv.ui.ShaderPalettes
 import com.portal.tv.ui.ShaderStyles
 import com.portal.tv.settings.BirthdayStore
+import com.portal.tv.ui.AlertStyle
 import com.portal.tv.ui.WeatherIcons
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +65,12 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
+    }
+    /** The most serious weather alert, in its usual colour, under the weather; hidden when there is none. */
+    private val alertBadge = text(22f, bold = true).apply {
+        visibility = View.GONE
+        setShadowLayer(0f, 0f, 0f, 0)   // it sits on its own coloured background
+        setPadding(dp(16), dp(6), dp(16), dp(8))
     }
     private val greetingText = text(24f, bold = true).apply { visibility = View.GONE }
     private val clockBlock = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -126,6 +134,8 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         weatherRow.addView(weatherText)
         clockBlock.addView(timeText)
         clockBlock.addView(weatherRow)
+        clockBlock.addView(alertBadge, LinearLayout.LayoutParams(
+            LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
         clockBlock.addView(greetingText, LinearLayout.LayoutParams(
             LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
         addView(textureView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -443,6 +453,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         removeCallbacks(bounce)
         ui.removeCallbacks(drift)
         weatherRow.visibility = View.GONE
+        alertBadge.visibility = View.GONE
         when (clockMode) {
             ScreensaverSettings.CLOCK_OFF -> {
                 clockBlock.visibility = View.GONE
@@ -488,10 +499,30 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         scope?.launch {
             while (true) {
                 WeatherRepository.cached(context)?.report?.let { bindWeather(it) }
+                bindAlerts(WeatherAlerts.cached(context))   // what was last known, straight away
                 WeatherRepository.load(context).report?.let { bindWeather(it) }
+                bindAlerts(WeatherAlerts.load(context))
                 delay(WEATHER_REFRESH_MS)
             }
         }
+    }
+
+    /**
+     * Shows the most serious weather alert beside the weather, as the home screen does. It only shows where the weather does
+     * (the clock is on and the weather is turned on for the screen saver) and when this profile shows alerts.
+     */
+    private fun bindAlerts(alerts: List<WeatherAlerts.Alert>) {
+        val show = alerts.isNotEmpty() && clockMode != ScreensaverSettings.CLOCK_OFF &&
+            ScreensaverSettings.showWeather(context) && AppSettings.showWeatherAlerts(context)
+        if (!show) {
+            alertBadge.visibility = View.GONE
+            return
+        }
+        val first = alerts.first()
+        alertBadge.text = listOf(AlertStyle.badgeText(alerts), AlertStyle.until(context, first)).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        alertBadge.setTextColor(AlertStyle.textColor(first))
+        alertBadge.background = AlertStyle.background(first, dp(14).toFloat())
+        alertBadge.visibility = View.VISIBLE
     }
 
     private fun bindWeather(r: WeatherRepository.Report) {
