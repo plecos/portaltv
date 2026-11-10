@@ -23,7 +23,7 @@ object VideoThumbnails {
     }
 
     private fun file(context: Context, asset: String) =
-        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "${asset.replace('/', '_')}.v2.jpg")
+        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "${asset.replace('/', '_')}.v3.jpg")
 
     private fun save(context: Context, asset: String, frame: Bitmap) {
         runCatching {

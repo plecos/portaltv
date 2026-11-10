@@ -28,6 +28,13 @@ class FrameBrightnessTest {
     }
 
     @Test
+    fun aNightSceneThatShowsAsAnEmptyTileIsTooDark() {
+        // A campfire at night averaged 16 on the TV and looked like a blank tile; the dimmest good ones average about 30.
+        assertTrue(FrameBrightness.isBlank(16f))
+        assertFalse(FrameBrightness.isBlank(30f))
+    }
+
+    @Test
     fun theMeanWeighsGreenMostLikeTheEyeDoes() {
         val green = (0xFF shl 24) or (0xFF shl 8)
         val blue = (0xFF shl 24) or 0xFF

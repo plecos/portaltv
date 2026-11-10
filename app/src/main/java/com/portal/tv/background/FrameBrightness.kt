@@ -31,8 +31,11 @@ object FrameBrightness {
         return mean(sample)
     }
 
-    /** Below this a frame is taken to be black: a dark scene can still be a fine preview, an empty one is not. */
-    const val BLANK_BELOW = 14f
+    /**
+     * Below this a frame is too dark to be a useful preview, so a brighter moment is looked for. A night scene averaging 16 looked
+     * like an empty tile; the dimmest of the bundled and downloaded videos that show clearly average about 30.
+     */
+    const val BLANK_BELOW = 28f
 
     fun isBlank(mean: Float) = mean < BLANK_BELOW
 }
