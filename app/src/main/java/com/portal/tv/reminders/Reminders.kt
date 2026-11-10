@@ -135,6 +135,14 @@ object ReminderLogic {
         return Resolution(fire.sortedBy { it.reminder.atMillis }, keep)
     }
 
+    /**
+     * The small line above a reminder card: who it is for, whether it is a reminder or a missed one, and, for a reminder
+     * an extension made, which extension. [extension] is the extension's name and package, or just its package.
+     */
+    fun cardHeader(profileName: String?, late: Boolean, whenLabel: String, extension: String?): String =
+        ((profileName ?: "Reminder") + "  ·  " + (if (late) "MISSED, WAS DUE $whenLabel" else "REMINDER") +
+            (extension?.let { "  ·  FROM EXTENSION $it" } ?: "")).uppercase()
+
     /** "Today 8:00 PM", "Tomorrow 8:00 PM", or "Fri, Nov 7 8:00 PM" for a time further off or already gone by. */
     fun whenLabel(atMillis: Long, now: Long, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = Locale.getDefault()): String {
         val at = Instant.ofEpochMilli(atMillis).atZone(zone)
