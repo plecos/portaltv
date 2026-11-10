@@ -285,3 +285,87 @@ class CatalogOwnNamesTest {
         assertEquals(1, count)
     }
 }
+
+/** Entries that are sold and delivered by Google Play: no file for Portal to check, a price to show, a Play link made from the package. */
+class CatalogPlayTest {
+
+    private fun play(pkg: String = "net.example.paid") = JSONObject()
+        .put("package", pkg).put("name", "Paid panel").put("description", "A paid panel.").put("author", "Example")
+        .put("source", "https://example.com/src").put("license", "Proprietary")
+        .put("capabilities", JSONArray(listOf("tiles"))).put("signer", SIGNER)
+        .put("distribution", "play").put("price", "Free, with a paid upgrade")
+
+    @Test
+    fun aPlayEntryNeedsNoVersions() {
+        val r = ok(catalog(play()))
+        assertTrue(r.problems.isEmpty())
+        val e = r.catalog.extensions.single()
+        assertTrue(e.isPlay)
+        assertEquals("Free, with a paid upgrade", e.price)
+        assertTrue(e.versions.isEmpty())
+    }
+
+    @Test
+    fun theGooglePlayAddressIsMadeFromThePackageAlone() {
+        val e = ok(catalog(play("net.example.paid"))).catalog.extensions.single()
+        assertEquals("https://play.google.com/store/apps/details?id=net.example.paid", e.playUrl)
+    }
+
+    @Test
+    fun aPlayEntryMayNotCarryAFileOrVersions() {
+        val r = ok(catalog(play().put("versions", JSONArray(listOf(version(1))))))
+        assertTrue(r.catalog.extensions.isEmpty())
+        assertTrue(r.problems.single().contains("no versions"))
+        // An empty list is the same as none.
+        assertEquals(1, ok(catalog(play().put("versions", JSONArray()))).catalog.extensions.size)
+    }
+
+    @Test
+    fun aDownloadEntryStillNeedsVersions() {
+        val r = ok(catalog(entry().put("versions", JSONArray())))
+        assertTrue(r.catalog.extensions.isEmpty())
+        assertEquals(1, r.problems.size)
+    }
+
+    @Test
+    fun aDistributionOtherThanDownloadOrPlayIsRefused() {
+        val r = ok(catalog(play().put("distribution", "store")))
+        assertTrue(r.catalog.extensions.isEmpty())
+        assertTrue(r.problems.single().contains("distribution"))
+    }
+
+    @Test
+    fun aPriceIsShortPlainText() {
+        assertTrue(ok(catalog(play().put("price", "x".repeat(CatalogParser.MAX_PRICE + 1)))).catalog.extensions.isEmpty())
+        assertTrue(ok(catalog(play().put("price", ""))).catalog.extensions.isEmpty())
+        assertEquals("", ok(catalog(play().apply { remove("price") })).catalog.extensions.single().price)
+    }
+
+    @Test
+    fun aPlayEntryIsListedWithNoVersionAndHiddenWhenWithdrawn() {
+        val listed = ok(catalog(play(), entry())).catalog
+        assertEquals(listOf("Paid panel", "Panel"), CatalogLabels.shown(listed).map { it.name })
+        val withdrawn = ok(catalog(play(), revoked = listOf(JSONObject().put("package", "net.example.paid").put("reason", "bad")))).catalog
+        assertTrue(CatalogLabels.shown(withdrawn).isEmpty())
+    }
+
+    @Test
+    fun noUpdateIsOfferedForAPlayEntry() {
+        val c = ok(catalog(play())).catalog
+        val e = c.extensions.single()
+        assertNull(CatalogRules.best(c, e))
+        assertEquals(CatalogState.INSTALLED, CatalogLabels.state(c, e, 5L, SIGNER))
+        assertEquals(CatalogState.SIGNED_BY_OTHER, CatalogLabels.state(c, e, 5L, OTHER))
+    }
+
+    @Test
+    fun theCardShowsGooglePlayAndThePrice() {
+        val c = ok(catalog(play(), play("net.example.other").apply { remove("price") }, entry())).catalog
+        val by = c.extensions.associate { it.packageName to it }
+        assertEquals("Example", CatalogLabels.byLine(by["net.example.paid"]!!))
+        assertEquals("Example", CatalogLabels.byLine(by["net.example.panel"]!!))
+        assertEquals("Free, with a paid upgrade", CatalogLabels.priceLine(by["net.example.paid"]!!))
+        assertEquals("On Google Play", CatalogLabels.priceLine(by["net.example.other"]!!))
+        assertEquals("", CatalogLabels.priceLine(by["net.example.panel"]!!))
+    }
+}

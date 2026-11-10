@@ -155,6 +155,25 @@
         }
       ],
       "tags": []
+    },
+    {
+      "package": "net.example.paidpanel",
+      "name": "Paid panel",
+      "description": "A home panel sold on Google Play: free to try, with a paid upgrade.",
+      "author": "Example Co",
+      "source": "https://example.com/paid-panel",
+      "license": "Proprietary",
+      "capabilities": [
+        "tiles",
+        "bar"
+      ],
+      "signer": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "tags": [
+        "home",
+        "paid"
+      ],
+      "distribution": "play",
+      "price": "Free, with a paid upgrade"
     }
   ],
   "revoked": [

@@ -351,4 +351,4 @@ are gone, and what was allowed is forgotten.
 
 An extension is your own app. Portal doesn't process payments and doesn't know whether you charge for it, so how you license it, price it and
 unlock it is up to you. Portal itself is under the PolyForm Noncommercial License (see [LICENSE](../LICENSE)), which covers Portal, not your
-separate app. Don't copy Portal's code into an extension without checking that license. A catalog entry only shows what the author writes about the app.
+separate app. Don't copy Portal's code into an extension without checking that license. A catalog entry only shows what the author writes about the app. To list a paid extension, use a Google Play entry ([CATALOG.md](CATALOG.md#an-extension-that-is-bought-on-google-play)): Browse shows the price and a button that opens the Play page, and Play takes the payment.

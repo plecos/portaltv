@@ -249,12 +249,14 @@ class ExtensionCatalogFragment : Fragment() {
             val state = CatalogLabels.state(c, entry, here?.versionCode, here?.signer)
             val stateText = CatalogLabels.stateText(state)
             h.name.text = entry.name
-            h.line.text = entry.author
+            h.line.text = CatalogLabels.byLine(entry)
             h.tagLine.text = entry.tags.joinToString("  ") { "#$it" }
             h.tagLine.visibility = if (entry.tags.isEmpty()) View.GONE else View.VISIBLE
-            h.state.text = stateText
-            h.state.visibility = if (stateText.isEmpty()) View.GONE else View.VISIBLE
-            h.card.contentDescription = "${entry.name} by ${entry.author}. $stateText Select for details."
+            val priceLine = if (stateText.isEmpty()) CatalogLabels.priceLine(entry) else ""
+            h.state.text = stateText.ifEmpty { priceLine }
+            h.state.setTextColor(if (priceLine.isNotEmpty()) Color.rgb(255, 214, 120) else Color.rgb(140, 230, 160))
+            h.state.visibility = if (stateText.isEmpty() && priceLine.isEmpty()) View.GONE else View.VISIBLE
+            h.card.contentDescription = "${entry.name} by ${entry.author}. ${stateText.ifEmpty { priceLine }} Select for details."
             h.card.setOnClickListener { pages.showDetail(c, entry) }
 
             // The icon: the puzzle piece until the catalog's own arrives.

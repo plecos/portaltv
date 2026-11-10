@@ -16,6 +16,9 @@ data class CatalogVersion(
     val contract: Int
 )
 
+/** How a listed extension reaches the TV: downloaded from its author by Portal, or got from Google Play (where it may be paid for). */
+enum class Distribution { DOWNLOAD, PLAY }
+
 /** An extension the catalog lists. */
 data class CatalogEntry(
     val packageName: String,
@@ -38,9 +41,16 @@ data class CatalogEntry(
      */
     val iconPath: String,
     val screenshots: List<String>,
-    /** Newest first. */
-    val versions: List<CatalogVersion>
-)
+    /** Newest first. Empty for a [Distribution.PLAY] entry: Portal doesn't download it, so there is nothing to check. */
+    val versions: List<CatalogVersion>,
+    val distribution: Distribution = Distribution.DOWNLOAD,
+    /** What it costs, in the author's words ("$4.99", "Free, with a paid upgrade"), or empty. Shown, not judged by Portal. */
+    val price: String = ""
+) {
+    /** Where the Google Play page is. Made from the package name only, so a listing can't point the person anywhere else. */
+    val playUrl: String get() = "https://play.google.com/store/apps/details?id=$packageName"
+    val isPlay: Boolean get() = distribution == Distribution.PLAY
+}
 
 /** A line in the catalog's revoked list: an extension, version or signer that must not be used any more. */
 data class CatalogRevocation(
@@ -90,6 +100,7 @@ object CatalogParser {
     const val MAX_URL = 300
     const val MAX_AUTHOR = 60
     const val MAX_LICENSE = 40
+    const val MAX_PRICE = 40
     const val MAX_REASON = 200
     /** The largest APK the catalog may list, so a listing can't fill the TV's storage. */
     const val MAX_APK_BYTES = 100L * 1024 * 1024
@@ -214,22 +225,36 @@ object CatalogParser {
             for (i in 0 until sl.length()) shots += url(sl.opt(i), allowHttp) ?: return bad("a screenshot isn't an https address.")
         }
 
-        val vl = o.opt("versions") as? JSONArray ?: return bad("it has no versions.")
-        if (vl.length() == 0 || vl.length() > MAX_VERSIONS) return bad("it needs between 1 and $MAX_VERSIONS versions.")
+        val distribution = when (val d = o.opt("distribution")) {
+            null -> Distribution.DOWNLOAD
+            "download" -> Distribution.DOWNLOAD
+            "play" -> Distribution.PLAY
+            else -> return bad("its distribution is \"$d\", which isn't \"download\" or \"play\".")
+        }
+        val price = if (o.has("price")) (text(o, "price", MAX_PRICE) ?: return bad("its price is empty or longer than $MAX_PRICE characters.")) else ""
+
         val versions = mutableListOf<CatalogVersion>()
-        for (i in 0 until vl.length()) {
-            val v = vl.opt(i) as? JSONObject ?: return bad("a version isn't an object.")
-            val code = (v.opt("version_code") as? Number)?.toLong()?.takeIf { it >= 1 } ?: return bad("a version has no version_code.")
-            if (versions.any { it.versionCode == code }) return bad("version $code is listed twice.")
-            val vname = text(v, "version_name", 40) ?: return bad("version $code has no version_name.")
-            val apk = url(v.opt("apk"), allowHttp) ?: return bad("version $code needs an apk link that is an https address.")
-            val sha = (v.opt("sha256") as? String)?.lowercase()?.takeIf { HEX64.matches(it) } ?: return bad("version $code has no valid sha256.")
-            val size = (v.opt("size") as? Number)?.toLong()?.takeIf { it in 1..MAX_APK_BYTES } ?: return bad("version $code has no size, or one over ${MAX_APK_BYTES / 1024 / 1024} MB.")
-            val contract = (v.opt("contract") as? Int)?.takeIf { it >= 1 } ?: return bad("version $code doesn't say which contract it needs.")
-            versions += CatalogVersion(code, vname, apk, sha, size, contract)
+        val vl = o.opt("versions")
+        if (distribution == Distribution.PLAY) {
+            // Google Play delivers and updates it. Portal has no file to check, so a listing may not carry one.
+            if (vl != null && !(vl is JSONArray && vl.length() == 0)) return bad("a Google Play listing has no versions (Play delivers it).")
+        } else {
+            if (vl !is JSONArray) return bad("it has no versions.")
+            if (vl.length() == 0 || vl.length() > MAX_VERSIONS) return bad("it needs between 1 and $MAX_VERSIONS versions.")
+            for (i in 0 until vl.length()) {
+                val v = vl.opt(i) as? JSONObject ?: return bad("a version isn't an object.")
+                val code = (v.opt("version_code") as? Number)?.toLong()?.takeIf { it >= 1 } ?: return bad("a version has no version_code.")
+                if (versions.any { it.versionCode == code }) return bad("version $code is listed twice.")
+                val vname = text(v, "version_name", 40) ?: return bad("version $code has no version_name.")
+                val apk = url(v.opt("apk"), allowHttp) ?: return bad("version $code needs an apk link that is an https address.")
+                val sha = (v.opt("sha256") as? String)?.lowercase()?.takeIf { HEX64.matches(it) } ?: return bad("version $code has no valid sha256.")
+                val size = (v.opt("size") as? Number)?.toLong()?.takeIf { it in 1..MAX_APK_BYTES } ?: return bad("version $code has no size, or one over ${MAX_APK_BYTES / 1024 / 1024} MB.")
+                val contract = (v.opt("contract") as? Int)?.takeIf { it >= 1 } ?: return bad("version $code doesn't say which contract it needs.")
+                versions += CatalogVersion(code, vname, apk, sha, size, contract)
+            }
         }
         return Entry.Good(
-            CatalogEntry(pkg, name, description, author, source, license, capabilities, signer, tags, icon, shots, versions.sortedByDescending { it.versionCode })
+            CatalogEntry(pkg, name, description, author, source, license, capabilities, signer, tags, icon, shots, versions.sortedByDescending { it.versionCode }, distribution, price)
         )
     }
 

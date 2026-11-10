@@ -47,11 +47,38 @@ The file is at most 2,000,000 characters.
 | `icon` | no | A `.png` path next to `catalog.json`, like `icons/garage.png`, at most 200 KB, square, 128 to 256 pixels. It is always read from the catalog's own host, so browsing never contacts the author's server. A full address isn't allowed. |
 | `signer` | yes | SHA-256 of the signing certificate, 64 hex characters. For an app with several signers, the fingerprints joined with `+`. |
 | `screenshots` | no | Up to 4 https links. |
-| `versions` | yes | 1 to 20 versions (below). |
+| `distribution` | no | `download` (the default: Portal downloads it from the author, with the versions below) or `play` (it is got from Google Play; see below). |
+| `price` | no | What it costs, in the author's words, up to 40 characters: `$4.99`, `Free, with a paid upgrade`. Shown, not judged. |
+| `versions` | for `download` | 1 to 20 versions (below). A `play` entry has none. |
 
 Anything beyond these fields is ignored, so the format can grow.
 
+### An extension that is bought on Google Play
+
+An entry with `"distribution": "play"` is sold and delivered by Google Play, so it carries no file for Portal to check:
+
+```json
+{ "package": "net.example.paidpanel", "name": "Paid panel", "description": "...", "author": "Example Co",
+  "source": "https://example.com/paid-panel", "license": "Proprietary", "capabilities": ["tiles", "bar"],
+  "signer": "<the SHA-256 of the app signing certificate Google Play shows in Play Console>",
+  "distribution": "play", "price": "Free, with a paid upgrade" }
+```
+
+- Browse lists it with its price (or "On Google Play") in gold. Its page says that Google Play sells and delivers it, and that Portal
+  doesn't take payment, can't see what you buy and doesn't check the file. The button is **Get it on Google Play**: it opens the
+  Play page on a TV that has Play, and shows the page's address as a QR code on one that doesn't.
+- The Play address is made from `package` alone (`https://play.google.com/store/apps/details?id=<package>`), so an entry can't send
+  the person anywhere else.
+- The `signer` is still required. After the person installs it, Portal compares the installed app's signer with the listing as for any
+  other entry, and says "signed by someone else" if they differ. Use the Play app signing key's certificate, not the upload key.
+- Everything after that is as for any extension: it arrives under Settings, Extensions as "Needs your permission", and nothing is
+  allowed until an adult allows it. Updates come through Play, so Portal never shows "Update available" for it. A withdrawal still
+  switches it off, and a withdrawn Play entry is no longer listed.
+- A listing needs a `price` (use `Free` if there is nothing to pay) and a description that says what the free version does and what the
+  paid one adds. The review checks that the Play page exists and belongs to the same package.
+
 ### A version
+
 
 | Field | Rules |
 |---|---|

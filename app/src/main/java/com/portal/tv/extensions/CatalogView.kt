@@ -23,9 +23,15 @@ object CatalogLabels {
     /** The catalog says it should have been replaced by now; installing from it is paused (withdrawals still apply). */
     fun expired(catalog: Catalog, nowMs: Long): Boolean = catalog.expiresAtMs > 0 && nowMs >= catalog.expiresAtMs
 
-    /** The entries to list: the ones with a version Portal could offer, by name. */
+    /** The entries to list: the ones with a version Portal could offer, and the Google Play ones (not withdrawn), by name. */
     fun shown(catalog: Catalog): List<CatalogEntry> =
-        catalog.extensions.filter { CatalogRules.best(catalog, it) != null }.sortedBy { it.name.lowercase() }
+        catalog.extensions.filter { if (it.isPlay) CatalogRules.revocation(catalog, it.packageName, null, it.signer) == null else CatalogRules.best(catalog, it) != null }.sortedBy { it.name.lowercase() }
+
+    /** The card's second line: who made it. */
+    fun byLine(entry: CatalogEntry): String = entry.author
+
+    /** The card's last line for an entry that isn't installed: what it costs, for a Google Play one. Empty otherwise. */
+    fun priceLine(entry: CatalogEntry): String = if (entry.isPlay) entry.price.ifEmpty { "On Google Play" } else ""
 
     fun state(catalog: Catalog, entry: CatalogEntry, installedVersionCode: Long?, installedSigner: String?): CatalogState = when {
         installedVersionCode == null -> CatalogState.NOT_INSTALLED

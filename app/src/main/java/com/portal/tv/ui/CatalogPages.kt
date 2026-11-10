@@ -79,7 +79,8 @@ class CatalogPages(
     // ---------- One extension ----------
 
     fun showDetail(catalog: Catalog, entry: CatalogEntry) {
-        val version = CatalogRules.best(catalog, entry) ?: return
+        val version = CatalogRules.best(catalog, entry)
+        if (version == null && !entry.isPlay) return
         val box = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(4), px(24), px(8))
@@ -93,6 +94,10 @@ class CatalogPages(
         if (entry.tags.isNotEmpty()) box.addView(text(entry.tags.joinToString("   ") { "#$it" }, 14f, soft).apply { setPadding(0, px(6), 0, 0) })
         box.addView(text("by ${entry.author}" + if (entry.license.isNotEmpty()) "  ·  ${entry.license}" else "", 14f, soft).apply { setPadding(0, px(6), 0, px(6)) })
 
+        if (entry.isPlay) {
+            box.addView(text((if (entry.price.isNotEmpty()) "${entry.price}  ·  " else "") + "From Google Play", 16f, Color.rgb(255, 214, 120)))
+            box.addView(text("Google Play sells it and delivers it. Portal doesn't take payment, can't see what you buy, and doesn't check the file.", 13f, soft).apply { setPadding(0, px(2), 0, px(6)) })
+        }
         val installed = CatalogInstaller.installedFacts(context, entry.packageName)
         val state = CatalogLabels.state(catalog, entry, installed?.versionCode, installed?.signer)
         val stateLine = CatalogLabels.stateText(state)
@@ -110,7 +115,7 @@ class CatalogPages(
         box.addView(text("Nothing is allowed until you allow it, after it is installed.", 13f, soft).apply { setPadding(0, px(4), 0, 0) })
 
         box.addView(text(
-            "\n${entry.packageName}\nSigned by ${ExtensionAccess.shortFingerprint(entry.signer)}  ·  version ${version.versionName}  ·  ${CatalogLabels.sizeText(version.sizeBytes)}",
+            "\n${entry.packageName}\nSigned by ${ExtensionAccess.shortFingerprint(entry.signer)}  ·  ${if (version != null) "version ${version.versionName}  ·  ${CatalogLabels.sizeText(version.sizeBytes)}" else "from Google Play"}",
             13f, soft
         ))
         box.addView(text("Source: ${entry.sourceUrl}", 13f, soft).apply { setPadding(0, px(8), 0, 0); isFocusable = true })
@@ -120,12 +125,37 @@ class CatalogPages(
             .setView(box)
             .setBodyMaxHeightFraction(0.58f)
             .setNegativeButton("Close", null)
-        when (state) {
-            CatalogState.NOT_INSTALLED -> builder.setPositiveButton("Install") { _, _ -> startInstall(catalog, entry) }
-            CatalogState.UPDATE_AVAILABLE -> builder.setPositiveButton("Update") { _, _ -> startInstall(catalog, entry) }
-            else -> {}
+        when {
+            entry.isPlay && state == CatalogState.NOT_INSTALLED -> builder.setPositiveButton("Get it on Google Play") { _, _ -> openPlay(entry) }
+            entry.isPlay -> {}
+            state == CatalogState.NOT_INSTALLED -> builder.setPositiveButton("Install") { _, _ -> startInstall(catalog, entry) }
+            state == CatalogState.UPDATE_AVAILABLE -> builder.setPositiveButton("Update") { _, _ -> startInstall(catalog, entry) }
         }
         builder.show()
+    }
+
+    /** Opens the extension's Google Play page, or, on a TV without Play, shows its address as a QR code to open on a phone. */
+    private fun openPlay(entry: CatalogEntry) {
+        val store = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${entry.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (store.resolveActivity(context.packageManager) != null) {
+            runCatching { context.startActivity(store); return }
+        }
+        val box = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(px(24), px(8), px(24), px(8))
+            addView(ImageView(context).apply {
+                setImageBitmap(com.portal.tv.ui.QrCode.bitmap(entry.playUrl, px(220)))
+                layoutParams = LinearLayout.LayoutParams(px(220), px(220))
+            })
+            addView(text(entry.playUrl, 13f, soft).apply { setPadding(0, px(8), 0, 0); gravity = Gravity.CENTER })
+        }
+        PortalDialog.Builder(context)
+            .setTitle("Get ${entry.name} on Google Play")
+            .setMessage("This TV can't open Google Play. Open this address on a phone or computer; once it's installed on this TV it appears under Settings, Extensions.")
+            .setView(box)
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     // ---------- Installing ----------
