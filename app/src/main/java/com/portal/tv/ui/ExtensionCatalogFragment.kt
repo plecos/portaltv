@@ -163,7 +163,8 @@ class ExtensionCatalogFragment : Fragment() {
         shown = CatalogSearch.filter(offered, query, tag)
         status.text = (if (query.isNotBlank() || tag != null) "${shown.size} of ${CatalogLabels.count(offered.size)}" else CatalogLabels.count(offered.size)) + note +
             (if (CatalogLabels.expired(c, CatalogClient.trustedNow(requireContext()))) " · installing is paused, this catalog hasn't been updated for a while" else "") +
-            if (shown.isEmpty() && offered.isNotEmpty()) " · nothing matches, try other words or Tag: all" else ""
+            if (shown.isEmpty() && offered.isNotEmpty()) " · nothing matches, try other words or Tag: all"
+            else if (offered.isEmpty()) "\nNothing is listed yet. An extension you install another way still shows up under Settings, Extensions." else ""
         adapter.notifyDataSetChanged()
         if (!installedLoaded) { installedLoaded = true; loadInstalled() }
         if (!focused && shown.isNotEmpty()) {
