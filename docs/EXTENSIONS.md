@@ -4,12 +4,12 @@ An extension is an ordinary Android app that tells Portal what it offers. Portal
 it reads a small XML file the extension names in its manifest, and opens the extension's own screens like any other app.
 Nothing an extension asks for happens until an adult allows it, one capability at a time.
 
-> **Status: draft.** This version of Portal finds extensions, reads and checks their declaration, lists them under
+> **Status: draft, working.** This version of Portal finds extensions, reads and checks their declaration, lists them under
 > Settings, Extensions where an adult allows each capability, adds the tiles of allowed extensions to the app grid,
 > opens an extension's settings screen from Settings, and draws the buttons and text an extension declares in the top bar and
 > under the clock. It also answers the calls an extension makes into Portal: reminders, cards over other apps, and changing its own home screen
-> items while running (see *Calling Portal*), and can show a background an extension draws (see *Drawing the home screen
-> background*), and put a badge and a line on its own tiles. Contract version **1**.
+> items while running (see *Calling Portal*), can show a background an extension draws (see *Drawing the home screen
+> background*), and put a badge and a line on its own tiles, and finds and installs extensions from a signed catalog (see [CATALOG.md](CATALOG.md)). Contract version **1**.
 
 How it is built, and how its trust and permission model works, is in [EXTENSIONS-ARCHITECTURE.md](EXTENSIONS-ARCHITECTURE.md).
 
@@ -341,6 +341,14 @@ The catalog ([CATALOG.md](CATALOG.md#when-the-catalog-withdraws-an-extension)) c
 made. Portal then switches it off: every call to the host API is refused as `not_allowed`, its tiles, items and background
 are gone, and what was allowed is forgotten.
 
-## Coming in later pieces (not available yet)
+## Not available yet
 
-- Finding and installing extensions from a catalog inside Portal. The catalog's file format is written down in [CATALOG.md](CATALOG.md); Portal can browse it and install from it. The catalog is signed; see [CATALOG.md](CATALOG.md#signing).
+- **AI tools.** An extension can't yet add tools to Portal's search. It would need a way for Portal to call the extension, and the same on-screen confirmation as reminders for anything that changes something.
+- **Other places an extension could plug in,** such as screen saver content or video sources, and a page Portal draws from a description.
+- **A public catalog site.** The format and Portal's side are done; the public list and its review process are being set up.
+
+## Selling or licensing an extension
+
+An extension is your own app. Portal doesn't process payments and doesn't know whether you charge for it, so how you license it, price it and
+unlock it is up to you. Portal itself is under the PolyForm Noncommercial License (see [LICENSE](../LICENSE)), which covers Portal, not your
+separate app. Don't copy Portal's code into an extension without checking that license. A catalog entry only shows what the author writes about the app.

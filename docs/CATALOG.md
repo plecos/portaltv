@@ -8,7 +8,7 @@ Portal reads one file, `catalog.json`, over https. The catalog repository (plann
 one file per extension and builds `catalog.json` from them; Portal never reads the individual files and never hosts an APK.
 Authors host their own APKs. The catalog holds a link and a checksum.
 
-This page is the format and how Portal shows it. The checks that run before anything is installed come in a later piece.
+This page is the format, how Portal shows it, and the checks Portal makes before anything is installed.
 
 ## catalog.json
 
