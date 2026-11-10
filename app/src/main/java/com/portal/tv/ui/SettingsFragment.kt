@@ -821,9 +821,15 @@ class SettingsFragment : Fragment() {
             return false
         }
 
-        // Back from a setting goes to the category list first, then out of Settings.
+        // Back from a setting goes to the category list first, then out of Settings. The focus listener below pushes focus
+        // back onto a page when it leaves for a category that isn't level with it (so Up and Down stay on the page), which
+        // would undo Back from any control further down a long page; this flag lets Back's own move through.
+        var goingBack = false
         val back = object : androidx.activity.OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() { items[active].requestFocus() }
+            override fun handleOnBackPressed() {
+                goingBack = true
+                try { items[active].requestFocus() } finally { goingBack = false }
+            }
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
 
@@ -831,7 +837,7 @@ class SettingsFragment : Fragment() {
             // The window's focus changes keep arriving after this screen is gone.
             if (!isAdded || view == null) return@OnGlobalFocusChangeListener
             val index = items.indexOfFirst { it === new }
-            if (index >= 0 && old != null && inPage(old)) {
+            if (index >= 0 && old != null && inPage(old) && !goingBack) {
                 // Focus is leaving a page for the category list. Left should go to the category
                 // that owns the page (not whichever one is level with the control); Up and Down
                 // at the edge of a page should stay on the page.
