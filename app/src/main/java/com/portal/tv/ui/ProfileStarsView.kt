@@ -74,8 +74,14 @@ class ProfileStarsView @JvmOverloads constructor(context: Context, attrs: Attrib
         updateRunning()
     }
 
+    /** A dialog (the PIN pad, say) takes the focus: the stars hold still so the screen can answer the remote quickly. */
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        updateRunning()
+    }
+
     private fun updateRunning() {
-        val now = animated && isAttachedToWindow && isShown && windowVisibility == VISIBLE
+        val now = animated && isAttachedToWindow && isShown && windowVisibility == VISIBLE && hasWindowFocus()
         if (now && !running) postInvalidateOnAnimation()
         running = now
     }

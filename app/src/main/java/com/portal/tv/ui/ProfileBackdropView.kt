@@ -21,6 +21,12 @@ class ProfileBackdropView @JvmOverloads constructor(context: Context, attrs: Att
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val oval = RectF()
 
+    init {
+        // The stars over this redraw the whole screen every frame, which would redraw every gradient below each time. Kept as
+        // one texture, each frame is a single blit, which a TV's weak GPU can keep up with.
+        setLayerType(LAYER_TYPE_HARDWARE, null)
+    }
+
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
