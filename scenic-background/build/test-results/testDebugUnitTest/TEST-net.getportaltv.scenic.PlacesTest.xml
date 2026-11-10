@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.getportaltv.scenic.PlacesTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-09T23:49:59.735Z" hostname="nava-mac.thesalters.net" time="0.036">
+  <properties/>
+  <testcase name="journeyChangesGraduallyAndNeverLeapsAndStaysInRange" classname="net.getportaltv.scenic.PlacesTest" time="0.014"/>
+  <testcase name="chosenPlaceIsFixed" classname="net.getportaltv.scenic.PlacesTest" time="0.0"/>
+  <testcase name="cityAndForestNeverMixAndEachReachesFull" classname="net.getportaltv.scenic.PlacesTest" time="0.021"/>
+  <testcase name="suburbiaComesRightBeforeAndAfterTheCity" classname="net.getportaltv.scenic.PlacesTest" time="0.001"/>
+  <testcase name="journeyStartsInTheCountryside" classname="net.getportaltv.scenic.PlacesTest" time="0.0"/>
+  <testcase name="changeTakesTheBlendDistance" classname="net.getportaltv.scenic.PlacesTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

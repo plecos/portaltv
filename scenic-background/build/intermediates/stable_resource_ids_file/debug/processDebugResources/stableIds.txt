@@ -1,0 +1,5 @@
+net.getportaltv.scenic:xml/portal_extension = 0x7f030000
+net.getportaltv.scenic:string/ext_name = 0x7f020002
+net.getportaltv.scenic:string/ext_description = 0x7f020001
+net.getportaltv.scenic:string/app_name = 0x7f020000
+net.getportaltv.scenic:drawable/ic_scenic = 0x7f010000

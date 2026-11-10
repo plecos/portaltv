@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- A way to look at the scene by itself while it is being made: debug builds only, started with adb (see the README). -->
-    <application>
-        <activity android:name=".PreviewActivity" android:exported="true" android:label="Scenic preview" />
-    </application>
-</manifest>

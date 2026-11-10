@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.getportaltv.scenic.LookTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-09T23:49:59.724Z" hostname="nava-mac.thesalters.net" time="0.009">
+  <properties/>
+  <testcase name="theSkyIsDarkAtNightBrightByDayAndWarmNearTheHorizonAtSunset" classname="net.getportaltv.scenic.LookTest" time="0.0"/>
+  <testcase name="starsShowOnlyOnClearNights" classname="net.getportaltv.scenic.LookTest" time="0.0"/>
+  <testcase name="fogPullsTheSkyTowardOneColour" classname="net.getportaltv.scenic.LookTest" time="0.004"/>
+  <testcase name="overcastAndStormsDarkenTheDay" classname="net.getportaltv.scenic.LookTest" time="0.0"/>
+  <testcase name="everyColourIsAValidOpaqueRgb" classname="net.getportaltv.scenic.LookTest" time="0.001"/>
+  <testcase name="daylightGrowsWithTheSun" classname="net.getportaltv.scenic.LookTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

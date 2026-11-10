@@ -8,8 +8,7 @@ The other documents are for other readers, and this one does not repeat them:
 - [`EXTENSIONS.md`](EXTENSIONS.md) is the **contract**: what an extension author writes (the manifest file, the capabilities, the
   host calls and their errors, the limits). Read it first if you want to write an extension.
 - [`CATALOG.md`](CATALOG.md) is the **catalog format** and its signing, for people who publish or maintain the catalog.
-- [`../scenic-background/README.md`](../scenic-background/README.md) and [`SCENIC-ARCHITECTURE.md`](SCENIC-ARCHITECTURE.md) describe the
-  one large extension that ships with Portal.
+- Scenic Travel, the one large extension, is its own project (Scenic-Travel) with its own README and architecture notes.
 
 All the Portal-side code is in the package `com.portal.tv.extensions` (`app/src/main/java/com/portal/tv/extensions`), plus a few
 places in the UI that draw what it decides (listed in [Where it meets the rest of Portal](#where-it-meets-the-rest-of-portal)).
@@ -482,7 +481,7 @@ Because the host API is open to every app on the TV, "refused" is something the 
 - **Author tooling.** `scripts/check-extension.sh` runs Portal's own name rules on an extension before install;
   `scripts/validate-catalog.sh` runs them on a catalog listing; `scripts/test-catalog.sh` serves a signed test catalog to a debug build.
 - **Reference extensions.** `sample-extension` is a complete example (tile, settings, bar and clock items, reminders, cards, background
-  in about 80 lines). `scenic-background` is a full-size one.
+  in about 80 lines). Scenic Travel (a separate project) is a full-size one.
 
 ---
 

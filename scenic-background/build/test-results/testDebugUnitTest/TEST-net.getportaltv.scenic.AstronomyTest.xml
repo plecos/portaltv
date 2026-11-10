@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.getportaltv.scenic.AstronomyTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-09T23:49:59.618Z" hostname="nava-mac.thesalters.net" time="0.017">
+  <properties/>
+  <testcase name="theSunIsHighestAtSolarNoonAndSouthInTheNorthernSummer" classname="net.getportaltv.scenic.AstronomyTest" time="0.005"/>
+  <testcase name="theLitPartOfTheMoonFollowsThePhase" classname="net.getportaltv.scenic.AstronomyTest" time="0.0"/>
+  <testcase name="aWaxingMoonInTheEveningIsLitOnTheSideTowardTheSetSun" classname="net.getportaltv.scenic.AstronomyTest" time="0.001"/>
+  <testcase name="theSunIsOverheadOnTheEquatorAtTheEquinoxNoon" classname="net.getportaltv.scenic.AstronomyTest" time="0.0"/>
+  <testcase name="theSunRisesInTheEastAndSetsInTheWest" classname="net.getportaltv.scenic.AstronomyTest" time="0.001"/>
+  <testcase name="thePhasesMatchKnownNewAndFullMoons" classname="net.getportaltv.scenic.AstronomyTest" time="0.0"/>
+  <testcase name="theSunIsBelowTheHorizonAtMidnight" classname="net.getportaltv.scenic.AstronomyTest" time="0.0"/>
+  <testcase name="aWaningMoonBeforeDawnIsLitOnTheSideTowardTheRisingSun" classname="net.getportaltv.scenic.AstronomyTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

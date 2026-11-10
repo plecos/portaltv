@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 9.5.0" type="incidents">
+
+    <incident
+        id="ExportedService"
+        severity="warning"
+        message="Exported service does not require permission">
+        <fix-alternatives>
+            <fix-attribute
+                description="Set permission"
+                namespace="http://schemas.android.com/apk/res/android"
+                attribute="permission"
+                value="TODO"
+                point="4"
+                mark="0"/>
+            <fix-attribute
+                description="Set exported=&quot;false&quot;"
+                namespace="http://schemas.android.com/apk/res/android"
+                attribute="exported"
+                value="false"/>
+        </fix-alternatives>
+        <location
+            file="${:scenic-background*debug*MAIN*sourceProvider*0*manifest*0}"
+            line="24"
+            column="10"
+            startOffset="932"
+            endLine="24"
+            endColumn="17"
+            endOffset="939"/>
+    </incident>
+
+    <incident
+        id="ViewConstructor"
+        severity="warning"
+        message="Custom view `ScenicView` is missing constructor used by tools: `(Context)` or `(Context,AttributeSet)` or `(Context,AttributeSet,int)`">
+        <location
+            file="${:scenic-background*debug*MAIN*sourceProvider*0*javaDir*0}/net/getportaltv/scenic/ScenicView.kt"
+            line="14"
+            column="7"
+            startOffset="541"
+            endLine="14"
+            endColumn="17"
+            endOffset="551"/>
+    </incident>
+
+    <incident
+        id="SetTextI18n"
+        severity="warning"
+        message="String literal in `setText` can not be translated. Use Android resources instead.">
+        <location
+            file="${:scenic-background*debug*MAIN*sourceProvider*0*javaDir*1}/net/getportaltv/scenic/PreviewActivity.kt"
+            line="42"
+            column="29"
+            startOffset="2349"
+            endLine="42"
+            endColumn="58"
+            endOffset="2378"/>
+    </incident>
+
+</incidents>

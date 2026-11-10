@@ -29,7 +29,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Unit tests and lint
-        run: ./gradlew testDebugUnitTest :scenic-background:testDebugUnitTest lintDebug :sample-extension:lintDebug :conformance-extension:lintDebug :scenic-background:lintDebug
+        run: ./gradlew testDebugUnitTest lintDebug :sample-extension:lintDebug :conformance-extension:lintDebug
 
       - name: Keep the reports
         if: always()
@@ -59,7 +59,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Build the apps
-        run: ./gradlew assembleDebug :sample-extension:assembleDebug :conformance-extension:assembleDebug :scenic-background:assembleDebug
+        run: ./gradlew assembleDebug :sample-extension:assembleDebug :conformance-extension:assembleDebug
 
       # An emulator needs hardware acceleration, which the runner has but only lets in through this permission.
       - name: Allow KVM

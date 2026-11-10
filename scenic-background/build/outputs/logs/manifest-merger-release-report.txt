@@ -1,0 +1,67 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:2:1-31:12
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:2:1-31:12
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:2:1-31:12
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:2:1-31:12
+	package
+		INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:2:11-69
+queries
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:5:5-7:15
+provider#net.getportaltv.host
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:6:9-64
+	android:authorities
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:6:19-61
+application
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:10:5-29:19
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:10:5-29:19
+	android:extractNativeLibs
+		INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+	android:supportsRtl
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:14:9-35
+	android:label
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:12:9-41
+	android:icon
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:13:9-43
+	android:allowBackup
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:11:9-36
+	android:theme
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:15:9-71
+meta-data#net.getportaltv.extension
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:17:9-19:56
+	android:resource
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:19:13-53
+	android:name
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:18:13-53
+activity#net.getportaltv.scenic.SettingsActivity
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:21:9-78
+	android:exported
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:21:52-75
+	android:name
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:21:19-51
+service#net.getportaltv.scenic.ScenicService
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:24:9-28:19
+	android:exported
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:24:48-71
+	android:name
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:24:18-47
+intent-filter#action:name:net.getportaltv.BACKGROUND
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:25:13-27:29
+action#net.getportaltv.BACKGROUND
+ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:26:17-69
+	android:name
+		ADDED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:26:25-66
+uses-sdk
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml
