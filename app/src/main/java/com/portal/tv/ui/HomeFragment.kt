@@ -32,6 +32,7 @@ import com.portal.tv.search.SearchSettings
 import com.portal.tv.repo.WeatherRepository
 import com.portal.tv.settings.AppSettings
 import com.portal.tv.settings.BackgroundSettings
+import com.portal.tv.settings.HomeLayout
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -110,6 +111,14 @@ class HomeFragment : Fragment() {
         windTextView = view.findViewById(R.id.tv_wind)
         alertBadge = view.findViewById(R.id.tv_alert)
 
+        // The time and weather and the profile buttons go in the corners this profile chose, and the lists keep clear of them.
+        applyHomeLayout(view)
+        applyClockVisibility(view)
+        setupActionsCollapse(view)
+        listOf(R.id.corner_tl, R.id.corner_tr, R.id.corner_bl, R.id.corner_br).forEach { id ->
+            view.findViewById<View>(id).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> view.post { updateListInsets(view) } }
+        }
+
         // On a fresh start the screen is built out of sight while the intro's ring waits. This screen
         // says it is not ready until its background is showing and its apps are listed.
         IntroAnimation.current?.let { intro ->
@@ -118,8 +127,11 @@ class HomeFragment : Fragment() {
             intro.release(IntroAnimation.HOME)
 
             val d = resources.displayMetrics.density
-            intro.addEntrance(view.findViewById(R.id.panel_weather), 520, 450, 0f, -30 * d)
-            intro.addEntrance(view.findViewById(R.id.panel_actions), 580, 450, 0f, -30 * d)
+            // Each group slides in from the edge it sits on.
+            val clockFrom = if (AppSettings.getClockCorner(requireContext()).top) -30 * d else 30 * d
+            val actionsFrom = if (AppSettings.getActionsCorner(requireContext()).top) -30 * d else 30 * d
+            intro.addEntrance(view.findViewById(R.id.panel_weather), 520, 450, 0f, clockFrom)
+            intro.addEntrance(view.findViewById(R.id.panel_actions), 580, 450, 0f, actionsFrom)
             (recyclerView.parent?.parent as? View)?.let { intro.addEntrance(it, 640, 450, -40 * d, 0f) }
         }
 
@@ -133,6 +145,12 @@ class HomeFragment : Fragment() {
         }
 
         view.findViewById<View>(R.id.btn_profile).setOnClickListener {
+            if (actionsCollapsed()) {
+                // Folded to one avatar: opening it shows the rest of the buttons.
+                actionsExpanded = true
+                applyActionsCollapse()
+                return@setOnClickListener
+            }
             parentFragmentManager.beginTransaction()
                 .replace(R.id.container, ProfilePickerFragment())
                 .addToBackStack("profiles")
@@ -174,6 +192,139 @@ class HomeFragment : Fragment() {
         setupBackground(view)
     }
 
+    // ---------- Home screen layout: corners, clock on or off, folding the buttons ----------
+
+    private var placedCorners: Pair<HomeLayout.Corner, HomeLayout.Corner>? = null
+    private var actionsExpanded = false
+    private var weatherError = false
+    private var collapseBack: androidx.activity.OnBackPressedCallback? = null
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    /** Puts the time and weather and the profile, search and settings buttons in the corners this profile chose. */
+    private fun applyHomeLayout(view: View) {
+        val context = context ?: return
+        val clockCorner = AppSettings.getClockCorner(context)
+        val actionsCorner = AppSettings.getActionsCorner(context)
+        if (placedCorners != clockCorner to actionsCorner) {
+            val containers = mapOf(
+                HomeLayout.Corner.TOP_LEFT to R.id.corner_tl, HomeLayout.Corner.TOP_RIGHT to R.id.corner_tr,
+                HomeLayout.Corner.BOTTOM_LEFT to R.id.corner_bl, HomeLayout.Corner.BOTTOM_RIGHT to R.id.corner_br
+            ).mapValues { view.findViewById<android.widget.LinearLayout>(it.value) }
+            val groups = mapOf(
+                HomeLayout.Group.CLOCK to view.findViewById<View>(R.id.clock_group),
+                HomeLayout.Group.ACTIONS to view.findViewById<View>(R.id.panel_actions)
+            )
+            groups.values.forEach { (it.parent as? ViewGroup)?.removeView(it) }
+            containers.forEach { (corner, container) ->
+                HomeLayout.groupsIn(corner, clockCorner, actionsCorner).forEachIndexed { index, group ->
+                    container.addView(groups.getValue(group), android.widget.LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        gravity = if (corner.start) android.view.Gravity.START else android.view.Gravity.END
+                        // Two groups in one corner stack, with a small gap.
+                        if (index > 0) topMargin = dp(12)
+                    })
+                }
+            }
+            placedCorners = clockCorner to actionsCorner
+        }
+        view.post { updateListInsets(view) }
+    }
+
+    /** Keeps the app lists clear of whichever corners hold buttons, above and below. */
+    private fun updateListInsets(view: View) {
+        if (!isAdded) return
+        val scroll = recyclerView.parent?.parent as? View ?: return
+        val lp = scroll.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        fun height(id: Int) = view.findViewById<View>(id).height
+        val gap = dp(24)
+        val top = maxOf(height(R.id.corner_tl), height(R.id.corner_tr)).let { if (it > 0) it + gap else 0 }
+        val bottom = maxOf(height(R.id.corner_bl), height(R.id.corner_br)).let { if (it > 0) it + gap else 0 }
+        if (lp.topMargin != top || lp.bottomMargin != bottom) {
+            lp.topMargin = top
+            lp.bottomMargin = bottom
+            scroll.layoutParams = lp
+        }
+    }
+
+    /** Shows or hides the time and weather. A kid's time left and any weather alert still show. */
+    private fun applyClockVisibility(view: View) {
+        val context = context ?: return
+        view.findViewById<View>(R.id.clock_block).visibility =
+            if (AppSettings.showClockAndWeather(context)) View.VISIBLE else View.GONE
+        syncClockPanel()
+    }
+
+    /** With the clock off, the panel stays only while it has something to say: a weather alert or a kid's time left. */
+    private fun syncClockPanel() {
+        val view = view ?: return
+        val context = context ?: return
+        val on = AppSettings.showClockAndWeather(context)
+        val extra = view.findViewById<View>(R.id.tv_alert).visibility == View.VISIBLE ||
+            view.findViewById<View>(R.id.tv_time_left).visibility == View.VISIBLE
+        val panel = view.findViewById<View>(R.id.panel_weather)
+        panel.visibility = if (on || extra) View.VISIBLE else View.GONE
+        // The strip an extension puts under the panel sits a little below it; with no panel there is nothing to sit below.
+        view.findViewById<View>(R.id.ext_clock_items).let { strip ->
+            (strip.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                val gap = if (panel.visibility == View.VISIBLE) dp(12) else 0
+                if (lp.topMargin != gap) { lp.topMargin = gap; strip.layoutParams = lp }
+            }
+        }
+        // The weather page opens from the panel; with the clock off, or an error showing, there is nothing to open.
+        panel.isFocusable = on && !weatherError
+    }
+
+    private fun actionsCollapsed(): Boolean {
+        val context = context ?: return false
+        return AppSettings.isActionsCollapsed(context) && !actionsExpanded
+    }
+
+    /** Folds the profile, search and settings buttons down to one avatar, or opens them out again. */
+    private fun applyActionsCollapse() {
+        val view = view ?: return
+        val context = context ?: return
+        val collapsed = actionsCollapsed()
+        val visible = if (collapsed) View.GONE else View.VISIBLE
+        view.findViewById<View>(R.id.tv_profile_name).visibility = visible
+        view.findViewById<View>(R.id.btn_settings).visibility = visible
+        // An extension's buttons come back when the panel opens; they hide while it is folded.
+        if (collapsed) view.findViewById<View>(R.id.ext_bar_items).visibility = View.GONE else refreshExtensionItems()
+        applySearchLevel()
+        view.findViewById<View>(R.id.btn_profile).setPadding(dp(12), 0, if (collapsed) dp(12) else dp(4), 0)
+        collapseBack?.isEnabled = AppSettings.isActionsCollapsed(context) && actionsExpanded
+    }
+
+    private fun collapseActions(focusAvatar: Boolean) {
+        actionsExpanded = false
+        applyActionsCollapse()
+        if (focusAvatar) view?.findViewById<View>(R.id.btn_profile)?.requestFocus()
+    }
+
+    /** An opened panel folds up again when focus leaves it, or on Back. */
+    private fun setupActionsCollapse(view: View) {
+        val back = object : androidx.activity.OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() { collapseActions(focusAvatar = true) }
+        }
+        collapseBack = back
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
+        val panel = view.findViewById<View>(R.id.panel_actions)
+        fun inside(v: View?): Boolean {
+            var p: View? = v
+            while (p != null) { if (p === panel) return true; p = p.parent as? View }
+            return false
+        }
+        val listener = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, new ->
+            if (isAdded && actionsExpanded && new != null && !inside(new)) collapseActions(focusAvatar = false)
+        }
+        view.viewTreeObserver.addOnGlobalFocusChangeListener(listener)
+        view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) { v.viewTreeObserver.removeOnGlobalFocusChangeListener(listener) }
+        })
+    }
+
     /** Shows the Update button when the last check found a newer version. Kids can't open that part of Settings. */
     private fun refreshUpdateButton() {
         val context = context ?: return
@@ -208,6 +359,7 @@ class HomeFragment : Fragment() {
                 )
             }
             fill(com.portal.tv.extensions.ItemArea.BAR, bar)
+            if (actionsCollapsed()) bar.visibility = View.GONE
             fill(com.portal.tv.extensions.ItemArea.CLOCK, clock)
         }
     }
@@ -468,6 +620,7 @@ class HomeFragment : Fragment() {
             val canManage = active?.isKids != true
 
             val layout = AppSettings.getAppLayout(context)
+            val iconSize = AppSettings.getIconSize(context)
             val grouped = AppSettings.isGrouped(context)
             val showLabels = grouped && AppSettings.showGroupLabels(context)
             val frequentHeader = root.findViewById<View>(R.id.tv_frequent_header)
@@ -489,7 +642,7 @@ class HomeFragment : Fragment() {
                     false
                 )
                 frequentRow.adapter = AppAdapter(frequentApps, layout, { app, icon -> launchApp(app, icon) },
-                    if (canManage) { app -> showAppMenu(app, inFrequent = true) } else null)
+                    if (canManage) { app -> showAppMenu(app, inFrequent = true) } else null, iconSize)
             }
 
             // All apps (alphabetical; without grouping this is the one plain list).
@@ -499,13 +652,13 @@ class HomeFragment : Fragment() {
             ) { it.packageName }
             shownGrid = gridApps
             val density = resources.displayMetrics.density
-            val itemPx = (AppAdapter.itemWidthDp(layout) * density).toInt()
+            val itemPx = (AppAdapter.itemWidthDp(layout, iconSize) * density).toInt()
             val availablePx = resources.displayMetrics.widthPixels - (2 * 48 * density).toInt()
-            val columns = if (layout == AppSettings.LAYOUT_LIST) 1 else maxOf(1, availablePx / itemPx)
+            val columns = if (layout == AppSettings.LAYOUT_LIST) 1 else HomeLayout.columns(availablePx, itemPx)
             recyclerView.layoutManager = GridLayoutManager(context, columns)
             recyclerView.layoutParams = recyclerView.layoutParams.apply { width = columns * itemPx }
             recyclerView.adapter = AppAdapter(gridApps, layout, { app, icon -> launchApp(app, icon) },
-                if (canManage) { app -> showAppMenu(app, inFrequent = false) } else null)
+                if (canManage) { app -> showAppMenu(app, inFrequent = false) } else null, iconSize)
 
             // The first time the apps are listed, the intro can open.
             IntroAnimation.release(APPS_READY)
@@ -582,7 +735,7 @@ class HomeFragment : Fragment() {
         val context = context ?: return
         val profile = com.portal.tv.repo.ProfileManager.getActive(context)
         val allowed = profile != null && SearchSettings.level(context, profile).findsApps
-        view?.findViewById<View>(R.id.btn_search)?.visibility = if (allowed) View.VISIBLE else View.GONE
+        view?.findViewById<View>(R.id.btn_search)?.visibility = if (allowed && !actionsCollapsed()) View.VISIBLE else View.GONE
     }
 
     private var launchAnimation: LaunchAnimation? = null
@@ -660,6 +813,11 @@ class HomeFragment : Fragment() {
     }
 
     private fun checkSchedule() {
+        checkScheduleNow()
+        syncClockPanel()
+    }
+
+    private fun checkScheduleNow() {
         val context = context ?: return
         val label = timeLeftView ?: return
         val kid = com.portal.tv.repo.ProfileManager.getActive(context)?.takeIf { it.isKids }
@@ -794,6 +952,7 @@ class HomeFragment : Fragment() {
                         badge.setTextColor(AlertStyle.textColor(first))
                         badge.background = AlertStyle.background(first, resources.displayMetrics.density * 12)
                         badge.visibility = View.VISIBLE
+                        syncClockPanel()
                     }
                 }
             }
@@ -823,6 +982,11 @@ class HomeFragment : Fragment() {
 
     /** The most serious active weather alert as a coloured badge under the weather; hidden when there are none. */
     private suspend fun showAlerts() {
+        showAlertsNow()
+        syncClockPanel()
+    }
+
+    private suspend fun showAlertsNow() {
         val context = context ?: return
         val badge = alertBadge ?: return
         if (!AppSettings.showWeatherAlerts(context)) {
@@ -903,7 +1067,8 @@ class HomeFragment : Fragment() {
         windTextView?.visibility = gone
         weatherRetry?.visibility = if (error) View.VISIBLE else View.GONE
         // The weather page has nothing to show on error, so let Retry take the focus instead.
-        view?.findViewById<View>(R.id.panel_weather)?.isFocusable = !error
+        weatherError = error
+        syncClockPanel()
         if (error) weatherRetry?.requestFocus()
     }
 
@@ -960,6 +1125,10 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // Choices made in Settings (corners, clock, folded buttons) apply when the home screen comes back.
+        actionsExpanded = false
+        view?.let { applyHomeLayout(it); applyClockVisibility(it) }
+        applyActionsCollapse()
         com.portal.tv.alerts.SevereAlertService.homeShowing = true
         // Back from an app: let the launch animation go.
         launchAnimation?.dismiss()

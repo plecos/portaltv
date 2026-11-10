@@ -1115,6 +1115,13 @@
             </LinearLayout>
 
 
+                <!-- Icon size, clock and weather, corners and folding the buttons: filled in by SettingsFragment.setupHomeOptions -->
+                <LinearLayout
+                    android:id="@+id/home_screen_options"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
                 <TextView
                     android:id="@+id/label_manage_apps"
                     android:layout_width="wrap_content"
