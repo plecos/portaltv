@@ -774,13 +774,25 @@ class SettingsFragment : Fragment() {
         val pages = shown.map { view.findViewById<View>(it.pageId) }
         var active = 0
 
-        fun refresh() {
-            shown.forEachIndexed { i, c ->
-                val item = items[i]
-                val summary = item.findViewWithTag<TextView>("summary")
-                summary.text = c.summary()
-                summary.visibility = if (summary.text.isEmpty()) View.GONE else View.VISIBLE
+        // Focus moves fire this constantly, and each one used to reset the text and tint of every row, which forces a
+        // layout pass: about 45 ms a press on the TV. Only what actually changed is touched now.
+        val applied = arrayOfNulls<Boolean>(shown.size)
+
+        fun updateSummary(i: Int) {
+            val summary = items[i].findViewWithTag<TextView>("summary")
+            val text = shown[i].summary()
+            if (summary.text.toString() != text) summary.text = text
+            val visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+            if (summary.visibility != visibility) summary.visibility = visibility
+        }
+
+        /** Highlights the active category and shows its page, touching only rows whose state changed. */
+        fun restyle() {
+            shown.forEachIndexed { i, _ ->
                 val on = i == active
+                if (applied[i] == on) return@forEachIndexed
+                applied[i] = on
+                val item = items[i]
                 item.setBackgroundResource(if (on) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
                 val tone = context.resources.getColor(if (on) R.color.text_primary else R.color.text_secondary, null)
                 item.findViewWithTag<TextView>("summary").setTextColor(tone)
@@ -789,6 +801,14 @@ class SettingsFragment : Fragment() {
                 pages[i].visibility = if (on) View.VISIBLE else View.GONE
             }
         }
+
+        fun refresh() {
+            shown.indices.forEach { updateSummary(it) }
+            restyle()
+        }
+
+        /** Focus moved between controls inside a page: only that category's summary can have changed. */
+        fun refreshActive() = updateSummary(active)
 
         fun inPage(v: View?): Boolean {
             var p = v?.parent
@@ -822,7 +842,12 @@ class SettingsFragment : Fragment() {
             }
             if (index >= 0) active = index
             back.isEnabled = inPage(new)
-            refresh()
+            when {
+                // Moving from one category to the next changes no summary, so only the highlight and the page move.
+                index >= 0 && old != null && items.any { it === old } -> restyle()
+                index >= 0 -> refresh()
+                else -> refreshActive()
+            }
         }
         view.viewTreeObserver.addOnGlobalFocusChangeListener(listener)
         // Remove it when the view leaves the window. By onDestroyView the view is already detached,
