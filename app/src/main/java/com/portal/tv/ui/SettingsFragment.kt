@@ -28,6 +28,7 @@ import com.portal.tv.background.HolidayStore
 import com.portal.tv.background.Holidays
 import com.portal.tv.background.VideoThumbnails
 import com.portal.tv.settings.AppSettings
+import com.portal.tv.settings.HomeLayout
 import com.portal.tv.settings.BirthdayStore
 import com.portal.tv.settings.BackgroundSettings
 import android.util.Log
@@ -85,6 +86,7 @@ class SettingsFragment : Fragment() {
         setupKidsVideoAccess(view)
         setupBackground(view)
         setupAppDisplay(view)
+        setupHomeOptions(view)
         setupScreensaver(view)
         setupBirthdays(view)
         setupReminders(view)
@@ -819,9 +821,15 @@ class SettingsFragment : Fragment() {
             return false
         }
 
-        // Back from a setting goes to the category list first, then out of Settings.
+        // Back from a setting goes to the category list first, then out of Settings. The focus listener below pushes focus
+        // back onto a page when it leaves for a category that isn't level with it (so Up and Down stay on the page), which
+        // would undo Back from any control further down a long page; this flag lets Back's own move through.
+        var goingBack = false
         val back = object : androidx.activity.OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() { items[active].requestFocus() }
+            override fun handleOnBackPressed() {
+                goingBack = true
+                try { items[active].requestFocus() } finally { goingBack = false }
+            }
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
 
@@ -829,7 +837,7 @@ class SettingsFragment : Fragment() {
             // The window's focus changes keep arriving after this screen is gone.
             if (!isAdded || view == null) return@OnGlobalFocusChangeListener
             val index = items.indexOfFirst { it === new }
-            if (index >= 0 && old != null && inPage(old)) {
+            if (index >= 0 && old != null && inPage(old) && !goingBack) {
                 // Focus is leaving a page for the category list. Left should go to the category
                 // that owns the page (not whichever one is level with the control); Up and Down
                 // at the edge of a page should stay on the page.
@@ -1572,6 +1580,63 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(context, "Can't open system settings", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    /**
+     * How big the app icons are, whether the clock and weather show, which corner they and the profile buttons sit in, and
+     * whether those buttons fold down to one avatar. All per profile; the home screen picks them up when it comes back.
+     */
+    private fun setupHomeOptions(view: View) {
+        val context = requireContext()
+        val box = view.findViewById<android.widget.LinearLayout>(R.id.home_screen_options)
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+        val refreshers = mutableListOf<() -> Unit>()
+
+        fun mark(tv: TextView, selected: Boolean) {
+            tv.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tv.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
+        }
+
+        fun <T> section(title: String, choices: List<Pair<String, T>>, current: () -> T, pick: (T) -> Unit) {
+            box.addView(TextView(context).apply {
+                text = title
+                textSize = 16f
+                typeface = resources.getFont(R.font.inter)
+                setTextColor(resources.getColor(R.color.text_secondary, null))
+            }, android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(32); bottomMargin = dp(8) })
+            val row = android.widget.LinearLayout(context).apply { orientation = android.widget.LinearLayout.HORIZONTAL }
+            val tiles = choices.mapIndexed { index, (label, value) ->
+                val tile = TextView(context).apply {
+                    text = label
+                    textSize = 18f
+                    gravity = android.view.Gravity.CENTER
+                    typeface = resources.getFont(R.font.inter)
+                    setPadding(dp(18), 0, dp(18), 0)
+                    isFocusable = true
+                    setOnClickListener { pick(value); refreshers.forEach { it() } }
+                }
+                row.addView(tile, android.widget.LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
+                    .apply { if (index > 0) marginStart = dp(10) })
+                tile to value
+            }
+            refreshers += { tiles.forEach { (tile, value) -> mark(tile, current() == value) } }
+            box.addView(row)
+        }
+
+        section("Icon size", HomeLayout.IconSize.values().map { it.label to it },
+            { AppSettings.getIconSize(context) }, { AppSettings.setIconSize(context, it) })
+        section("Clock and weather", listOf("On" to true, "Off" to false),
+            { AppSettings.showClockAndWeather(context) }, { AppSettings.setShowClockAndWeather(context, it) })
+        section("Clock and weather position", HomeLayout.Corner.values().map { it.label to it },
+            { AppSettings.getClockCorner(context) }, { AppSettings.setClockCorner(context, it) })
+        section("Profile, search and settings position", HomeLayout.Corner.values().map { it.label to it },
+            { AppSettings.getActionsCorner(context) }, { AppSettings.setActionsCorner(context, it) })
+        section("Profile, search and settings buttons", listOf("Full size" to false, "One avatar" to true),
+            { AppSettings.isActionsCollapsed(context) }, { AppSettings.setActionsCollapsed(context, it) })
+        refreshers.forEach { it() }
     }
 
     /** Layout (icon + title, icon only, list) and whether apps are grouped; both are per profile. */

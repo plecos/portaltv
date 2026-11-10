@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.portal.tv.R
 import com.portal.tv.data.AppInfo
 import com.portal.tv.settings.AppSettings
+import com.portal.tv.settings.HomeLayout
 
 /**
  * Draws apps in the chosen layout: icon with title, icon only, or a list row
@@ -20,7 +21,9 @@ class AppAdapter(
     private val apps: List<AppInfo>,
     private val layout: String,
     private val onAppClick: (AppInfo, ImageView) -> Unit,
-    private val onAppLongClick: ((AppInfo) -> Unit)? = null
+    private val onAppLongClick: ((AppInfo) -> Unit)? = null,
+    /** How big the icons are drawn; medium is the layouts' own size. */
+    private val iconSize: HomeLayout.IconSize = HomeLayout.IconSize.MEDIUM
 ) : RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
 
     class AppViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -33,10 +36,10 @@ class AppAdapter(
 
     companion object {
         /** Width in dp of one item, so rows and grids can fit whole columns. */
-        fun itemWidthDp(layout: String): Int = when (layout) {
-            AppSettings.LAYOUT_ICONS -> 112
-            AppSettings.LAYOUT_LIST -> 420
-            else -> 128
+        fun itemWidthDp(layout: String, size: HomeLayout.IconSize = HomeLayout.IconSize.MEDIUM): Int = when (layout) {
+            AppSettings.LAYOUT_ICONS -> HomeLayout.scaled(112, size)
+            AppSettings.LAYOUT_LIST -> 420 // a row is as wide as the list, whatever the icon size
+            else -> HomeLayout.scaled(128, size)
         }
     }
 
@@ -47,12 +50,31 @@ class AppAdapter(
             else -> R.layout.item_app
         }
         val holder = AppViewHolder(LayoutInflater.from(parent.context).inflate(res, parent, false))
+        applyIconSize(holder)
         // The selected item lifts slightly under the glass highlight.
         holder.itemView.setOnFocusChangeListener { v, hasFocus ->
             val scale = if (hasFocus) 1.03f else 1f
             v.animate().scaleX(scale).scaleY(scale).setDuration(140).start()
         }
         return holder
+    }
+
+    /** Scales the icon, its frame, the tile's width and the title for the chosen icon size. Medium changes nothing. */
+    private fun applyIconSize(holder: AppViewHolder) {
+        val scale = iconSize.scale
+        if (scale == 1f) return
+        fun resize(v: View) {
+            val lp = v.layoutParams ?: return
+            if (lp.width > 0) lp.width = Math.round(lp.width * scale)
+            if (lp.height > 0) lp.height = Math.round(lp.height * scale)
+            v.layoutParams = lp
+        }
+        // The icon sits in a frame (with the badge) in the tile and list layouts, and straight in the tile in the icon-only one.
+        val frame = holder.icon.parent as? View
+        resize(if (frame != null && frame !== holder.itemView) frame else holder.icon)
+        // A tile is a fixed width; a list row fills the list.
+        if (layout != AppSettings.LAYOUT_LIST) resize(holder.itemView)
+        holder.label?.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, holder.label.textSize * scale)
     }
 
     override fun onBindViewHolder(holder: AppViewHolder, position: Int) {

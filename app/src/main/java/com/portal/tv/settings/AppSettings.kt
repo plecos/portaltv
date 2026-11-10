@@ -84,6 +84,46 @@ object AppSettings {
         prefs(context).edit().putBoolean("show_group_labels", show).apply()
     }
 
+    // ---------- Home screen layout ----------
+
+    /** How big the app icons are: small, medium (the original size) or large. */
+    fun getIconSize(context: Context): HomeLayout.IconSize =
+        HomeLayout.IconSize.fromKey(prefs(context).getString("icon_size", null))
+
+    fun setIconSize(context: Context, size: HomeLayout.IconSize) {
+        prefs(context).edit().putString("icon_size", size.key).apply()
+    }
+
+    /** Whether the time and weather show on this profile's home screen. A kid's time left and weather alerts still do. */
+    fun showClockAndWeather(context: Context): Boolean = prefs(context).getBoolean("home_clock", true)
+
+    fun setShowClockAndWeather(context: Context, show: Boolean) {
+        prefs(context).edit().putBoolean("home_clock", show).apply()
+    }
+
+    /** The corner the time and weather sit in. */
+    fun getClockCorner(context: Context): HomeLayout.Corner =
+        HomeLayout.Corner.fromKey(prefs(context).getString("home_clock_corner", null), HomeLayout.DEFAULT_CLOCK_CORNER)
+
+    fun setClockCorner(context: Context, corner: HomeLayout.Corner) {
+        prefs(context).edit().putString("home_clock_corner", corner.key).apply()
+    }
+
+    /** The corner the profile, search and settings buttons sit in. */
+    fun getActionsCorner(context: Context): HomeLayout.Corner =
+        HomeLayout.Corner.fromKey(prefs(context).getString("home_actions_corner", null), HomeLayout.DEFAULT_ACTIONS_CORNER)
+
+    fun setActionsCorner(context: Context, corner: HomeLayout.Corner) {
+        prefs(context).edit().putString("home_actions_corner", corner.key).apply()
+    }
+
+    /** True to fold the profile, search and settings buttons down to one avatar that opens them when selected. */
+    fun isActionsCollapsed(context: Context): Boolean = prefs(context).getBoolean("home_actions_collapsed", false)
+
+    fun setActionsCollapsed(context: Context, collapsed: Boolean) {
+        prefs(context).edit().putBoolean("home_actions_collapsed", collapsed).apply()
+    }
+
     // ---------- Hidden apps and custom order ----------
 
     /** Packages hidden from this profile's home screen. */
