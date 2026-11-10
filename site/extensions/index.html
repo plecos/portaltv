@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal extensions</title>
+<meta name="description" content="Extensions are apps by other people that add tiles, buttons, backgrounds and reminders to Portal. Browse the list here, or on your TV under Settings, Extensions.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0f0f1a">
+<link rel="canonical" href="https://getportaltv.net/extensions/">
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<style>
+  :root { --bg:#0f0f1a; --raised:#171728; --tile:#1c1c30; --line:#2a2a44; --text:#f2f2fa; --muted:#a9a9c4; --accent:#6c63ff; --gold:#ffc94d; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:0 20px; }
+  a { color:#9d97ff; }
+  header { border-bottom:1px solid var(--line); padding:18px 0; }
+  header a { color:var(--text); text-decoration:none; font-weight:600; }
+  h1 { font-size:34px; margin:40px 0 8px; }
+  h2 { font-size:22px; margin:40px 0 12px; }
+  p.lead { color:var(--muted); margin:0 0 16px; max-width:70ch; }
+  .note { background:var(--raised); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:20px 0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+  .card { background:var(--tile); border:1px solid var(--line); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:6px; }
+  .card h3 { margin:0; font-size:19px; }
+  .card .by { color:var(--muted); font-size:15px; }
+  .card .price { color:var(--gold); font-size:15px; }
+  .card p { margin:4px 0; font-size:15px; }
+  .tags span { display:inline-block; font-size:13px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:0 10px; margin:0 6px 6px 0; }
+  input[type=search] { width:100%; max-width:420px; background:var(--raised); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font:inherit; }
+  #status { color:var(--muted); margin:12px 0; }
+  footer { border-top:1px solid var(--line); margin-top:56px; padding:28px 0 48px; color:var(--muted); font-size:15px; }
+</style>
+</head>
+<body>
+<header><div class="wrap"><a href="../">Portal</a> &nbsp;/&nbsp; Extensions</div></header>
+<main class="wrap">
+  <h1>Extensions</h1>
+  <p class="lead">Extensions are apps by other people that add things to Portal: a tile, a button in the top bar, a settings page, an animated background, reminders. You find them on your TV under <strong>Settings, Extensions, Browse extensions</strong>. This page shows the same list.</p>
+  <div class="note"><strong>Not covered by Portal's no-ads, no-tracking promise.</strong> Extensions are third-party apps. A listing means someone read the entry and checked its source link; it is not a security audit. Nothing an extension asks for happens until an adult allows it, and kid profiles get no extensions unless a parent says so.</div>
+
+  <h2>Listed extensions</h2>
+  <input id="q" type="search" placeholder="Search by name, description or tag" aria-label="Search extensions">
+  <div id="status">Loading the list…</div>
+  <div id="list" class="grid"></div>
+
+  <h2>Add yours</h2>
+  <p class="lead">Write an extension in any language: it is an ordinary Android TV app with a small manifest. Start with the <a href="https://github.com/plecos/portaltv/blob/main/docs/EXTENSIONS-QUICKSTART.md">quickstart</a>, then read the <a href="https://github.com/plecos/portaltv/blob/main/docs/EXTENSIONS.md">full contract</a>. To be listed here and in Portal's Browse page, send a pull request to the catalogue repository. The review checklist is in its README.</p>
+
+  <h2>What this page sends</h2>
+  <p class="lead">Your browser fetches one file, <a href="catalog.json">catalog.json</a>, from this site. Nothing else is requested, and the page keeps no record of you. Portal on your TV checks the file's signature before it reads it; this page does not, so treat it as a preview.</p>
+</main>
+<footer><div class="wrap"><a href="../">Back to Portal</a></div></footer>
+<script>
+(function () {
+  var list = document.getElementById('list'), status = document.getElementById('status'), q = document.getElementById('q');
+  var entries = [];
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+  function safeLink(u) { try { var x = new URL(u); return x.protocol === 'https:' ? x.href : null; } catch (e) { return null; } }
+  function card(x) {
+    var c = el('div', 'card');
+    c.appendChild(el('h3', '', x.name));
+    c.appendChild(el('div', 'by', 'by ' + x.author + (x.license ? ' · ' + x.license : '')));
+    c.appendChild(el('div', 'price', x.price || (x.distribution === 'play' ? 'On Google Play' : 'Free')));
+    c.appendChild(el('p', '', x.description));
+    if (x.capabilities && x.capabilities.length) c.appendChild(el('p', 'by', 'Asks to: ' + x.capabilities.join(', ')));
+    var tags = el('div', 'tags');
+    (x.tags || []).forEach(function (t) { tags.appendChild(el('span', '', t)); });
+    c.appendChild(tags);
+    var href = safeLink(x.source);
+    if (href) { var a = el('a', '', 'Source'); a.href = href; a.rel = 'noopener'; c.appendChild(a); }
+    return c;
+  }
+  function render() {
+    var words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+    list.textContent = '';
+    var shown = entries.filter(function (x) {
+      var hay = (x.name + ' ' + x.description + ' ' + (x.tags || []).join(' ')).toLowerCase();
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    });
+    shown.forEach(function (x) { list.appendChild(card(x)); });
+    if (!entries.length) status.textContent = 'Nothing is listed yet. An extension you install another way still shows up on your TV under Settings, Extensions.';
+    else status.textContent = shown.length + ' of ' + entries.length + ' shown';
+  }
+  q.addEventListener('input', render);
+  fetch('catalog.json', { cache: 'no-cache' }).then(function (r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function (j) {
+    // A line naming a package and no version withdraws the whole extension.
+    var revoked = (j.revoked || []).filter(function (r) { return r.package && !('version_code' in r); }).map(function (r) { return r.package; });
+    entries = (j.extensions || []).filter(function (x) {
+      return x && typeof x.name === 'string' && typeof x.description === 'string' && typeof x.author === 'string' &&
+        revoked.indexOf(x.package) < 0;
+    });
+    render();
+  }).catch(function () { status.textContent = 'The list could not be loaded. Try again later, or open Settings, Extensions on your TV.'; });
+})();
+</script>
+</body>
+</html>
