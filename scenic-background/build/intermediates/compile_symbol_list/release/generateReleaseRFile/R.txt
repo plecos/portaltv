@@ -1,5 +1,0 @@
-int drawable ic_scenic 0x0
-int string app_name 0x0
-int string ext_description 0x0
-int string ext_name 0x0
-int xml portal_extension 0x0

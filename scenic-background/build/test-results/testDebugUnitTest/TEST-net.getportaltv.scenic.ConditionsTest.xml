@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="net.getportaltv.scenic.ConditionsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-09T23:49:59.637Z" hostname="nava-mac.thesalters.net" time="0.024">
-  <properties/>
-  <testcase name="everyPresetStaysInRange" classname="net.getportaltv.scenic.ConditionsTest" time="0.013"/>
-  <testcase name="theWindTurnsTheShortWayRound" classname="net.getportaltv.scenic.ConditionsTest" time="0.004"/>
-  <testcase name="weatherMovesTowardItsTargetWithoutJumping" classname="net.getportaltv.scenic.ConditionsTest" time="0.0"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

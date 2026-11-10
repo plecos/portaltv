@@ -1,8 +1,0 @@
-net.getportaltv.scenic.scenic-background-pngs-0 /Users/ken/Source/portaltv-ext/scenic-background/build/generated/res/pngs/release
-net.getportaltv.scenic.scenic-background-updated_navigation_xml-1 /Users/ken/Source/portaltv-ext/scenic-background/build/generated/updated_navigation_xml/release
-net.getportaltv.scenic.scenic-background-packageReleaseResources-2 /Users/ken/Source/portaltv-ext/scenic-background/build/intermediates/incremental/release/packageReleaseResources/merged.dir
-net.getportaltv.scenic.scenic-background-packageReleaseResources-3 /Users/ken/Source/portaltv-ext/scenic-background/build/intermediates/incremental/release/packageReleaseResources/stripped.dir
-net.getportaltv.scenic.scenic-background-release-4 /Users/ken/Source/portaltv-ext/scenic-background/build/intermediates/merged_res/release/mergeReleaseResources
-net.getportaltv.scenic.scenic-background-main-5 /Users/ken/Source/portaltv-ext/scenic-background/src/main/res
-net.getportaltv.scenic.scenic-background-release-6 /Users/ken/Source/portaltv-ext/scenic-background/src/release/res
-gradleHome-0 /Users/ken/.gradle
