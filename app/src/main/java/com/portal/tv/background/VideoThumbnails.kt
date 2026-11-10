@@ -23,7 +23,7 @@ object VideoThumbnails {
     }
 
     private fun file(context: Context, asset: String) =
-        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "${asset.replace('/', '_')}.jpg")
+        java.io.File(java.io.File(context.cacheDir, "thumbs").also { it.mkdirs() }, "${asset.replace('/', '_')}.v3.jpg")
 
     private fun save(context: Context, asset: String, frame: Bitmap) {
         runCatching {
@@ -107,13 +107,32 @@ object VideoThumbnails {
                 "first frame" to { retriever.getFrameAtIndex(0) },
                 "any frame" to { retriever.getFrameAtTime(-1) }
             )
+            var best: Bitmap? = null
+            var bestLuma = -1f
+            fun consider(frame: Bitmap, what: String): Boolean {
+                val small = Bitmap.createScaledBitmap(frame, 320, 180, true)
+                val luma = FrameBrightness.mean(small)
+                Log.d(TAG, "Thumbnail for $asset: $what, brightness ${luma.toInt()}")
+                if (luma > bestLuma) { best = small; bestLuma = luma }
+                return !FrameBrightness.isBlank(luma)
+            }
             for ((name, way) in ways) {
                 val frame = runCatching { way() }.getOrNull() ?: continue
-                Log.d(TAG, "Thumbnail for $asset: used the $name")
-                return Bitmap.createScaledBitmap(frame, 320, 180, true)
+                if (consider(frame, "the $name")) return best
+                break
             }
-            Log.w(TAG, "Thumbnail for $asset: no way of reading a frame worked (duration ${durationUs / 1000} ms)")
-            null
+            // That frame was black, or none could be read: a video that opens on black or fades up needs a later look.
+            if (durationUs > 0) {
+                for (fraction in listOf(0.25, 0.4, 0.55, 0.7, 0.85)) {
+                    val t = (durationUs * fraction).toLong()
+                    val frame = runCatching { retriever.getFrameAtTime(t, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) }.getOrNull()
+                        ?: runCatching { retriever.getFrameAtTime(t, MediaMetadataRetriever.OPTION_CLOSEST) }.getOrNull()
+                        ?: continue
+                    if (consider(frame, "${(fraction * 100).toInt()}% in")) return best
+                }
+            }
+            if (best == null) Log.w(TAG, "Thumbnail for $asset: no way of reading a frame worked (duration ${durationUs / 1000} ms)")
+            best
         } catch (e: Exception) {
             Log.w(TAG, "Thumbnail for $asset failed: ${e.message}")
             null
