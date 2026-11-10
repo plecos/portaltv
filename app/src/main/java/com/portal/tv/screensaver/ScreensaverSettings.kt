@@ -126,6 +126,23 @@ object ScreensaverSettings {
         prefs(context).edit().putString("clock_mode", mode).apply()
     }
 
+    /** How big the time and weather are on the screen saver. Large is the size it has always been. */
+    enum class ClockSize(val key: String, val label: String, val scale: Float) {
+        SMALL("small", "Small", 0.5f),
+        MEDIUM("medium", "Medium", 0.72f),
+        LARGE("large", "Large", 1f);
+
+        companion object {
+            fun fromKey(key: String?): ClockSize = values().firstOrNull { it.key == key } ?: LARGE
+        }
+    }
+
+    fun clockSize(context: Context): ClockSize = ClockSize.fromKey(prefs(context).getString("clock_size", null))
+
+    fun setClockSize(context: Context, size: ClockSize) {
+        prefs(context).edit().putString("clock_size", size.key).apply()
+    }
+
     /** Whether the weather shows under the time (it never does when the time is off). */
     fun showWeather(context: Context): Boolean = prefs(context).getBoolean("show_weather", true)
 

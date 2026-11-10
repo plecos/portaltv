@@ -976,8 +976,9 @@ class SettingsFragment : Fragment() {
         // The time and weather over the screen saver: moving round the screen, in a corner (a new one each minute), or not at all;
         // and the weather under the time can be left off.
         fun refreshWeatherRow() {
-            view.findViewById<View>(R.id.screensaver_weather_row).visibility =
-                if (ScreensaverSettings.clockMode(context) == ScreensaverSettings.CLOCK_OFF) View.GONE else View.VISIBLE
+            val visibility = if (ScreensaverSettings.clockMode(context) == ScreensaverSettings.CLOCK_OFF) View.GONE else View.VISIBLE
+            view.findViewById<View>(R.id.screensaver_weather_row).visibility = visibility
+            view.findViewById<View>(R.id.screensaver_clock_size_row).visibility = visibility
         }
         choices(
             R.id.screensaver_clock_row,
@@ -994,6 +995,12 @@ class SettingsFragment : Fragment() {
             listOf("Show weather" to true, "No weather" to false),
             { ScreensaverSettings.showWeather(context) },
             { ScreensaverSettings.setShowWeather(context, it) }
+        )
+        choices(
+            R.id.screensaver_clock_size_row,
+            ScreensaverSettings.ClockSize.values().map { "${it.label} clock" to it },
+            { ScreensaverSettings.clockSize(context) },
+            { ScreensaverSettings.setClockSize(context, it) }
         )
         refreshWeatherRow()
         choices(
