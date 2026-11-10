@@ -58,21 +58,21 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     private val fade = View(context).apply { setBackgroundColor(Color.BLACK); alpha = 1f }
     private val nightShade = View(context).apply { setBackgroundColor(Color.BLACK); alpha = 0f }
 
-    private val timeText = text(72f, bold = true)
+    private val timeText = text(TIME_SP, bold = true)
     private val weatherIcon = FrameLayout(context)
-    private val weatherText = text(26f)
+    private val weatherText = text(WEATHER_SP)
     private val weatherRow = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
     }
     /** The most serious weather alert, in its usual colour, under the weather; hidden when there is none. */
-    private val alertBadge = text(22f, bold = true).apply {
+    private val alertBadge = text(ALERT_SP, bold = true).apply {
         visibility = View.GONE
         setShadowLayer(0f, 0f, 0f, 0)   // it sits on its own coloured background
         setPadding(dp(16), dp(6), dp(16), dp(8))
     }
-    private val greetingText = text(24f, bold = true).apply { visibility = View.GONE }
+    private val greetingText = text(GREETING_SP, bold = true).apply { visibility = View.GONE }
     private val clockBlock = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
 
     private var surface: Surface? = null
@@ -130,7 +130,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     init {
         setBackgroundColor(Color.BLACK)
         isFocusable = false
-        weatherRow.addView(weatherIcon, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(12) })
+        weatherRow.addView(weatherIcon, LinearLayout.LayoutParams(dp(ICON_DP), dp(ICON_DP)).apply { marginEnd = dp(12) })
         weatherRow.addView(weatherText)
         clockBlock.addView(timeText)
         clockBlock.addView(weatherRow)
@@ -155,6 +155,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         buildPlaylist()
         if (shader != null) ui.postDelayed({ if (!blackout) fade.animate().alpha(0f).setDuration(FADE_MS).start() }, 300)
         showGreeting()
+        applyClockSize()
         applyClockMode()
         tick.run()
         ui.postDelayed(minuteTick, MINUTE_MS)
@@ -447,6 +448,22 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         clockBlock.translationY = bounceY
     }
 
+    private var scaledIconDp = ICON_DP
+
+    /** Sizes the time, weather, alert and greeting for the chosen clock size. Large is the original size. */
+    private fun applyClockSize() {
+        val scale = ScreensaverSettings.clockSize(context).scale
+        timeText.setTextSize(TypedValue.COMPLEX_UNIT_SP, TIME_SP * scale)
+        weatherText.setTextSize(TypedValue.COMPLEX_UNIT_SP, WEATHER_SP * scale)
+        // They scale with the rest, but never below a size that can be read from across a room.
+        alertBadge.setTextSize(TypedValue.COMPLEX_UNIT_SP, maxOf(ALERT_SP * scale, MIN_SMALL_SP))
+        greetingText.setTextSize(TypedValue.COMPLEX_UNIT_SP, maxOf(GREETING_SP * scale, MIN_SMALL_SP))
+        scaledIconDp = Math.round(ICON_DP * scale)
+        (weatherIcon.layoutParams as? LinearLayout.LayoutParams)?.let {
+            it.width = dp(scaledIconDp); it.height = dp(scaledIconDp); weatherIcon.layoutParams = it
+        }
+    }
+
     /** Reads how the time should show and sets it up: moving round the screen, in a corner, or hidden altogether. */
     private fun applyClockMode() {
         clockMode = ScreensaverSettings.clockMode(context)
@@ -529,7 +546,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         val metric = AppSettings.isMetric(context)
         val temp = if (metric) "${Math.round(r.tempC)}°C" else "${Math.round(r.tempC * 9.0 / 5.0 + 32.0)}°F"
         weatherIcon.removeAllViews()
-        weatherIcon.addView(WeatherIcons.layered(context, 44, r.code, r.isDay))
+        weatherIcon.addView(WeatherIcons.layered(context, scaledIconDp, r.code, r.isDay))
         weatherText.text = "$temp  ·  ${WeatherIcons.describe(r.code)}"
         weatherRow.visibility = if (ScreensaverSettings.showWeather(context)) View.VISIBLE else View.GONE
     }
@@ -561,6 +578,13 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
 
     private companion object {
         const val TAG = "Portal"
+        // The clock's sizes at Large, which is how it has always looked.
+        const val TIME_SP = 72f
+        const val WEATHER_SP = 26f
+        const val ALERT_SP = 22f
+        const val GREETING_SP = 24f
+        const val ICON_DP = 44
+        const val MIN_SMALL_SP = 15f
         const val FADE_MS = 700L
         const val MINUTE_MS = 60_000L
         /** How fast the clock moves sideways, in dp a second; up and down it is 70% of that, so it doesn't just trace the diagonal. */
