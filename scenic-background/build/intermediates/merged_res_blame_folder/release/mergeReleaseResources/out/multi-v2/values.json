@@ -1,0 +1,26 @@
+{
+    "logs": [
+        {
+            "outputFile": "net.getportaltv.scenic.scenic-background-mergeReleaseResources-1:/values/values.xml",
+            "map": [
+                {
+                    "source": "/Users/ken/Source/portaltv-ext/scenic-background/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "2,4,3",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,157,106",
+                        "endColumns": "50,151,50",
+                        "endOffsets": "101,304,152"
+                    },
+                    "to": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,106,258",
+                        "endColumns": "50,151,50",
+                        "endOffsets": "101,253,304"
+                    }
+                }
+            ]
+        }
+    ]
+}

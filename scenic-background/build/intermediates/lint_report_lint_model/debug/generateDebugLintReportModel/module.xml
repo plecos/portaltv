@@ -1,0 +1,20 @@
+<lint-module
+    format="1"
+    dir="/Users/ken/Source/portaltv-ext/scenic-background"
+    name=":scenic-background"
+    type="APP"
+    maven="Portal:scenic-background:unspecified"
+    agpVersion="9.5.0"
+    buildFolder="build"
+    bootClassPath="/Users/ken/Library/Android/sdk/platforms/android-37.0/android.jar:/Users/ken/Library/Android/sdk/build-tools/36.0.0/core-lambda-stubs.jar"
+    javaSourceLevel="11"
+    compileTarget="android-37.0"
+    neverShrinking="true"
+    highlightGradualR8Api="false">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="debug"/>
+</lint-module>

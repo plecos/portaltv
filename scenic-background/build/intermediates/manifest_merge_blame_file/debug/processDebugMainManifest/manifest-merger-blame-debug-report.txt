@@ -1,0 +1,72 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="net.getportaltv.scenic"
+4    android:versionCode="1"
+5    android:versionName="0.1" >
+6
+7    <uses-sdk
+7-->INJECTED
+8        android:minSdkVersion="34"
+8-->INJECTED
+9        android:targetSdkVersion="37" />
+9-->INJECTED
+10    <!-- Lets this app call Portal's host provider (for the weather). -->
+11    <queries>
+11-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:5:5-7:15
+12        <provider android:authorities="net.getportaltv.host" />
+12-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:6:9-64
+12-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:6:19-61
+13    </queries> <!-- A way to look at the scene by itself while it is being made: debug builds only, started with adb (see the README). -->
+14    <application
+14-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:10:5-29:19
+15        android:allowBackup="false"
+15-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:11:9-36
+16        android:debuggable="true"
+17        android:extractNativeLibs="false"
+17-->INJECTED
+18        android:icon="@drawable/ic_scenic"
+18-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:13:9-43
+19        android:label="@string/app_name"
+19-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:12:9-41
+20        android:supportsRtl="true"
+20-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:14:9-35
+21        android:theme="@android:style/Theme.DeviceDefault.NoActionBar" >
+21-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:15:9-71
+22        <activity
+22-->/Users/ken/Source/portaltv-ext/scenic-background/src/debug/AndroidManifest.xml:5:9-108
+23            android:name="net.getportaltv.scenic.PreviewActivity"
+23-->/Users/ken/Source/portaltv-ext/scenic-background/src/debug/AndroidManifest.xml:5:19-50
+24            android:exported="true"
+24-->/Users/ken/Source/portaltv-ext/scenic-background/src/debug/AndroidManifest.xml:5:51-74
+25            android:label="Scenic preview" />
+25-->/Users/ken/Source/portaltv-ext/scenic-background/src/debug/AndroidManifest.xml:5:75-105
+26
+27        <meta-data
+27-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:17:9-19:56
+28            android:name="net.getportaltv.extension"
+28-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:18:13-53
+29            android:resource="@xml/portal_extension" />
+29-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:19:13-53
+30
+31        <activity
+31-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:21:9-78
+32            android:name="net.getportaltv.scenic.SettingsActivity"
+32-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:21:19-51
+33            android:exported="true" /> <!-- Portal binds to this to ask for a background; it must be exported. -->
+33-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:21:52-75
+34        <service
+34-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:24:9-28:19
+35            android:name="net.getportaltv.scenic.ScenicService"
+35-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:24:18-47
+36            android:exported="true" >
+36-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:24:48-71
+37            <intent-filter>
+37-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:25:13-27:29
+38                <action android:name="net.getportaltv.BACKGROUND" />
+38-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:26:17-69
+38-->/Users/ken/Source/portaltv-ext/scenic-background/src/main/AndroidManifest.xml:26:25-66
+39            </intent-filter>
+40        </service>
+41    </application>
+42
+43</manifest>

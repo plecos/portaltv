@@ -80,7 +80,7 @@ else
   echo "No sample APK yet, so Install can't be tried. Build it: ./gradlew :sample-extension:assembleDebug"
 fi
 # Scenic Travel is one of ours, so it is in the catalog too: with its real file if it has been built, else not listed.
-SCENIC_APK=scenic-background/build/outputs/apk/debug/scenic-background-debug.apk
+SCENIC_APK=${SCENIC_APK:-../Scenic-Travel/app/build/outputs/apk/debug/app-debug.apk}   # built in the separate Scenic-Travel project
 if [ -f "$SCENIC_APK" ]; then
   SDK="$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)"
   AAPT2="$(ls "$SDK"/build-tools/*/aapt2 2>/dev/null | tail -1)"

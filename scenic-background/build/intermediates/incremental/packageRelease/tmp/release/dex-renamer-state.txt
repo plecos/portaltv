@@ -1,0 +1,4 @@
+#Mon Nov 09 15:54:02 PST 2026
+base.0=/Users/ken/Source/portaltv-ext/scenic-background/build/intermediates/dex/release/mergeDexRelease/classes.dex
+path.0=classes.dex
+renamed.0=classes.dex

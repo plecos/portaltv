@@ -1,0 +1,6 @@
+net.getportaltv.scenic
+drawable ic_scenic
+string app_name
+string ext_description
+string ext_name
+xml portal_extension

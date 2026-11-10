@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.getportaltv.scenic.DirectorTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-11-09T23:49:59.666Z" hostname="nava-mac.thesalters.net" time="0.043">
+  <properties/>
+  <testcase name="realTimeUsesTheClock" classname="net.getportaltv.scenic.DirectorTest" time="0.011"/>
+  <testcase name="aChosenWeatherStartsInPlaceAndTheRealOneEasesIn" classname="net.getportaltv.scenic.DirectorTest" time="0.0"/>
+  <testcase name="snowSettlesInTheColdAndMeltsAway" classname="net.getportaltv.scenic.DirectorTest" time="0.023"/>
+  <testcase name="theSameSeedGivesTheSameWorld" classname="net.getportaltv.scenic.DirectorTest" time="0.001"/>
+  <testcase name="lightningHappensOnlyInThunderAndAlwaysTheSameWay" classname="net.getportaltv.scenic.DirectorTest" time="0.002"/>
+  <testcase name="theJourneyStartsSomewhereAlongTheRoadAndAChosenPlaceStaysPut" classname="net.getportaltv.scenic.DirectorTest" time="0.004"/>
+  <testcase name="changingTheChosenWeatherFadesOverSeconds" classname="net.getportaltv.scenic.DirectorTest" time="0.001"/>
+  <testcase name="theJourneyMovesOnlyWhenScrollingIsOn" classname="net.getportaltv.scenic.DirectorTest" time="0.0"/>
+  <testcase name="aChosenHourGivesTheSkyOfThatHour" classname="net.getportaltv.scenic.DirectorTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
