@@ -85,7 +85,9 @@ data class ExtensionManifest(
     /** Full class name of the service that draws its home screen background, if it offers one. */
     val backgroundService: String? = null,
     /** A drawable in its own app that stands for it, or 0 to use the app's icon. */
-    val iconRes: Int = 0
+    val iconRes: Int = 0,
+    /** Whether its background asked to be sent left and right presses while it is the screen saver (`screenSaverKeys="true"`). */
+    val backgroundKeys: Boolean = false
 )
 
 /**
@@ -141,6 +143,7 @@ object ManifestParser {
         var settings: String? = null
         val items = mutableListOf<ExtensionItem>()
         var background: String? = null
+        var backgroundKeys = false
 
         for (child in root.children) {
             when (child.name) {
@@ -170,6 +173,7 @@ object ManifestParser {
                     if (background != null) return Result.Invalid("It has more than one background.")
                     background = child.attr("service")?.let { className(it, packageName) }
                         ?: return Result.Invalid("Its background names no service.")
+                    backgroundKeys = child.attr("screenSaverKeys") == "true"
                 }
                 "bar-button", "bar-text", "clock-button", "clock-text" -> {
                     val area = if (child.name.startsWith("bar")) ItemArea.BAR else ItemArea.CLOCK
@@ -200,7 +204,7 @@ object ManifestParser {
         items.forEach { capabilities += it.area.capability }
         if (background != null) capabilities += Capability.BACKGROUND
         val ordered = Capability.known.filter { it in capabilities }.toCollection(linkedSetOf())
-        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background, root.attrs["icon"]?.resId ?: 0))
+        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background, root.attrs["icon"]?.resId ?: 0, backgroundKeys))
     }
 
     /** ".Foo" and "Foo" are inside the extension's own package; a name with a package in it is used as written. */

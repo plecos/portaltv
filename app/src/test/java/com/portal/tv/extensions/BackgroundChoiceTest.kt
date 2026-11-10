@@ -58,6 +58,20 @@ class BackgroundManifestTest {
     }
 
     @Test
+    fun screenSaverKeysAreOffUnlessAsked() {
+        assertEquals(false, (parse("""<background service=".Draw"/>""") as ManifestParser.Result.Ok).manifest.backgroundKeys)
+        assertEquals(false, (parse("""<background service=".Draw" screenSaverKeys="yes"/>""") as ManifestParser.Result.Ok).manifest.backgroundKeys)
+        assertEquals(true, (parse("""<background service=".Draw" screenSaverKeys="true"/>""") as ManifestParser.Result.Ok).manifest.backgroundKeys)
+    }
+
+    @Test
+    fun onlyLeftAndRightAreEverForwarded() {
+        assertTrue(BackgroundProtocol.forwards(21) && BackgroundProtocol.forwards(22))
+        // up, down, select, back, home, power, menu, play/pause, a letter: all of them still wake the TV.
+        for (k in listOf(19, 20, 23, 4, 3, 26, 82, 85, 29)) assertTrue("key $k", !BackgroundProtocol.forwards(k))
+    }
+
+    @Test
     fun noBackgroundMeansNoCapability() {
         val m = (parse("") as ManifestParser.Result.Ok).manifest
         assertEquals(null, m.backgroundService)

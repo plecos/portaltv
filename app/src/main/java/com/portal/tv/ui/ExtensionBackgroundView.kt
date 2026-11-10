@@ -39,6 +39,8 @@ class ExtensionBackgroundView(context: Context, private val followsProfile: Bool
     private var service: Messenger? = null
     private var shown: SurfaceControlViewHost.SurfacePackage? = null
     private var running = false
+    /** Whether the extension asked for left and right presses (and Portal found it still allowed to draw). */
+    private var acceptsKeys = false
 
     /** Runs when the first picture from the extension is showing. */
     var onReady: (() -> Unit)? = null
@@ -72,6 +74,7 @@ class ExtensionBackgroundView(context: Context, private val followsProfile: Bool
             val kidAllowed = kid && profile != null && com.portal.tv.settings.BackgroundSettings.kidCanPickExtension(context, profile.id)
             val use = BackgroundChoice.resolve(packageName, ext?.granted.orEmpty(), ext?.backgroundService != null, kid = kid, kidAllowed = kidAllowed)
             val serviceName = ext?.backgroundService
+            acceptsKeys = ext?.backgroundKeys == true
             if (!running) return@launch
             if (use !is BackgroundChoice.Use.Extension || serviceName == null) { fail((use as? BackgroundChoice.Use.Own)?.reason ?: "It can't be used."); return@launch }
             bind(packageName, serviceName)
@@ -126,6 +129,17 @@ class ExtensionBackgroundView(context: Context, private val followsProfile: Bool
         runCatching { messenger.send(message) }.onFailure { fail("Portal couldn't reach it.") }
     }
 
+    /**
+     * Passes a remote key to the extension if it asked for it, is showing a picture, and the key is one Portal forwards (left or
+     * right). Returns whether it was passed on; if not, the caller treats the key as it always did (it wakes the TV).
+     */
+    fun sendKey(keyCode: Int): Boolean {
+        val messenger = service ?: return false
+        if (!running || shown == null || !acceptsKeys || !BackgroundProtocol.forwards(keyCode)) return false
+        val message = Message.obtain(null, BackgroundProtocol.MSG_KEY).apply { data = Bundle().apply { putInt(BackgroundProtocol.KEY_CODE, keyCode) } }
+        return runCatching { messenger.send(message) }.isSuccess
+    }
+
     private fun fail(reason: String) {
         if (!running) return
         Log.w("Portal", "Extension background failed: $reason")
@@ -139,6 +153,7 @@ class ExtensionBackgroundView(context: Context, private val followsProfile: Bool
         handler.removeCallbacks(timeout)
         runCatching { service?.send(Message.obtain(null, BackgroundProtocol.MSG_STOP)) }
         service = null
+        acceptsKeys = false
         connection?.let { runCatching { context.unbindService(it) } }
         connection = null
         shown?.let { runCatching { it.release() } }

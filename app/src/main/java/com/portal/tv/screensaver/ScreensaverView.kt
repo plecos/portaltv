@@ -226,6 +226,12 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         bg.start(packageName, scope)
     }
 
+    /**
+     * Passes a left or right press to the extension drawing this screen saver, if it asked for them. True means it was used, so
+     * the screen saver stays; false means the key should wake the TV as usual.
+     */
+    fun handleKey(keyCode: Int): Boolean = extensionView?.sendKey(keyCode) == true
+
     private fun stopExtension() {
         extensionView?.let {
             it.stop()

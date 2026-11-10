@@ -85,6 +85,7 @@ All attributes are plain (no namespace). Text can be a literal or a `@string/...
 | | `text` | yes | At most 40 characters, plain text. A line of text can't be pressed, so it has no activity or icon (the remote can still stop on it, and a long press says whose it is). |
 
 | `<background>` | `service` | yes | A service of yours that draws the home screen background. At most one. |
+| | `screenSaverKeys` | no | `"true"` to be sent the left and right remote keys while you are the screen saver (see *Drawing the home screen background*). |
 
 At most 8 tiles, and at most 2 items for each area (the top bar and the clock area), in any mix of buttons and text. Elements Portal doesn't know are ignored, so a file can carry things for later contract versions.
 Anything wrong in the parts it does know is reported to the person looking at the extension, not guessed at.
@@ -238,6 +239,10 @@ and Video, set per profile). You draw in your own process and Portal shows the r
    and its reply `Messenger` in `replyTo`. Make a `SurfaceControlViewHost(context, display, hostToken)`, call `setView(view, width,
    height)`, and reply with `MSG_READY` (2) whose data holds `surface_package` (the host's `surfacePackage`).
 3. When you get `MSG_STOP` (3), or Portal unbinds, `release()` the host and stop drawing.
+4. Optional: with `screenSaverKeys="true"` on `<background>`, you are sent `MSG_KEY` (4) with `key_code` (an Android key code) when
+   the person presses **left or right** on the remote while you are the screen saver, instead of that press waking the TV (for
+   example to change a setting of your picture for a while). Only those two keys are ever sent, and only while your picture is
+   showing; every other key still wakes the TV, so an extension can't keep someone in the screen saver. Never sent on the home screen.
 
 The [sample](../sample-extension/src/main/java/net/getportaltv/sample/BackgroundService.kt) is about 80 lines.
 Scenic Travel (a separate project) is a full one: an animated countryside journey that follows the real sky, sun,

@@ -34,6 +34,8 @@ data class Extension(
     val versionCode: Long? = null
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
+    /** Whether its background may be sent left and right presses during the screen saver: it asked, and its background can be used. */
+    val backgroundKeys: Boolean get() = backgroundService != null && manifest?.backgroundKeys == true
     /**
      * What it is called: its own name, or, if its extension file isn't usable, its app's label, unless that too would pass
      * for part of Portal or Android, in which case its package name (which can't be chosen to look like anything else).

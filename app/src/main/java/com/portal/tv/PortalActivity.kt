@@ -92,7 +92,11 @@ class PortalActivity : FragmentActivity() {
             return true
         }
         if (isScreensaverShowing()) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) leaveScreensaver()
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                // Left and right go to an extension that draws the screen saver and asked for them; every other key wakes the TV.
+                val saver = supportFragmentManager.findFragmentById(R.id.container)?.view as? com.portal.tv.screensaver.ScreensaverView
+                if (saver?.handleKey(event.keyCode) != true) leaveScreensaver()
+            }
             return true
         }
         return super.dispatchKeyEvent(event)

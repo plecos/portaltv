@@ -11,6 +11,12 @@ object BackgroundProtocol {
     const val MSG_READY = 2
     /** Portal to the extension: stop and let go of everything. */
     const val MSG_STOP = 3
+    /**
+     * Portal to the extension: a key was pressed on the remote while this is the screen saver. Carries [KEY_CODE]. Only sent to an
+     * extension that declared `screenSaverKeys="true"` on its `<background>`, and only for the keys in [forwards] (left and right);
+     * any other key still wakes the TV, so an extension can never trap someone in the screen saver.
+     */
+    const val MSG_KEY = 4
 
     const val KEY_WIDTH = "width"
     const val KEY_HEIGHT = "height"
@@ -18,6 +24,11 @@ object BackgroundProtocol {
     const val KEY_DISPLAY_ID = "display_id"
     const val KEY_MAX_FPS = "max_fps"
     const val KEY_PACKAGE = "surface_package"
+    /** An Android key code (see [android.view.KeyEvent]). */
+    const val KEY_CODE = "key_code"
+
+    /** The only keys Portal passes on to an extension during the screen saver: DPAD left and right. */
+    fun forwards(keyCode: Int): Boolean = keyCode == 21 || keyCode == 22
 
     /** Largest picture Portal asks for, in pixels, whatever the screen is. */
     const val MAX_WIDTH = 1920
