@@ -165,6 +165,8 @@ object ProfileManager {
 
     /** Set the profile that owns the current home-screen state. */
     fun setActive(context: Context, id: Int) {
+        // A parent's "skip bedtime tonight" belongs to the profile that was loaded, so it ends with it.
+        KidsSchedule.endBedtimeSkips(context)
         prefs(context).edit().putInt(KEY_ACTIVE_ID, id).apply()
     }
 

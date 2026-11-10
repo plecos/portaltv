@@ -30,6 +30,8 @@ class PortalActivity : FragmentActivity() {
         }
 
         if (savedInstanceState == null) {
+            // Portal is starting afresh, so a parent's "skip bedtime tonight" from before no longer applies.
+            com.portal.tv.repo.KidsSchedule.endBedtimeSkips(this)
             // Nothing works without a profile, so start by picking or creating one. A profile with
             // a code is asked for it again on a fresh start, so the picker comes first.
             com.portal.tv.repo.Onboarding.migrate(this)

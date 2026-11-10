@@ -43,6 +43,17 @@ object KidsSchedule {
         prefs(context).edit().putInt("bed_start_$profileId", start).putInt("bed_end_$profileId", end).apply()
     }
 
+    /**
+     * A parent's "skip bedtime tonight" lasts only while that kid's profile stays loaded: switching to any profile, or Portal
+     * starting afresh (a reboot, say), ends it, so opening the kid again checks bedtime again.
+     */
+    fun endBedtimeSkips(context: Context) {
+        val p = prefs(context)
+        val skips = p.all.keys.filter { it.startsWith("skip_until_") }
+        if (skips.isEmpty()) return
+        p.edit().apply { skips.forEach { remove(it) } }.apply()
+    }
+
     fun clear(context: Context, profileId: Int) {
         val e = prefs(context).edit()
         prefs(context).all.keys.filter { it.endsWith("_$profileId") }.forEach { e.remove(it) }
