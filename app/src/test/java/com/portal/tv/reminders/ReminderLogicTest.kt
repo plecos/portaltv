@@ -132,4 +132,17 @@ class ReminderLogicTest {
         assertEquals(MissedPolicy.ALWAYS, MissedPolicy.fromKey(null))
         assertEquals(MissedPolicy.ALWAYS, MissedPolicy.fromKey("nonsense"))
     }
+
+    @Test
+    fun cardHeader_saysWhichExtensionMadeTheReminder() {
+        assertEquals("KEN  ·  REMINDER", ReminderLogic.cardHeader("Ken", false, "Today 8:00 PM", null))
+        assertEquals(
+            "KEN  ·  REMINDER  ·  FROM EXTENSION SAMPLE EXTENSION · NET.EXAMPLE.SAMPLE",
+            ReminderLogic.cardHeader("Ken", false, "Today 8:00 PM", "Sample extension · net.example.sample"),
+        )
+        assertEquals(
+            "REMINDER  ·  MISSED, WAS DUE TODAY 8:00 PM  ·  FROM EXTENSION NET.EXAMPLE.SAMPLE",
+            ReminderLogic.cardHeader(null, true, "Today 8:00 PM", "net.example.sample"),
+        )
+    }
 }
