@@ -244,6 +244,21 @@ class ExtensionsPage(
         }
         ext.versionName?.let { box.addView(text("Version $it" + (updates[ext.packageName]?.let { n -> "  ·  $n is available" } ?: ""), 15f, soft)) }
         var shown: PortalDialog? = null
+        // Its own settings screen is what people come here for most, so the button is first, not down at the bottom.
+        if (manifest != null && ext.state != ExtensionState.REVOKED && Capability.SETTINGS in ext.granted && ext.settingsActivity != null) {
+            box.addView(TextView(context).apply {
+                text = "Open ${ext.name} settings"
+                textSize = 18f
+                typeface = context.resources.getFont(R.font.inter)
+                setTextColor(Color.WHITE)
+                setPadding(px(20), px(10), px(20), px(10))
+                setBackgroundResource(R.drawable.bg_settings_tile)
+                isFocusable = true
+                isClickable = true
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8); bottomMargin = px(8) }
+                setOnClickListener { shown?.dismiss(); openSettings(ext) }
+            }, 0)
+        }
         updates[ext.packageName]?.let { newer ->
             box.addView(TextView(context).apply {
                 text = "Update to $newer"
@@ -424,9 +439,6 @@ class ExtensionsPage(
                 } else {
                     withPin { save(ext, chosen) }
                 }
-            }
-            if (Capability.SETTINGS in ext.granted && ext.settingsActivity != null) {
-                builder.setNeutralButton("Settings") { _, _ -> openSettings(ext) }
             }
         }
         shown = builder.show()
