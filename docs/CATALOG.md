@@ -1,11 +1,12 @@
-# The Portal extensions catalog (format 1, draft)
+# The Portal extensions catalog (format 1)
 
 The catalog is a list of extensions that people have submitted for Portal to show under **Settings, Extensions, Browse**.
 It is a review by pull request, **not an audit**: being listed means someone read the entry and checked the source link,
 not that the extension is safe. Portal says so wherever it shows the list.
 
-Portal reads one file, `catalog.json`, over https. The catalog repository (planned: `plecos/portaltv-extensions`) keeps
-one file per extension and builds `catalog.json` from them; Portal never reads the individual files and never hosts an APK.
+Portal reads one file, `catalog.json`, over https. The catalog repository ([`plecos/portaltv-extensions`](https://github.com/plecos/portaltv-extensions)) keeps
+one file per extension and builds `catalog.json` from them, and the maintainer signs it and publishes it at
+`getportaltv.net/extensions/catalog.json`; Portal never reads the individual files and never hosts an APK.
 Authors host their own APKs. The catalog holds a link and a checksum.
 
 This page is the format, how Portal shows it, and the checks Portal makes before anything is installed.
@@ -138,11 +139,12 @@ Settings, Extensions. Selecting a card opens its details.
 - The request carries nothing about the TV: no account, no id, no list of installed apps.
 - The kept copy and when it was fetched are left out of backups and device transfers.
 
-The real catalog isn't online yet, so a debug build shows "The catalog isn't online yet" (a 404). To try Browse now, run
+The live catalog is at `https://getportaltv.net/extensions/catalog.json` (with `catalog.json.sig` beside it). It starts with no
+entries, so Browse shows an empty list until the first extension is listed. To try Browse with entries, run
 `scripts/test-catalog.sh`: it serves the test catalog in `docs/catalog/test` from your computer and points a debug build of
 Portal at it (`HOST=<your computer's address>` for a real TV, `ANDROID_SERIAL=<device>` to pick one device,
 `scripts/test-catalog.sh --off` to undo). Underneath, a debug build reads the address in the `url` preference of
-`catalog_debug` (http is allowed there only).
+`catalog_debug` (http is allowed there only); a release build always reads the live catalog.
 
 ## Installing from it
 
@@ -172,7 +174,7 @@ In order:
 The catalog says what a file should be, and the file is checked to be that. A listing can't be reviewed for one thing and
 ship another.
 
-To try it before the real catalog is online, `scripts/test-catalog.sh` serves the sample extension's real debug APK with its
+To try it before a real extension is listed, `scripts/test-catalog.sh` serves the sample extension's real debug APK with its
 real checksum, size and signer (build it first with `./gradlew :sample-extension:assembleDebug`, and uninstall the sample
 from the TV). It also lists two entries that must be refused: a wrong checksum and a wrong package.
 
@@ -231,7 +233,7 @@ an app, or withdraw one, without the private key, which is kept offline.
 Two files side by side: `catalog.json` and `catalog.json.sig`, the signature over the exact bytes of the first:
 
 ```json
-{"key_id": "portal-2026-1", "signature": "<base64>"}
+{"key_id": "portal-catalog-1", "signature": "<base64>"}
 ```
 
 Portal fetches both, checks the signature before reading anything in the catalog, and keeps them together in one file. A
@@ -275,8 +277,8 @@ java scripts/CatalogSign.java keygen portal-catalog
 This writes `portal-catalog.private` and `portal-catalog.public`. Keep the private file offline (an encrypted drive or a
 password manager; **not** in a repository and not in CI): it is the only thing that can publish a catalog Portal accepts.
 Paste the one line in `portal-catalog.public` into `CatalogTrust.RELEASE_KEYS` in `CatalogTrust.kt`, with an id such as
-`portal-2026-1`, and ship that in a release. **Until a key is added, a release build refuses every catalog** (it has nothing to
-check against); debug builds also trust a test key whose private half is in `docs/catalog/test`, and nothing else.
+`portal-catalog-1`, and ship that in a release. A release build trusts only the keys in that list (today `portal-catalog-1`), and with none it
+would refuse every catalog, so the release workflow refuses to publish one that has no key; debug builds also trust a test key whose private half is in `docs/catalog/test`, and nothing else.
 
 ### Publishing
 
@@ -285,7 +287,7 @@ check against); debug builds also trust a test key whose private half is in `doc
    `expires` (today plus 180 days; `--days N` for another length, up to 365; `--serial N` to set it).
 3. Check it: `scripts/validate-catalog.sh catalog.json` (refuses a catalog with no serial, no expiry, or one too far ahead, and any listing whose name or package name Portal would refuse; the rules are in [EXTENSIONS.md](EXTENSIONS.md#checking-your-names-before-you-install)).
 4. Sign it, on the machine that holds the key:
-   `java scripts/CatalogSign.java sign portal-catalog.private portal-2026-1 catalog.json` (writes `catalog.json.sig`).
+   `java scripts/CatalogSign.java sign portal-catalog.private portal-catalog-1 catalog.json` (writes `catalog.json.sig`).
 5. Publish both files together. (`java scripts/CatalogSign.java verify portal-catalog.public catalog.json` checks a pair.)
 
 ### Changing the key
