@@ -148,7 +148,7 @@ class HomeFragment : Fragment() {
             if (actionsCollapsed()) {
                 // Folded to one avatar: opening it shows the rest of the buttons.
                 actionsExpanded = true
-                applyActionsCollapse()
+                applyActionsCollapse(animate = true)
                 return@setOnClickListener
             }
             parentFragmentManager.beginTransaction()
@@ -282,10 +282,28 @@ class HomeFragment : Fragment() {
     }
 
     /** Folds the profile, search and settings buttons down to one avatar, or opens them out again. */
-    private fun applyActionsCollapse() {
+    private fun applyActionsCollapse(animate: Boolean = false) {
         val view = view ?: return
         val context = context ?: return
         val collapsed = actionsCollapsed()
+        // Opening and closing by the user glides: the buttons slide out to the left from the avatar and slide back in to
+        // the right, while the bar grows or shrinks around them. Changes made when the home screen comes back (from
+        // Settings, say) apply at once.
+        if (animate && view.isLaidOut) {
+            val panel = view.findViewById<ViewGroup>(R.id.panel_actions)
+            // The scene is the panel's corner, so the panel's own background grows and shrinks too.
+            androidx.transition.TransitionManager.beginDelayedTransition(
+                (panel.parent as? ViewGroup) ?: panel,
+                androidx.transition.TransitionSet().apply {
+                    ordering = androidx.transition.TransitionSet.ORDERING_TOGETHER
+                    addTransition(androidx.transition.ChangeBounds())
+                    addTransition(androidx.transition.Slide(android.view.Gravity.END))
+                    addTransition(androidx.transition.Fade())
+                    duration = 260
+                    interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
+                }
+            )
+        }
         val visible = if (collapsed) View.GONE else View.VISIBLE
         view.findViewById<View>(R.id.tv_profile_name).visibility = visible
         view.findViewById<View>(R.id.btn_settings).visibility = visible
@@ -298,7 +316,7 @@ class HomeFragment : Fragment() {
 
     private fun collapseActions(focusAvatar: Boolean) {
         actionsExpanded = false
-        applyActionsCollapse()
+        applyActionsCollapse(animate = true)
         if (focusAvatar) view?.findViewById<View>(R.id.btn_profile)?.requestFocus()
     }
 
