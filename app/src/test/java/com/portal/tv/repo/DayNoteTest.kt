@@ -1,5 +1,6 @@
 package com.portal.tv.repo
 
+import com.portal.tv.weather.WeatherDay
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -9,7 +10,7 @@ class DayNoteTest {
 
     private fun day(
         code: Int = 3, rain: Int = 0, mm: Double? = 0.0, wind: Double? = 10.0, snow: Double? = 0.0, uv: Double? = 2.0
-    ) = WeatherRepository.Day(
+    ) = WeatherDay(
         date = LocalDate.of(2026, 11, 1), code = code, highC = 12.0, lowC = 4.0, rainChance = rain,
         uvMax = uv, precipMm = mm, windMaxKmh = wind, snowCm = snow
     )

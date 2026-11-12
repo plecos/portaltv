@@ -2,6 +2,8 @@ package com.portal.tv.extensions
 
 import com.portal.tv.reminders.Reminder
 import com.portal.tv.repo.WeatherRepository
+import com.portal.tv.weather.WeatherDay
+import com.portal.tv.weather.WeatherReport
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -400,10 +402,10 @@ class HostConformanceTest {
 
     // ---------- weather ----------
 
-    private fun report(code: Int = 61, lat: Double = 47.6062, lon: Double = -122.3321) = WeatherRepository.Report(
+    private fun report(code: Int = 61, lat: Double = 47.6062, lon: Double = -122.3321) = WeatherReport(
         city = "Seattle", tempC = 11.5, feelsLikeC = 10.0, humidity = 80, windKmh = 14.0, windDirection = 225, code = code, isDay = true,
         hours = emptyList(),
-        days = listOf(WeatherRepository.Day(java.time.LocalDate.of(2023, 11, 14), code, 12.0, 6.0, 60, "2023-11-14T07:05", "2023-11-14T16:30")),
+        days = listOf(WeatherDay(java.time.LocalDate.of(2023, 11, 14), code, 12.0, 6.0, 60, "2023-11-14T07:05", "2023-11-14T16:30")),
         latitude = lat, longitude = lon, utcOffsetSeconds = -28800, cloudCover = 90, visibilityKm = 8.0
     )
 

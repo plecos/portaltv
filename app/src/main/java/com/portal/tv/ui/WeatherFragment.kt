@@ -19,6 +19,8 @@ import com.portal.tv.repo.MoonPhase
 import com.portal.tv.repo.WeatherRepository
 import com.portal.tv.settings.BackgroundSettings
 import com.portal.tv.settings.AppSettings
+import com.portal.tv.weather.WeatherAlert
+import com.portal.tv.weather.WeatherReport
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -111,7 +113,7 @@ class WeatherFragment : Fragment() {
         }
     }
 
-    private fun bind(view: View, r: WeatherRepository.Report) {
+    private fun bind(view: View, r: WeatherReport) {
         view.findViewById<TextView>(R.id.weather_title).text =
             if (r.city != null) "Weather · ${r.city}" else "Weather"
 
@@ -236,7 +238,7 @@ class WeatherFragment : Fragment() {
     }
 
     /** The full text of an alert, with what to do about it. */
-    private fun showAlertDetails(alert: com.portal.tv.repo.WeatherAlerts.Alert) {
+    private fun showAlertDetails(alert: WeatherAlert) {
         val body = buildString {
             val until = AlertStyle.until(requireContext(), alert)
             if (until.isNotEmpty()) append(until.replaceFirstChar { it.uppercase() }).append("\n\n")
@@ -256,7 +258,7 @@ class WeatherFragment : Fragment() {
     // ---------- Background ----------
 
     /** Plays the weather video for the current conditions, or draws a scene when there is none. */
-    private fun applyBackground(view: View, r: WeatherRepository.Report) {
+    private fun applyBackground(view: View, r: WeatherReport) {
         val context = requireContext()
         val texture = view.findViewById<TextureView>(R.id.weather_bg_video)
         val effect = view.findViewById<WeatherEffectView>(R.id.weather_bg_effect)
@@ -313,7 +315,7 @@ class WeatherFragment : Fragment() {
 
     // ---------- Details ----------
 
-    private fun buildDetails(view: View, r: WeatherRepository.Report) {
+    private fun buildDetails(view: View, r: WeatherReport) {
         val box = view.findViewById<LinearLayout>(R.id.weather_details)
         box.removeAllViews()
         val today = r.days.firstOrNull()
@@ -354,7 +356,7 @@ class WeatherFragment : Fragment() {
 
     // ---------- Moon ----------
 
-    private fun buildMoon(view: View, r: WeatherRepository.Report) {
+    private fun buildMoon(view: View, r: WeatherReport) {
         val box = view.findViewById<LinearLayout>(R.id.weather_moon)
         box.removeAllViews()
         val ctx = requireContext()

@@ -1,5 +1,6 @@
 package com.portal.tv.repo
 
+import com.portal.tv.weather.WeatherDay
 import java.util.Locale
 
 /**
@@ -25,7 +26,7 @@ object DayNote {
      * or null for a dry day. [kind] is what falls, in lower case ("light rain"). The amount is left off
      * when it is only a trace, and so is the chance when it is zero.
      */
-    fun precipitation(day: WeatherRepository.Day, kind: String, metric: Boolean): String? {
+    fun precipitation(day: WeatherDay, kind: String, metric: Boolean): String? {
         if (!wet(day.code)) return null
         val chance = if (day.rainChance > 0) "${day.rainChance}% chance of $kind" else kind.replaceFirstChar { it.uppercase() }
         val amount = if (snowy(day.code)) snow(day.snowCm, metric) else rain(day.precipMm, metric)
@@ -52,7 +53,7 @@ object DayNote {
     }
 
     /** A short note on a day with strong wind or one with strong sun, else null. (Rain and snow are in [precipitation].) */
-    fun of(day: WeatherRepository.Day, metric: Boolean): String? {
+    fun of(day: WeatherDay, metric: Boolean): String? {
         val wind = day.windMaxKmh
         if (wind != null && wind >= WIND_KMH) {
             return "Wind " + if (metric) "${Math.round(wind)} km/h" else "${Math.round(wind * 0.621371)} mph"

@@ -34,6 +34,8 @@ import com.portal.tv.settings.AppSettings
 import com.portal.tv.settings.BackgroundSettings
 import com.portal.tv.settings.HomeLayout
 import android.util.Log
+import com.portal.tv.weather.WeatherAlert
+import com.portal.tv.weather.WeatherReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -1011,7 +1013,7 @@ class HomeFragment : Fragment() {
             badge.visibility = View.GONE
             return
         }
-        fun show(alerts: List<com.portal.tv.repo.WeatherAlerts.Alert>) {
+        fun show(alerts: List<WeatherAlert>) {
             showSevere(alerts.firstOrNull { it.isSevere }, alerts.count { it.isSevere })
             if (alerts.isEmpty()) {
                 badge.visibility = View.GONE
@@ -1028,7 +1030,7 @@ class HomeFragment : Fragment() {
     }
 
     /** The red banner for the most serious severe alert, or hidden when none is active. */
-    private fun showSevere(alert: com.portal.tv.repo.WeatherAlerts.Alert?, count: Int) {
+    private fun showSevere(alert: WeatherAlert?, count: Int) {
         val root = view ?: return
         val banner = root.findViewById<View>(R.id.severe_banner)
         val birthday = root.findViewById<View>(R.id.tv_birthday)
@@ -1047,7 +1049,7 @@ class HomeFragment : Fragment() {
         (birthday.layoutParams as? FrameLayout.LayoutParams)?.let { it.topMargin = (118 * d).toInt(); birthday.layoutParams = it }
     }
 
-    private fun bindWeather(r: WeatherRepository.Report, stale: Boolean) {
+    private fun bindWeather(r: WeatherReport, stale: Boolean) {
         val context = context ?: return
         setWeatherErrorVisible(false)
         val metric = AppSettings.isMetric(context)

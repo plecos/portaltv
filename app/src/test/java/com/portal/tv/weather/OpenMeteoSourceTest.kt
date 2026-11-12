@@ -1,4 +1,4 @@
-package com.portal.tv.repo
+package com.portal.tv.weather
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
-class WeatherParseTest {
+class OpenMeteoSourceTest {
 
     /** A response shaped like Open-Meteo's, with 48 hourly rows starting at midnight on Oct 30. */
     private fun sample(nowHour: String = "2026-10-30T13:00", isDay: Int = 1): JSONObject {
@@ -46,7 +46,7 @@ class WeatherParseTest {
 
     @Test
     fun parse_readsTheCurrentConditions() {
-        val r = WeatherRepository.parse(sample(), "Washington")
+        val r = OpenMeteoSource.parse(sample(), "Washington")
         assertEquals("Washington", r.city)
         assertEquals(21.4, r.tempC, 0.001)
         assertEquals(19.9, r.feelsLikeC, 0.001)
@@ -59,12 +59,12 @@ class WeatherParseTest {
 
     @Test
     fun parse_marksNightWhenIsDayIsZero() {
-        assertFalse(WeatherRepository.parse(sample(isDay = 0), null).isDay)
+        assertFalse(OpenMeteoSource.parse(sample(isDay = 0), null).isDay)
     }
 
     @Test
     fun parse_startsTheHoursAtTheCurrentHourAndTakesTwelve() {
-        val r = WeatherRepository.parse(sample("2026-10-30T13:00"), null)
+        val r = OpenMeteoSource.parse(sample("2026-10-30T13:00"), null)
         assertEquals(12, r.hours.size)
         assertEquals(13, r.hours.first().hour24)
         assertEquals(10.0 + 13, r.hours.first().tempC, 0.001)
@@ -74,13 +74,13 @@ class WeatherParseTest {
 
     @Test
     fun parse_stopsAtTheEndOfTheHourlyData() {
-        val r = WeatherRepository.parse(sample("2026-10-31T20:00"), null)
+        val r = OpenMeteoSource.parse(sample("2026-10-31T20:00"), null)
         assertEquals(4, r.hours.size) // 20:00 to 23:00 are all that's left
     }
 
     @Test
     fun parse_readsTheDailyForecast() {
-        val r = WeatherRepository.parse(sample(), null)
+        val r = OpenMeteoSource.parse(sample(), null)
         assertEquals(3, r.days.size)
         assertEquals(LocalDate.of(2026, 10, 31), r.days[1].date)
         assertEquals(61, r.days[1].code)
@@ -91,7 +91,7 @@ class WeatherParseTest {
 
     @Test
     fun parse_allowsAMissingCity() {
-        assertEquals(null, WeatherRepository.parse(sample(), null).city)
+        assertEquals(null, OpenMeteoSource.parse(sample(), null).city)
     }
 
     @Test
@@ -110,7 +110,7 @@ class WeatherParseTest {
         daily.put("uv_index_max", JSONArray(listOf(3.4, 2.0, 1.0)))
         daily.put("precipitation_sum", JSONArray(listOf(0.0, 5.5, 12.0)))
 
-        val r = WeatherRepository.parse(root, null)
+        val r = OpenMeteoSource.parse(root, null)
         assertEquals(38.9, r.latitude, 0.001)
         assertEquals(-14400, r.utcOffsetSeconds)
         assertEquals(31.5, r.gustKmh!!, 0.001)
@@ -127,7 +127,7 @@ class WeatherParseTest {
 
     @Test
     fun parse_leavesTheExtrasEmptyForAnOlderSavedResponse() {
-        val r = WeatherRepository.parse(sample(), null)
+        val r = OpenMeteoSource.parse(sample(), null)
         assertEquals(null, r.gustKmh)
         assertEquals(null, r.uvIndex)
         assertEquals(null, r.visibilityKm)

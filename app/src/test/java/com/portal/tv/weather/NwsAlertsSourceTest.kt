@@ -1,4 +1,4 @@
-package com.portal.tv.repo
+package com.portal.tv.weather
 
 import org.json.JSONArray
 import org.json.JSONObject
@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.OffsetDateTime
 
-class WeatherAlertsTest {
+class NwsAlertsSourceTest {
 
     private val now = OffsetDateTime.parse("2026-10-31T10:00:00-07:00")
 
@@ -27,15 +27,15 @@ class WeatherAlertsTest {
 
     @Test
     fun anEmptyOrOddResponseGivesNoAlerts() {
-        assertTrue(WeatherAlerts.parse("{}", now).isEmpty())
-        assertTrue(WeatherAlerts.parse(feed(), now).isEmpty())
+        assertTrue(NwsAlertsSource.parse("{}", now).isEmpty())
+        assertTrue(NwsAlertsSource.parse(feed(), now).isEmpty())
     }
 
     @Test
     fun theFieldsAreRead() {
-        val a = WeatherAlerts.parse(feed(alert("Dense Fog Advisory", "Moderate")), now).single()
+        val a = NwsAlertsSource.parse(feed(alert("Dense Fog Advisory", "Moderate")), now).single()
         assertEquals("Dense Fog Advisory", a.event)
-        assertEquals(WeatherAlerts.Severity.MODERATE, a.severity)
+        assertEquals(AlertSeverity.MODERATE, a.severity)
         assertEquals("Portland Metro", a.area)
         assertEquals("Details about Dense Fog Advisory.", a.description)
         assertEquals("", a.instruction)          // a JSON null is no text, not the word "null"
@@ -46,19 +46,19 @@ class WeatherAlertsTest {
     fun anAlertThatAlreadyEndedIsLeftOut() {
         val old = alert("Wind Advisory", "Minor", ends = "2026-10-31T09:00:00-07:00")
         val current = alert("Frost Advisory", "Minor")
-        assertEquals(listOf("Frost Advisory"), WeatherAlerts.parse(feed(old, current), now).map { it.event })
+        assertEquals(listOf("Frost Advisory"), NwsAlertsSource.parse(feed(old, current), now).map { it.event })
     }
 
     @Test
     fun theExpiryIsUsedWhenThereIsNoEndTime() {
-        val a = WeatherAlerts.parse(feed(alert("Special Weather Statement", "Moderate", ends = null,
+        val a = NwsAlertsSource.parse(feed(alert("Special Weather Statement", "Moderate", ends = null,
             expires = "2026-10-31T11:00:00-07:00")), now).single()
         assertEquals(OffsetDateTime.parse("2026-10-31T11:00:00-07:00"), a.ends)
     }
 
     @Test
     fun warningsComeBeforeWatchesAndAdvisories() {
-        val list = WeatherAlerts.parse(feed(
+        val list = NwsAlertsSource.parse(feed(
             alert("Dense Fog Advisory", "Moderate"),
             alert("Tornado Watch", "Severe"),
             alert("Flash Flood Warning", "Severe"),
@@ -73,7 +73,7 @@ class WeatherAlertsTest {
 
     @Test
     fun onlySevereWarningsAndTornadoWatchesCoverAnApp() {
-        val list = WeatherAlerts.parse(feed(
+        val list = NwsAlertsSource.parse(feed(
             alert("Tornado Warning", "Extreme"),
             alert("Severe Thunderstorm Warning", "Severe"),
             alert("Flash Flood Warning", "Severe"),
