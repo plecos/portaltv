@@ -33,35 +33,70 @@ class ExtensionWeatherProvider(
 
     private val app = context.applicationContext
 
+    /** What an extension sent back: JSON, or the bytes of a picture. */
+    private class Reply(val json: String?, val image: ByteArray?)
+
     override suspend fun fetchReport(place: WeatherPlace): ProviderResult<WeatherReport> {
-        val (answer, _) = ask(WeatherProtocol.MSG_REPORT, place)
+        val (answer, _) = ask(WeatherProtocol.MSG_REPORT) { putPlace(place) }
         return when (answer) {
             is ProviderResult.Failed -> answer
-            is ProviderResult.Ok -> WeatherValidator.report(answer.value, place)?.let { ProviderResult.Ok(it) }
+            is ProviderResult.Ok -> answer.value.json?.let { WeatherValidator.report(it, place) }?.let { ProviderResult.Ok(it) }
                 ?: ProviderResult.Failed(UNUSABLE)
         }
     }
 
     override suspend fun fetchAlerts(place: WeatherPlace): ProviderResult<List<WeatherAlert>> {
-        val (answer, shownAs) = ask(WeatherProtocol.MSG_ALERTS, place)
+        val (answer, shownAs) = ask(WeatherProtocol.MSG_ALERTS) { putPlace(place) }
         return when (answer) {
             is ProviderResult.Failed -> answer
-            is ProviderResult.Ok -> WeatherValidator.alerts(answer.value, packageName, shownAs)?.let { ProviderResult.Ok(it) }
+            is ProviderResult.Ok -> answer.value.json?.let { WeatherValidator.alerts(it, packageName, shownAs) }?.let { ProviderResult.Ok(it) }
                 ?: ProviderResult.Failed(UNUSABLE)
         }
     }
 
     override suspend fun searchCities(query: String): ProviderResult<List<WeatherCity>> {
-        val (answer, _) = ask(WeatherProtocol.MSG_SEARCH_CITIES, null, query)
+        val (answer, _) = ask(WeatherProtocol.MSG_SEARCH_CITIES) { putString(WeatherProtocol.KEY_QUERY, query) }
         return when (answer) {
             is ProviderResult.Failed -> answer
-            is ProviderResult.Ok -> WeatherValidator.cities(answer.value)?.let { ProviderResult.Ok(it) }
+            is ProviderResult.Ok -> answer.value.json?.let { WeatherValidator.cities(it) }?.let { ProviderResult.Ok(it) }
                 ?: ProviderResult.Failed(UNUSABLE)
         }
     }
 
-    /** The extension's raw answer, or why there is none; and the name to show it under. */
-    private suspend fun ask(what: Int, place: WeatherPlace?, query: String? = null): Pair<ProviderResult<String>, String> {
+    override suspend fun radarIndex(place: WeatherPlace): ProviderResult<RadarIndex> {
+        val (answer, _) = ask(WeatherProtocol.MSG_RADAR_INDEX) { putPlace(place) }
+        return when (answer) {
+            is ProviderResult.Failed -> answer
+            is ProviderResult.Ok -> answer.value.json?.let { WeatherValidator.radar(it) }?.let { ProviderResult.Ok(it) }
+                ?: ProviderResult.Failed(UNUSABLE)
+        }
+    }
+
+    override suspend fun radarImage(ref: String, zoom: Int, x0: Double, y0: Double, w: Int, h: Int): ProviderResult<ByteArray> {
+        val (answer, _) = ask(WeatherProtocol.MSG_RADAR_IMAGE) {
+            putString(WeatherProtocol.KEY_REF, ref)
+            putInt(WeatherProtocol.KEY_ZOOM, zoom)
+            putDouble(WeatherProtocol.KEY_X, x0)
+            putDouble(WeatherProtocol.KEY_Y, y0)
+            putInt(WeatherProtocol.KEY_W, w)
+            putInt(WeatherProtocol.KEY_H, h)
+        }
+        return when (answer) {
+            is ProviderResult.Failed -> answer
+            is ProviderResult.Ok -> answer.value.image?.takeIf { WeatherValidator.png(it, w, h) }?.let { ProviderResult.Ok(it) }
+                ?: ProviderResult.Failed(UNUSABLE)
+        }
+    }
+
+    /** Where the TV is, as far as a source outside Portal is told: a tenth of a degree, about 10 km. */
+    private fun Bundle.putPlace(place: WeatherPlace) {
+        putDouble(WeatherProtocol.KEY_LAT, WeatherProtocol.rounded(place.lat))
+        putDouble(WeatherProtocol.KEY_LON, WeatherProtocol.rounded(place.lon))
+        place.city?.let { putString(WeatherProtocol.KEY_CITY, it) }
+    }
+
+    /** The extension's raw answer to the question [fill] builds, or why there is none; and the name to show it under. */
+    private suspend fun ask(what: Int, fill: Bundle.() -> Unit): Pair<ProviderResult<Reply>, String> {
         // Checked again now: still installed, still signed by who was allowed, still allowed to supply the weather.
         val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
         val service = ext?.weatherService
@@ -69,17 +104,17 @@ class ExtensionWeatherProvider(
             return ProviderResult.Failed("It isn't available") to name
         }
         val result = try {
-            withTimeout(WeatherProtocol.ANSWER_TIMEOUT_MS) { exchange(service, what, place, query) }
+            withTimeout(WeatherProtocol.ANSWER_TIMEOUT_MS) { exchange(service, what, fill) }
         } catch (e: TimeoutCancellationException) {
             ProviderResult.Failed("It didn't answer")
         }
         return result to ext.name
     }
 
-    private suspend fun exchange(service: String, what: Int, place: WeatherPlace?, query: String?): ProviderResult<String> =
+    private suspend fun exchange(service: String, what: Int, fill: Bundle.() -> Unit): ProviderResult<Reply> =
         suspendCancellableCoroutine { cont ->
             var connection: ServiceConnection? = null
-            fun finish(result: ProviderResult<String>) {
+            fun finish(result: ProviderResult<Reply>) {
                 if (!cont.isActive) return
                 connection?.let { runCatching { app.unbindService(it) } }
                 cont.resume(result)
@@ -87,14 +122,15 @@ class ExtensionWeatherProvider(
             val replies = Messenger(object : Handler(Looper.getMainLooper()) {
                 override fun handleMessage(msg: Message) {
                     if (msg.what != WeatherProtocol.MSG_REPLY) return
-                    // Only the two named keys are read; the rest of the message is never looked at.
+                    // Only the three named keys are read, each with its own typed getter; the rest of the message is never looked at.
                     val data = msg.data
                     val json = data?.getString(WeatherProtocol.KEY_JSON)
+                    val image = data?.getByteArray(WeatherProtocol.KEY_IMAGE)
                     val error = data?.getString(WeatherProtocol.KEY_ERROR)
                     finish(
                         when {
-                            json != null -> ProviderResult.Ok(json)
-                            else -> ProviderResult.Failed(error?.trim()?.takeIf { it.isNotEmpty() && it.length <= WeatherProtocol.MAX_ERROR && TextSafety.isPlain(it) } ?: "It had no weather")
+                            json != null || image != null -> ProviderResult.Ok(Reply(json, image))
+                            else -> ProviderResult.Failed(error?.trim()?.takeIf { it.isNotEmpty() && it.length <= WeatherProtocol.MAX_ERROR && TextSafety.isPlain(it) } ?: "It had no answer")
                         }
                     )
                 }
@@ -103,14 +139,7 @@ class ExtensionWeatherProvider(
                 override fun onServiceConnected(name: ComponentName, binder: IBinder) {
                     val request = Message.obtain(null, what).apply {
                         replyTo = replies
-                        data = Bundle().apply {
-                            if (place != null) {
-                                putDouble(WeatherProtocol.KEY_LAT, WeatherProtocol.rounded(place.lat))
-                                putDouble(WeatherProtocol.KEY_LON, WeatherProtocol.rounded(place.lon))
-                                place.city?.let { putString(WeatherProtocol.KEY_CITY, it) }
-                            }
-                            query?.let { putString(WeatherProtocol.KEY_QUERY, it) }
-                        }
+                        data = Bundle().apply(fill)
                     }
                     if (runCatching { Messenger(binder).send(request) }.isFailure) finish(ProviderResult.Failed("Portal couldn't reach it"))
                 }

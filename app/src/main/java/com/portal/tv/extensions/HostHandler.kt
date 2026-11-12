@@ -52,6 +52,18 @@ interface HostEnv {
     fun alerts(): List<WeatherAlert>
     /** Whether the person shows the weather in metric units; a weather page follows it. */
     fun metricUnits(): Boolean
+    /** Whether the person wants the weather page to have an animated scene behind it. */
+    fun pageBackground(): Boolean
+    /** Whether the person wants weather alerts shown on the weather page. */
+    fun showAlerts(): Boolean
+    /** Asks the weather source for fresh weather and alerts now, and waits for it (a little). The result is read afterwards with [weather] and [alerts]. */
+    fun refreshWeather()
+    /** The radar pictures there are around ([lat], [lon]), from the weather source. */
+    fun radarIndex(lat: Double, lon: Double): com.portal.tv.weather.ProviderResult<com.portal.tv.weather.RadarIndex>
+    /** One radar picture (PNG bytes) from the weather source; see [com.portal.tv.weather.WeatherProvider.radarImage]. */
+    fun radarImage(ref: String, zoom: Int, x0: Double, y0: Double, w: Int, h: Int): com.portal.tv.weather.ProviderResult<ByteArray>
+    /** Saves an exact spot, such as one picked on the radar map, as the place the weather is for. */
+    fun setSpot(lat: Double, lon: Double)
 }
 
 /**
@@ -68,9 +80,12 @@ class HostHandler(
 
     /** Calls of any kind (reads too) an extension may make, counted before anything is looked up. */
     private val callLimit = RateLimiter(HostLimits.CALLS_PER_MINUTE, 60_000L)
+    private val radarCalls = RateLimiter(HostLimits.RADAR_PER_MINUTE, 60_000L)
 
-    /** Whether [caller] may make a call now at all. Checked first, because everything after it costs something. */
-    fun admit(caller: String): Boolean = callLimit.allow(caller, env.elapsedMillis())
+    /** Whether [caller] may make a call to [method] now at all. Checked first, because everything after it costs something. */
+    fun admit(caller: String, method: String = ""): Boolean =
+        if (method == HostApi.WEATHER_RADAR || method == HostApi.WEATHER_RADAR_IMAGE) radarCalls.allow(caller, env.elapsedMillis())
+        else callLimit.allow(caller, env.elapsedMillis())
 
     /** The installed extension [caller] is, or null. Looked up once per call; see [call] taking it. */
     fun lookup(caller: String): HostExtension? = env.extension(caller)
@@ -92,15 +107,17 @@ class HostHandler(
             HostApi.CARD_SHOW -> Capability.CARDS
             HostApi.TILE_UPDATE -> Capability.TILES
             HostApi.WEATHER_GET -> Capability.WEATHER
-            HostApi.WEATHER_REPORT, HostApi.WEATHER_ALERTS -> Capability.WEATHER_PAGE
+            HostApi.WEATHER_REPORT, HostApi.WEATHER_ALERTS, HostApi.WEATHER_RADAR, HostApi.WEATHER_RADAR_IMAGE, HostApi.WEATHER_SPOT -> Capability.WEATHER_PAGE
             HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST -> area(args)?.capability ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
             else -> return HostReply.fail(HostApi.Error.NO_SUCH_METHOD)
         }
         if (needs !in ext.granted) return HostReply.fail(HostApi.Error.NOT_ALLOWED)
         // The weather is shown to everyone on Portal's own weather page, kids included, so it is given to whoever is using the TV.
         if (method == HostApi.WEATHER_GET) return weather()
-        if (method == HostApi.WEATHER_REPORT) return weatherReport()
-        if (method == HostApi.WEATHER_ALERTS) return weatherAlerts()
+        if (method == HostApi.WEATHER_REPORT) return weatherReport(ext, args)
+        if (method == HostApi.WEATHER_ALERTS) return weatherAlerts(ext, args)
+        if (method == HostApi.WEATHER_RADAR) return radarIndex(args)
+        if (method == HostApi.WEATHER_RADAR_IMAGE) return radarImage(args)
         val profile = env.activeProfile() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
         if (profile.isKids) return HostReply.fail(HostApi.Error.KID_PROFILE)
         val changes = method != HostApi.REMINDERS_LIST && method != HostApi.ITEMS_LIST
@@ -112,6 +129,7 @@ class HostHandler(
             HostApi.REMINDERS_DELETE -> deleteReminder(ext, args)
             HostApi.CARD_SHOW -> showCard(ext, args)
             HostApi.TILE_UPDATE -> updateTile(ext, args)
+            HostApi.WEATHER_SPOT -> setSpot(args)
             else -> items(ext, method, args)
         }
     }
@@ -122,6 +140,7 @@ class HostHandler(
     private fun Map<String, Any?>.int(key: String): Int? = (this[key] as? Int)
     private fun Map<String, Any?>.long(key: String): Long? = when (val v = this[key]) { is Long -> v; is Int -> v.toLong(); else -> null }
     private fun Map<String, Any?>.bool(key: String): Boolean? = this[key] as? Boolean
+    private fun Map<String, Any?>.double(key: String): Double? = when (val v = this[key]) { is Double -> v.takeIf { !it.isNaN() && !it.isInfinite() }; else -> null }
 
     private fun area(args: Map<String, Any?>): ItemArea? = ItemArea.values().firstOrNull { it.key == args.string("area") }
 
@@ -147,7 +166,8 @@ class HostHandler(
      * The whole report, for a weather page: Portal's own format (see [WeatherJson]), with the place rounded to a tenth of a
      * degree like `weather.get` (the city's name is the one the person chose or Portal worked out, so it is given as it is).
      */
-    private fun weatherReport(): HostReply {
+    private fun weatherReport(ext: HostExtension, args: Map<String, Any?>): HostReply {
+        refreshIfAsked(ext, args)?.let { return it }
         val snapshot = env.weather() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
         val r = snapshot.report
         val rounded = r.copy(latitude = WeatherForExtensions.tenth(r.latitude), longitude = WeatherForExtensions.tenth(r.longitude))
@@ -157,13 +177,65 @@ class HostHandler(
                 "json" to WeatherJson.encode(rounded),
                 "as_of_millis" to snapshot.updatedAtMs,
                 "stale" to (now - snapshot.updatedAtMs > WeatherForExtensions.STALE_AFTER_MS),
-                "metric" to env.metricUnits()
+                "metric" to env.metricUnits(),
+                "page_background" to env.pageBackground(),
+                "show_alerts" to env.showAlerts()
             )
         )
     }
 
     /** The alerts in force, for a weather page, in the same format an alert source sends (see [WeatherJson]). */
-    private fun weatherAlerts() = HostReply.ok(mapOf("json" to WeatherJson.encodeAlerts(env.alerts())))
+    private fun weatherAlerts(ext: HostExtension, args: Map<String, Any?>): HostReply {
+        refreshIfAsked(ext, args)?.let { return it }
+        return HostReply.ok(mapOf("json" to WeatherJson.encodeAlerts(env.alerts())))
+    }
+
+    /** When the caller asks for fresh weather (`refresh`), has the source asked now, counted as a change so it can't be hammered; null when all is well. */
+    private fun refreshIfAsked(ext: HostExtension, args: Map<String, Any?>): HostReply? {
+        if (args.bool("refresh") != true) return null
+        if (!writes.allow(ext.packageName, env.elapsedMillis())) return HostReply.fail(HostApi.Error.RATE_LIMITED)
+        env.refreshWeather()
+        return null
+    }
+
+    /** A latitude and longitude from the arguments, or null if either is missing, the wrong type or off the map. */
+    private fun place(args: Map<String, Any?>): Pair<Double, Double>? {
+        val lat = args.double("lat") ?: return null
+        val lon = args.double("lon") ?: return null
+        return if (lat in -90.0..90.0 && lon in -180.0..180.0) lat to lon else null
+    }
+
+    /** The radar pictures there are around a place, from the weather source in use (see [com.portal.tv.weather.RadarIndex]). */
+    private fun radarIndex(args: Map<String, Any?>): HostReply {
+        val (lat, lon) = place(args) ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        return when (val r = env.radarIndex(lat, lon)) {
+            is com.portal.tv.weather.ProviderResult.Ok -> HostReply.ok(mapOf("json" to WeatherJson.encodeRadar(r.value)))
+            is com.portal.tv.weather.ProviderResult.Failed -> HostReply.fail(HostApi.Error.UNAVAILABLE)
+        }
+    }
+
+    /** One radar picture, as PNG bytes in `image`, for a frame of the index and a window of the map. Every argument is checked. */
+    private fun radarImage(args: Map<String, Any?>): HostReply {
+        val ref = args.string("ref")
+        if (ref == null || ref.isEmpty() || ref.length > com.portal.tv.weather.WeatherValidator.MAX_REF || !TextSafety.isPlain(ref)) return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        val zoom = args.int("z")?.takeIf { it in 0..12 } ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        val side = com.portal.tv.weather.WeatherProtocol.MAX_IMAGE_SIDE
+        val w = args.int("w")?.takeIf { it in 1..side } ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        val h = args.int("h")?.takeIf { it in 1..side } ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        val x0 = args.double("x0")?.takeIf { Math.abs(it) <= 1e8 } ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        val y0 = args.double("y0")?.takeIf { Math.abs(it) <= 1e8 } ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        return when (val r = env.radarImage(ref, zoom, x0, y0, w, h)) {
+            is com.portal.tv.weather.ProviderResult.Ok -> HostReply.ok(mapOf("image" to r.value))
+            is com.portal.tv.weather.ProviderResult.Failed -> HostReply.fail(HostApi.Error.UNAVAILABLE)
+        }
+    }
+
+    /** Saves an exact spot (such as one picked on the radar) as the place the weather is for. Only on an adult's profile, and counted as a change. */
+    private fun setSpot(args: Map<String, Any?>): HostReply {
+        val (lat, lon) = place(args) ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
+        env.setSpot(lat, lon)
+        return HostReply.ok()
+    }
 
     // ---------- reminders ----------
 

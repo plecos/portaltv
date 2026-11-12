@@ -3,7 +3,6 @@ package com.portal.tv.ui
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import com.portal.tv.repo.WeatherAlerts
 import com.portal.tv.weather.WeatherAlert
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter

@@ -19,6 +19,35 @@ internal object Http {
         val ok get() = code == 200 && body != null
     }
 
+    /** The bytes at [url] (a picture), at most [max] of them, or null if it couldn't be had or was bigger. */
+    fun bytes(url: String, max: Int = 2_000_000): ByteArray? = try {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 15_000
+        conn.setRequestProperty("User-Agent", "Portal TV Weather (https://github.com/plecos/portaltv)")
+        try {
+            if (conn.responseCode != 200) null
+            else conn.inputStream.use { input ->
+                val out = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(32 * 1024)
+                var total = 0
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    total += n
+                    if (total > max) return@use null
+                    out.write(buffer, 0, n)
+                }
+                out.toByteArray()
+            }
+        } finally {
+            conn.disconnect()
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "HTTP GET (picture) $url failed: ${e.message}")
+        null
+    }
+
     fun get(url: String, userAgent: String = "PortalWeather/1.0", accept: String? = null): Response = try {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 10_000

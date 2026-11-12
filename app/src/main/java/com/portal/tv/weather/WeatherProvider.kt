@@ -21,4 +21,13 @@ interface WeatherProvider {
 
     /** Places matching a name or zip, for choosing where the weather is for. An empty list means nothing matched. */
     suspend fun searchCities(query: String): ProviderResult<List<WeatherCity>>
+
+    /** The radar pictures there are for [place]. */
+    suspend fun radarIndex(place: WeatherPlace): ProviderResult<RadarIndex>
+
+    /**
+     * One radar picture as PNG bytes: the frame [ref] (from [radarIndex]) of the window [w] by [h] pixels whose top left is ([x0], [y0])
+     * in zoom-[zoom] world pixels. Only a PNG of exactly that size comes back; anything else is a failure.
+     */
+    suspend fun radarImage(ref: String, zoom: Int, x0: Double, y0: Double, w: Int, h: Int): ProviderResult<ByteArray>
 }

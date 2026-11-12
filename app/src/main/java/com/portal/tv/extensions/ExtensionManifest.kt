@@ -38,8 +38,8 @@ object Capability {
         REMINDERS -> "Add and change its own reminders"
         CARDS -> "Show cards over other apps"
         WEATHER -> "Read the current weather and where this TV roughly is (to within about 10 km)"
-        WEATHER_SOURCE -> "Be where Portal gets its weather and weather alerts, if you choose it in Settings. Portal tells it where this TV roughly is (to within about 10 km) and shows what it answers, including alerts"
-        WEATHER_PAGE -> "Be the weather page that opens from the home screen, if you choose it in Settings. It can read the full forecast and alerts, and where this TV roughly is (to within about 10 km), including the city name"
+        WEATHER_SOURCE -> "Be where Portal gets its weather and weather alerts, if you choose it in Settings. Portal tells it where this TV roughly is (to within about 10 km), and which part of the map the radar is showing, and shows what it answers, including alerts"
+        WEATHER_PAGE -> "Be the weather page that opens from the home screen, if you choose it in Settings. It can read the full forecast and alerts, and where this TV roughly is (to within about 10 km), including the city name, and which part of the map it looks at for radar"
         else -> "Something this version of Portal doesn't know ($capability)"
     }
 }

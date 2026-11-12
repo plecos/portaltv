@@ -39,21 +39,6 @@ object AppSettings {
         prefs(context).edit().putBoolean("weather_alerts", show).apply()
     }
 
-    /** Which map the weather radar sits on: a name from `RadarTiles.MapStyle`. */
-    fun getRadarMap(context: Context): String =
-        prefs(context).getString("radar_map", "DARK") ?: "DARK"
-
-    fun setRadarMap(context: Context, name: String) {
-        prefs(context).edit().putString("radar_map", name).apply()
-    }
-
-    /** The radar's zoom level for this profile, or 0 when it has not been changed (the radar then opens at its closest detail). */
-    fun getRadarZoom(context: Context): Int = prefs(context).getInt("radar_zoom", 0)
-
-    fun setRadarZoom(context: Context, zoom: Int) {
-        prefs(context).edit().putInt("radar_zoom", zoom).apply()
-    }
-
     // ---------- Apps display ----------
 
     const val LAYOUT_TILES = "tiles"   // icon with title (the original look)

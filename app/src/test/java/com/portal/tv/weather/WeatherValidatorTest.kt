@@ -156,6 +156,65 @@ class WeatherValidatorTest {
         assertEquals(WeatherValidator.MAX_ALERTS, alerts(*many)!!.size)
     }
 
+    // ---------- Radar ----------
+
+    private fun radar(vararg f: RadarFrame, max: Int = 10, detail: Int = 7, credit: String = "Radar: x", refresh: Int = 300) =
+        WeatherValidator.radar(WeatherJson.encodeRadar(RadarIndex(credit, max, detail, refresh, f.toList())))
+
+    @Test
+    fun aSensibleRadarIndexIsAcceptedAndItsFramesPutInOrder() {
+        val r = radar(RadarFrame(300, "b"), RadarFrame(100, "a"))!!
+        assertEquals(listOf("a", "b"), r.frames.map { it.ref })
+    }
+
+    @Test
+    fun aRadarIndexNeedsFramesWithPlainRefsAndSensibleZooms() {
+        val ok = RadarFrame(100, "a")
+        assertNull(radar())
+        assertNull(radar(RadarFrame(0, "a")))
+        assertNull(radar(RadarFrame(100, "")))
+        assertNull(radar(RadarFrame(100, "x".repeat(WeatherValidator.MAX_REF + 1))))
+        assertNull(radar(RadarFrame(100, "bad‮ref")))
+        assertNull(radar(ok, max = 0))
+        assertNull(radar(ok, max = 40))
+        assertNull(radar(ok, max = 5, detail = 9))
+        assertNull(radar(ok, credit = "x".repeat(WeatherValidator.MAX_CREDIT + 1)))
+        assertNull(radar(*Array(WeatherValidator.MAX_FRAMES + 1) { RadarFrame(it + 1L, "r$it") }))
+        assertNull(WeatherValidator.radar("not json"))
+    }
+
+    @Test
+    fun theRefreshTimeIsKeptWithinReason() {
+        assertEquals(60, radar(RadarFrame(100, "a"), refresh = 1)!!.refreshSeconds)
+        assertEquals(3600, radar(RadarFrame(100, "a"), refresh = 99999)!!.refreshSeconds)
+    }
+
+    /** The smallest thing with a PNG's header: the signature, an IHDR chunk giving the size, padded to a plausible length. */
+    private fun pngOf(w: Int, h: Int, padTo: Int = 80): ByteArray {
+        val head = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 'I'.code.toByte(), 'H'.code.toByte(), 'D'.code.toByte(), 'R'.code.toByte())
+        fun be(v: Int) = byteArrayOf((v shr 24).toByte(), (v shr 16).toByte(), (v shr 8).toByte(), v.toByte())
+        return (head + be(w) + be(h)).copyOf(padTo)
+    }
+
+    @Test
+    fun aPictureMustBeAPngOfExactlyTheSizeAsked() {
+        assertTrue(WeatherValidator.png(pngOf(640, 360), 640, 360))
+        assertFalse(WeatherValidator.png(pngOf(640, 360), 640, 361))
+        assertFalse(WeatherValidator.png(pngOf(641, 360), 640, 360))
+    }
+
+    @Test
+    fun aPictureThatIsNotAPngOrIsTooBigOrClaimsTooMuchIsRefused() {
+        val ok = pngOf(10, 10)
+        assertFalse(WeatherValidator.png(ByteArray(0), 10, 10))
+        assertFalse(WeatherValidator.png(ok.copyOf(20), 10, 10))
+        assertFalse(WeatherValidator.png(ok.also { it[0] = 0 }, 10, 10))
+        assertFalse(WeatherValidator.png(pngOf(10, 10, WeatherProtocol.MAX_IMAGE_BYTES + 1), 10, 10))
+        assertFalse(WeatherValidator.png(pngOf(5000, 5000), 5000, 5000))
+        // A different first chunk is not a PNG header.
+        assertFalse(WeatherValidator.png(pngOf(10, 10).also { it[12] = 'X'.code.toByte() }, 10, 10))
+    }
+
     // ---------- Cities ----------
 
     private fun cities(vararg c: WeatherCity) = WeatherValidator.cities(WeatherJson.encodeCities(c.toList()))

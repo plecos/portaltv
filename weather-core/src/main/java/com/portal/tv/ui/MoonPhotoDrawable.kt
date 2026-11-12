@@ -12,9 +12,9 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
-import com.portal.tv.R
+import net.getportaltv.weather.core.R
 import com.portal.tv.repo.MoonPhase
-import com.portal.tv.repo.WeatherRepository
+import com.portal.tv.repo.MoonSky
 import kotlin.math.abs
 import kotlin.math.cos
 
@@ -106,7 +106,7 @@ class MoonPhotoDrawable(
         /** The moon as it is right now, turned to match the sky at the weather location when that is known. */
         fun now(context: Context): MoonPhotoDrawable {
             val now = System.currentTimeMillis()
-            val where = WeatherRepository.knownLocation(context)
+            val where = MoonSky.where
             val tilt = where?.let { MoonPhase.tiltAt(now, it.first, it.second) }
             return MoonPhotoDrawable(context, MoonPhase.stateAt(now).elongation, tilt)
         }

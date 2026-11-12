@@ -70,6 +70,18 @@ class WeatherJsonTest {
     }
 
     @Test
+    fun aRadarIndexSurvivesBeingSentAndRead() {
+        val index = RadarIndex("Radar: somebody", 10, 7, 300, listOf(RadarFrame(1_700_000_000L, "nws:2026-11-12T20:00:00Z"), RadarFrame(1_700_000_300L, "b")))
+        assertEquals(index, WeatherJson.decodeRadar(WeatherJson.encodeRadar(index)))
+    }
+
+    @Test
+    fun aRadarIndexWithoutZoomsOrFramesIsRefused() {
+        assertThrows(Exception::class.java) { WeatherJson.decodeRadar("""{"credit":"x","frames":[]}""") }
+        assertThrows(Exception::class.java) { WeatherJson.decodeRadar("""{"max_zoom":7,"detail_zoom":7}""") }
+    }
+
+    @Test
     fun aCityWithoutANameOrPlaceIsRefused() {
         assertThrows(Exception::class.java) { WeatherJson.decodeCities("""[{"region":"x"}]""") }
         assertThrows(Exception::class.java) { WeatherJson.decodeCities("""[{"name":"x"}]""") }

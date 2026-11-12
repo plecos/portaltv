@@ -6,6 +6,9 @@
     label="@string/ext_name"
     description="@string/ext_description">
 
-    <!-- Where Portal gets its weather and alerts: Open-Meteo for the forecast, the US National Weather Service for alerts. -->
+    <!-- Where Portal gets its weather, alerts, city search and radar: Open-Meteo, the US National Weather Service and RainViewer. -->
     <weather-source service=".WeatherService" />
+
+    <!-- The weather page that opens from the home screen. It asks Portal for everything it shows. -->
+    <weather-page activity=".page.WeatherPageActivity" />
 </portal-extension>

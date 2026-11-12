@@ -91,6 +91,39 @@ object WeatherValidator {
         }
     }
 
+    const val MAX_FRAMES = 24
+    const val MAX_REF = 150
+    const val MAX_CREDIT = 80
+
+    /** The radar index in [json] if it is valid (at least one frame, sensible zooms, plain words), else null. */
+    fun radar(json: String): RadarIndex? {
+        if (json.length > MAX_JSON) return null
+        val r = try { WeatherJson.decodeRadar(json) } catch (e: Exception) { return null }
+        if (r.maxZoom !in 1..12 || r.detailZoom !in 1..r.maxZoom) return null
+        if (r.frames.isEmpty() || r.frames.size > MAX_FRAMES) return null
+        val frames = r.frames.map { f ->
+            if (f.time <= 0 || f.ref.isEmpty() || f.ref.length > MAX_REF || !TextSafety.isPlain(f.ref)) return null
+            f
+        }.sortedBy { it.time }
+        val credit = text(r.credit, MAX_CREDIT) ?: return null
+        return r.copy(credit = credit, refreshSeconds = r.refreshSeconds.coerceIn(60, 3600), frames = frames)
+    }
+
+    /**
+     * Whether [bytes] is a PNG of exactly [w] by [h] pixels and no bigger than [WeatherProtocol.MAX_IMAGE_BYTES]. Only the header
+     * is read here; Android decodes it later in the page, which is why the size and the claimed dimensions are held to what was asked.
+     */
+    fun png(bytes: ByteArray, w: Int, h: Int): Boolean {
+        if (bytes.size < 33 || bytes.size > WeatherProtocol.MAX_IMAGE_BYTES) return false
+        val signature = intArrayOf(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        if (signature.indices.any { (bytes[it].toInt() and 0xFF) != signature[it] }) return false
+        // The first chunk must be IHDR, which says the size.
+        if (String(bytes, 12, 4, Charsets.US_ASCII) != "IHDR") return false
+        fun int(at: Int) = ((bytes[at].toInt() and 0xFF) shl 24) or ((bytes[at + 1].toInt() and 0xFF) shl 16) or
+            ((bytes[at + 2].toInt() and 0xFF) shl 8) or (bytes[at + 3].toInt() and 0xFF)
+        return w in 1..WeatherProtocol.MAX_IMAGE_SIDE && h in 1..WeatherProtocol.MAX_IMAGE_SIDE && int(16) == w && int(20) == h
+    }
+
     const val MAX_CITIES = 10
     const val MAX_CITY_NAME = 60
 

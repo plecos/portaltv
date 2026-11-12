@@ -250,7 +250,17 @@ Portal binds to it for one question at a time. The question is a `Message` with 
 (doubles, rounded to a tenth of a degree, about 10 km) and sometimes `city` (a name to show). `what` is `1` for the weather and `2`
 for the alerts. A third question, `4`, is a city search: the `Bundle` holds `query` (what the person typed, up to 80 characters)
 and you answer with a JSON array of up to ten `{name, region, lat, lon}` (`region`, such as a state and country, is optional), so
-the person can choose where the weather is for. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
+the person can choose where the weather is for. Two more questions are about radar, with the same bundle keys: `5` is the list of
+radar pictures (the bundle has `lat` and `lon`) and `6` is one picture. You answer `5` with a JSON object
+`{credit, max_zoom, detail_zoom, refresh_s, frames: [{time, ref}]}`: `time` is when a picture was taken (epoch seconds) and `ref` is
+anything you need to draw it again (up to 150 plain characters; Portal passes it back untouched, and it travels by way of the
+weather page, so never build an address from it without checking it). Zoom levels are web-map levels (1 to 12): `max_zoom` is the
+closest worth opening and `detail_zoom` the closest at which a picture has real detail. For `6` the bundle has `ref`, `z` (the
+zoom), `x0` and `y0` (doubles: the top left of the window, in pixels of the whole world at that zoom, 256 to a tile) and `w` and
+`h` (the window's size in pixels, at most 2048); answer with `image`, the bytes of a PNG with transparency of exactly that size and
+under 400,000 bytes. Radar goes through Portal picture by picture so that a key for your radar service never leaves you. A source
+with no radar, or no city search, should still answer such a question, with an `error` such as `Not offered`, so Portal isn't
+left waiting. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
 words, at most 40 characters, saying why not). You have 20 seconds. `sample-extension` has a complete example, `WeatherService`.
 
 **The weather** (`what` = 1) is one JSON object. Temperatures are °C, speeds km/h, and every `code` is a WMO weather
@@ -310,6 +320,18 @@ network and work on any profile:
   answer is `unavailable`.
 - **`weather.alerts`** answers with `json`, an array in the format of an alert source, for the alerts still in force. Each is
   already checked and says which source it came through.
+
+- **`weather.radar`** (with `lat` and `lon`, doubles) answers with `json`, the radar index from the weather source in use, and
+  **`weather.radar_image`** (with `ref`, `z`, `x0`, `y0`, `w`, `h` as above) with `image`, one picture as PNG bytes. Portal
+  fetches it from the source and checks that it is a PNG of exactly the size asked. Radar calls are counted on their own (300 a
+  minute): one radar view asks for a dozen pictures. If the source has no radar the answer is `unavailable`.
+- **`weather.spot`** (`lat`, `lon`) saves an exact spot, such as one picked on the radar, as the place the weather is for. It
+  changes a setting, so it is counted as a change and refused on a kid profile (`kid_profile`).
+
+`weather.report` and `weather.alerts` also take `refresh` (a boolean): Portal then asks its source for fresh weather and waits for
+it (up to 25 seconds) before answering. That counts as a change, so use it when your screen opens, not in a loop. `weather.report`
+also says `page_background` (the person wants a scene behind the page) and `show_alerts` (they want alerts shown), which you should
+follow.
 
 Ask again when your screen comes to the front; Portal keeps the weather up to date itself. `sample-extension` has a complete
 example, `WeatherPageActivity`.

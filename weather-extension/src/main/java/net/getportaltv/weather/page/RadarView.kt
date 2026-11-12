@@ -1,4 +1,4 @@
-package com.portal.tv.ui
+package net.getportaltv.weather.page
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -11,10 +11,9 @@ import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.View
 import android.widget.ImageView
-import com.portal.tv.R
-import com.portal.tv.repo.RadarFeed
-import com.portal.tv.repo.RadarTiles
-import com.portal.tv.settings.AppSettings
+import android.graphics.BitmapFactory
+import com.portal.tv.weather.RadarTiles
+import net.getportaltv.weather.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -91,10 +90,20 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
     private var current = 0
     private var playing = true
     private var failed = false
-    private var source = RadarTiles.Source.RAINVIEWER
+
+    /**
+     * What the radar source said about itself in its list of pictures: who to credit, how close the map is worth opening and how
+     * soon to ask again. Until the first list arrives these are guesses that suit most sources.
+     */
+    private var radarCredit = ""
+    private var radarMaxZoom = DEFAULT_RADAR_ZOOM
+    private var detailZoom = DEFAULT_RADAR_ZOOM
+    private var refreshMs = 10 * 60_000L
+    /** Whether the zoom came from the person (or the page that opened this) rather than from the source's own best. */
+    private var zoomChosen = false
 
     /** The map under the rain; changed with [cycleMapStyle] and remembered per profile. */
-    var mapStyle = runCatching { RadarTiles.MapStyle.valueOf(AppSettings.getRadarMap(context)) }
+    var mapStyle = runCatching { RadarTiles.MapStyle.valueOf(RadarPrefs.map(context)) }
         .getOrDefault(RadarTiles.MapStyle.DARK)
         private set
     private var styleNotice: String? = null
@@ -107,7 +116,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
     val maxZoom get() = MAX_ZOOM
 
     /** The zoom the radar pictures are fetched at: the current one, up to what the source can show. */
-    private val radarZoom get() = zoom.coerceAtMost(source.detailZoom)
+    private val radarZoom get() = zoom.coerceAtMost(detailZoom)
 
     /** Called when [maxZoom] changes, so zoom buttons can be updated. */
     var onZoomLimitChanged: (() -> Unit)? = null
@@ -161,8 +170,9 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         centerLon = center?.second ?: longitude
         this.zone = zone
         located = true
-        setSource(if (RadarTiles.inContiguousUs(latitude, longitude)) RadarTiles.Source.NWS else RadarTiles.Source.RAINVIEWER)
-        zoom = (startZoom ?: AppSettings.getRadarZoom(context).takeIf { it > 0 } ?: source.maxZoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
+        val saved = startZoom ?: RadarPrefs.zoom(context).takeIf { it > 0 }
+        zoomChosen = saved != null
+        zoom = (saved ?: radarMaxZoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
         onZoomLimitChanged?.invoke()
         load(force = true)
         onCenterChanged?.invoke()
@@ -213,15 +223,11 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         update()
     }
 
-    private fun setSource(next: RadarTiles.Source) {
-        if (next == source) return
-        source = next
-        onZoomLimitChanged?.invoke()
-    }
-
     companion object {
         const val MIN_ZOOM = 4
         const val MAX_ZOOM = 14
+        /** The closest zoom assumed worth opening at, until the source says otherwise. */
+        const val DEFAULT_RADAR_ZOOM = 7
     }
 
     private fun setPlaying(on: Boolean) {
@@ -247,21 +253,31 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         val clat = centerLat
         val clon = centerLon
         loading = scope.launch {
-            val index = RadarFeed.index(clat, clon)
+            val index = HostClient.radarIndex(context, clat, clon)
             if (index == null) {
                 failed = layers.isEmpty()
                 invalidate()
                 schedule()
                 return@launch
             }
-            if (index.source != source) {
-                // The preferred source was down, so the picture comes from the other one.
-                setSource(index.source)
-                layers.clear()
+            radarCredit = index.credit
+            refreshMs = index.refreshSeconds * 1000L
+            detailZoom = index.detailZoom
+            if (index.maxZoom != radarMaxZoom) {
+                radarMaxZoom = index.maxZoom
+                if (!zoomChosen) {
+                    // Opened at the source's own closest zoom, which it has only just told us: start again from there.
+                    zoomChosen = true
+                    zoom = radarMaxZoom.coerceIn(MIN_ZOOM, MAX_ZOOM)
+                    onZoomLimitChanged?.invoke()
+                    loadMap(force = false)
+                    load(force = true)
+                    return@launch
+                }
             }
             // Radar pictures are cut at the source's own finest zoom at most; past that they are
             // small and get stretched when drawn.
-            val rz = z.coerceAtMost(source.detailZoom)
+            val rz = z.coerceAtMost(detailZoom)
             val scale = 2.0.pow(z - rz)
             val rw = ceil(w / scale).toInt().coerceAtLeast(1)
             val rh = ceil(h / scale).toInt().coerceAtLeast(1)
@@ -272,12 +288,9 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
             val fresh = coroutineScope {
                 index.frames.map { frame ->
                     async {
-                        val bitmap = if (index.source == RadarTiles.Source.NWS) {
-                            // One picture of the whole window, fetched in a single request.
-                            limit.withPermit { RadarFeed.tile(RadarTiles.wmsUrl(frame, rz, x0, y0, rw, rh)) }
-                        } else {
-                            compose(rw, rh, x0, y0, rz) { x, y -> RadarTiles.radarUrl(index, frame, rz, x, y) }
-                        }
+                        // One picture of the whole window, drawn by the source and brought by Portal.
+                        val bitmap = limit.withPermit { HostClient.radarImage(context, frame.ref, rz, x0, y0, rw, rh) }
+                            ?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
                         bitmap?.let { Layer(frame.time, Pic(it, rz, w / (2 * scale), h / (2 * scale), clat, clon)) }
                     }
                 }.awaitAll().filterNotNull()
@@ -344,7 +357,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
 
     private fun schedule() {
         removeCallbacks(refresh)
-        postDelayed(refresh, if (source == RadarTiles.Source.NWS) 5 * 60_000L else 10 * 60_000L)
+        postDelayed(refresh, refreshMs)
     }
 
     /** Draws the tiles that cover the view into one bitmap, or null if none of them could be fetched. */
@@ -355,7 +368,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
             Math.floorDiv((y0 + h - 1).toInt(), size).coerceAtMost((1 shl zoom) - 1)
         val wanted = columns.flatMap { x -> rows.map { y -> x to y } }
         val tiles = coroutineScope {
-            wanted.map { (x, y) -> async { limit.withPermit { url(x, y)?.let { RadarFeed.tile(it) } } } }.awaitAll()
+            wanted.map { (x, y) -> async { limit.withPermit { url(x, y)?.let { MapTiles.tile(it) } } } }.awaitAll()
         }
         if (tiles.all { it == null }) return null
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -372,7 +385,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
     fun cycleMapStyle() {
         val style = mapStyle.next()
         mapStyle = style
-        AppSettings.setRadarMap(context, style.name)
+        RadarPrefs.setMap(context, style.name)
         labels = null
         showNotice("Map: ${style.label}")
         loadMap(force = true)
@@ -418,7 +431,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         if (next == zoom) return false
         val before = radarZoom
         zoom = next
-        AppSettings.setRadarZoom(context, next)
+        RadarPrefs.setZoom(context, next)
         // The pictures on show are redrawn scaled to the new zoom straight away, then replaced by
         // sharper ones. Zooming in, past the radar source's detail, only stretches the rain, so it isn't fetched again.
         loadMap(force = false)
@@ -538,7 +551,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         }
 
         text.textSize = 11f * density
-        val credit = "${source.credit}  ·  Map: ${mapStyle.credit}"
+        val credit = "${radarCredit.ifEmpty { "Radar" }}  ·  Map: ${mapStyle.credit}"
         val cw = text.measureText(credit)
         val r = RectF(w - cw - 2 * pad, h - 24f * density, w, h)
         canvas.drawRect(r, pill)

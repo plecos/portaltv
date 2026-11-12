@@ -1,4 +1,4 @@
-package com.portal.tv.ui
+package net.getportaltv.weather.page
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -6,8 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
-import com.portal.tv.R
-import com.portal.tv.repo.WeatherRepository
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import net.getportaltv.weather.R
 import java.time.ZoneOffset
 
 /**
@@ -33,7 +34,7 @@ class RadarFragment : Fragment() {
         val play = view.findViewById<ImageView>(R.id.radar_play)
         radar.bindControls(view.findViewById(R.id.radar_zoom_in), view.findViewById(R.id.radar_zoom_out), play, view.findViewById(R.id.radar_layers),
             view.findViewById(R.id.radar_move), view.findViewById(R.id.radar_pin)
-        ) { lat, lon -> WeatherRepository.setCustomSpot(requireContext(), lat, lon) }
+        ) { lat, lon -> viewLifecycleOwner.lifecycleScope.launch { HostClient.setSpot(requireContext(), lat, lon) } }
         view.findViewById<View>(R.id.radar_close).setOnClickListener { parentFragmentManager.popBackStack() }
         play.requestFocus()
     }

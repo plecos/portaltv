@@ -1,8 +1,7 @@
-package com.portal.tv.ui
+package net.getportaltv.weather.page
 
 import android.os.Bundle
 import android.view.Gravity
-import android.view.TextureView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,16 +11,16 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.portal.tv.R
-import com.portal.tv.background.BackgroundPlayer
 import com.portal.tv.background.WeatherBackground
 import com.portal.tv.repo.MoonPhase
-import com.portal.tv.repo.WeatherRepository
-import com.portal.tv.settings.BackgroundSettings
-import com.portal.tv.settings.AppSettings
+import com.portal.tv.repo.MoonSky
+import com.portal.tv.ui.AlertStyle
+import com.portal.tv.ui.MoonPhotoDrawable
+import com.portal.tv.ui.WeatherIcons
 import com.portal.tv.weather.WeatherAlert
 import com.portal.tv.weather.WeatherReport
 import kotlinx.coroutines.launch
+import net.getportaltv.weather.R
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -36,16 +35,17 @@ import java.util.Locale
  * and the moon. It sits on a weather video, or a drawn scene when there is no video. Units follow
  * the profile's weather setting. Back returns to the home screen.
  */
-class WeatherFragment : Fragment() {
+class WeatherPageFragment : Fragment() {
 
-    private var player: BackgroundPlayer? = null
-    private var playerVideo: String? = null
     private var backgroundKey: String? = null
 
     /** Reloads the forecast, for after the place has changed. */
     private var refreshWeather: (() -> Unit)? = null
 
-    private val metric get() = AppSettings.isMetric(requireContext())
+    /** What the person has chosen in Portal, read with each report: whether to show °C and km/h, alerts, and the scene behind the page. */
+    private var metric = true
+    private var showAlerts = true
+    private var pageBackground = true
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -61,8 +61,11 @@ class WeatherFragment : Fragment() {
         val updated = view.findViewById<TextView>(R.id.weather_updated)
         var showing = false
 
-        fun show(outcome: WeatherRepository.Outcome) {
-            val report = outcome.report ?: return
+        fun show(data: HostClient.PageData) {
+            metric = data.metric
+            showAlerts = data.showAlerts
+            pageBackground = data.pageBackground
+            val report = data.report
             status.visibility = View.GONE
             retry.visibility = View.GONE
             scroll.visibility = View.VISIBLE
@@ -72,26 +75,27 @@ class WeatherFragment : Fragment() {
             applyBackground(view, report)
             loadAlerts(view)
             updated.visibility = View.VISIBLE
-            updated.text = "Updated ${ago(outcome.updatedAt)}" +
-                (outcome.error?.let { " · couldn't refresh: ${it.lowercase()}" } ?: "")
+            updated.text = "Updated ${ago(data.asOfMillis)}" + (if (data.stale) " · couldn't refresh" else "")
         }
 
         fun refresh() {
             retry.visibility = View.GONE
-            if (!showing) {
-                WeatherRepository.cached(requireContext())?.let { show(it) }
-            }
-            if (!showing) {
-                status.visibility = View.VISIBLE
-                status.text = "Loading…"
-            }
             viewLifecycleOwner.lifecycleScope.launch {
-                val outcome = WeatherRepository.load(requireContext())
-                if (outcome.report != null) {
-                    show(outcome)
-                } else {
+                // What Portal has now is shown straight away, then Portal is asked to fetch fresh weather.
+                if (!showing) {
+                    HostClient.report(requireContext(), refresh = false).data?.let { show(it) }
+                    if (!showing) {
+                        status.visibility = View.VISIBLE
+                        status.text = "Loading…"
+                    }
+                }
+                val result = HostClient.report(requireContext(), refresh = true)
+                val data = result.data
+                if (data != null) {
+                    show(data)
+                } else if (!showing) {
                     status.visibility = View.VISIBLE
-                    status.text = "Couldn't load the weather: ${outcome.error?.lowercase() ?: "error"}"
+                    status.text = "Couldn't load the weather: ${result.error ?: "error"}"
                     retry.visibility = View.VISIBLE
                     retry.requestFocus()
                 }
@@ -114,6 +118,8 @@ class WeatherFragment : Fragment() {
     }
 
     private fun bind(view: View, r: WeatherReport) {
+        // The moon in the icons and the scene is turned to match the sky here.
+        MoonSky.where = if (r.latitude != 0.0 || r.longitude != 0.0) r.latitude to r.longitude else null
         view.findViewById<TextView>(R.id.weather_title).text =
             if (r.city != null) "Weather · ${r.city}" else "Weather"
 
@@ -147,8 +153,8 @@ class WeatherFragment : Fragment() {
         buildMoon(view, r)
 
         val radarSection = view.findViewById<View>(R.id.weather_radar_section)
-        // Prefer the saved or detected place to the forecast's, which is rounded to its own grid.
-        val place = WeatherRepository.knownLocation(requireContext()) ?: (r.latitude to r.longitude)
+        // The place Portal gives is rounded to about 10 km, which is plenty for a map.
+        val place = r.latitude to r.longitude
         if (place.first == 0.0 && place.second == 0.0) {
             radarSection.visibility = View.GONE
         } else {
@@ -166,8 +172,12 @@ class WeatherFragment : Fragment() {
                 view.findViewById(R.id.radar_move),
                 view.findViewById(R.id.radar_pin)
             ) { lat, lon ->
-                WeatherRepository.setCustomSpot(requireContext(), lat, lon)
-                refreshWeather?.invoke()
+                viewLifecycleOwner.lifecycleScope.launch {
+                    if (!HostClient.setSpot(requireContext(), lat, lon)) {
+                        android.widget.Toast.makeText(requireContext(), "Portal wouldn't change the location", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    refreshWeather?.invoke()
+                }
             }
             view.findViewById<View>(R.id.radar_fullscreen).setOnClickListener {
                 parentFragmentManager.beginTransaction()
@@ -188,9 +198,9 @@ class WeatherFragment : Fragment() {
                 name = if (i == 0) "Today"
                 else d.date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()),
                 code = d.code,
-                summary = com.portal.tv.repo.DayNote.precipitation(d, WeatherIcons.describe(d.code).lowercase(), metric)
+                summary = DayNote.precipitation(d, WeatherIcons.describe(d.code).lowercase(), metric)
                     ?: WeatherIcons.describe(d.code),
-                note = com.portal.tv.repo.DayNote.of(d, metric),
+                note = DayNote.of(d, metric),
                 low = temp(d.lowC),
                 high = temp(d.highC)
             ))
@@ -204,12 +214,12 @@ class WeatherFragment : Fragment() {
     private fun loadAlerts(view: View) {
         val context = requireContext()
         val box = view.findViewById<LinearLayout>(R.id.weather_alerts)
-        if (!AppSettings.showWeatherAlerts(context)) {
+        if (!showAlerts) {
             box.visibility = View.GONE
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            val alerts = com.portal.tv.repo.WeatherAlerts.load(context)
+            val alerts = HostClient.alerts(context)
             if (!isAdded) return@launch
             box.removeAllViews()
             for (alert in alerts) {
@@ -248,7 +258,7 @@ class WeatherFragment : Fragment() {
             }
             if (alert.area.isNotBlank()) append("\n\nArea: ").append(alert.area)
         }
-        PortalDialog.Builder(requireContext())
+        android.app.AlertDialog.Builder(requireContext())
             .setTitle(alert.event)
             .setMessage(body)
             .setPositiveButton("OK", null)
@@ -257,58 +267,26 @@ class WeatherFragment : Fragment() {
 
     // ---------- Background ----------
 
-    /** Plays the weather video for the current conditions, or draws a scene when there is none. */
+    /** Draws the scene for the current conditions behind the page, unless the person turned the background off in Portal. */
     private fun applyBackground(view: View, r: WeatherReport) {
-        val context = requireContext()
-        val texture = view.findViewById<TextureView>(R.id.weather_bg_video)
         val effect = view.findViewById<WeatherEffectView>(R.id.weather_bg_effect)
         val dim = view.findViewById<View>(R.id.weather_bg_dim)
-        if (!BackgroundSettings.getWeatherBackground(context)) {
-            stopBackground()
+        if (!pageBackground) {
             backgroundKey = null
-            texture.visibility = View.GONE
             effect.visibility = View.GONE
             dim.visibility = View.GONE
             return
         }
         val kind = WeatherBackground.kindFor(r.code)
-        val video = WeatherBackground.videoFor(context, kind, r.isDay)
-        val key = "$kind/$video/${r.isDay}"
+        val key = "$kind/${r.isDay}"
         if (key == backgroundKey) return
         backgroundKey = key
-        stopBackground()
         dim.visibility = View.VISIBLE
-        if (video != null) {
-            effect.visibility = View.GONE
-            texture.visibility = View.VISIBLE
-            playerVideo = video
-            player = BackgroundPlayer(context, texture, dim, video, mayHaveSound = false).also { it.start(viewLifecycleOwner.lifecycleScope) }
-        } else {
-            texture.visibility = View.GONE
-            effect.visibility = View.VISIBLE
-            effect.show(kind, r.isDay)
-        }
-    }
-
-    private fun stopBackground() {
-        player?.stop()
-        player = null
-        playerVideo = null
-    }
-
-    override fun onPause() {
-        super.onPause()
-        player?.stop()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Back from another app: the video was stopped in onPause, so start it again.
-        if (playerVideo != null) player?.start(viewLifecycleOwner.lifecycleScope)
+        effect.visibility = View.VISIBLE
+        effect.show(kind, r.isDay)
     }
 
     override fun onDestroyView() {
-        stopBackground()
         backgroundKey = null
         super.onDestroyView()
     }

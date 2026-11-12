@@ -98,5 +98,24 @@ data class WeatherAlert(
     val isSevere get() = interrupts
 }
 
+/**
+ * One radar picture a source can draw: [time] is when it was taken (epoch seconds) and [ref] is whatever the source needs to draw
+ * it again later. Portal passes [ref] back untouched and never reads it, so it can hold anything (but is bounded and plain text).
+ */
+data class RadarFrame(val time: Long, val ref: String)
+
+/**
+ * What a source can show as radar for a place: the pictures it has (oldest first), how closely they are worth looking at and who
+ * to credit. [maxZoom] is the closest map level the radar is worth opening at, and [detailZoom] the closest level at which a
+ * picture has real detail (closer in, the picture is stretched). [refreshSeconds] says how soon to ask again.
+ */
+data class RadarIndex(
+    val credit: String,
+    val maxZoom: Int,
+    val detailZoom: Int,
+    val refreshSeconds: Int,
+    val frames: List<RadarFrame>
+)
+
 /** A place found by a city search, for choosing where the weather is for. [region] is such as a state and country, to tell two of a name apart. */
 data class WeatherCity(val name: String, val region: String?, val lat: Double, val lon: Double)

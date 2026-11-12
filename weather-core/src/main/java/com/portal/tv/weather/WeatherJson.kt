@@ -87,6 +87,25 @@ object WeatherJson {
         }
     }
 
+    // ---------- Radar ----------
+
+    fun encodeRadar(r: RadarIndex): String = JSONObject()
+        .put("credit", r.credit).put("max_zoom", r.maxZoom).put("detail_zoom", r.detailZoom).put("refresh_s", r.refreshSeconds)
+        .put("frames", JSONArray(r.frames.map { JSONObject().put("time", it.time).put("ref", it.ref) }))
+        .toString()
+
+    fun decodeRadar(json: String): RadarIndex {
+        val o = JSONObject(json)
+        val frames = o.getJSONArray("frames")
+        return RadarIndex(
+            credit = o.optString("credit"),
+            maxZoom = o.getInt("max_zoom"),
+            detailZoom = o.getInt("detail_zoom"),
+            refreshSeconds = o.optInt("refresh_s", 600),
+            frames = (0 until frames.length()).map { i -> frames.getJSONObject(i).let { RadarFrame(it.getLong("time"), it.getString("ref")) } }
+        )
+    }
+
     // ---------- Alerts ----------
 
     fun encodeAlerts(alerts: List<WeatherAlert>): String = JSONArray(alerts.map { a ->

@@ -11,6 +11,12 @@ package com.portal.tv.weather
  *
  * A city search ([MSG_SEARCH_CITIES]) carries [KEY_QUERY], what the person typed, and is answered with a JSON array of
  * `{name, region, lat, lon}`.
+ *
+ * Radar goes through Portal too, picture by picture, so whatever a source needs to reach its radar service (a key, say) never
+ * leaves it. [MSG_RADAR_INDEX] carries [KEY_LAT] and [KEY_LON] and is answered with the JSON of a [RadarIndex]. [MSG_RADAR_IMAGE]
+ * asks for one picture, a PNG with transparency: [KEY_REF] (a frame's `ref` from the index), the map level [KEY_ZOOM] and the
+ * window to draw, whose top left is [KEY_X] and [KEY_Y] (doubles, in pixels of the whole world at that level, 256 pixels to a
+ * tile, as in a web map) and whose size is [KEY_W] by [KEY_H] pixels. It is answered with the PNG bytes in [KEY_IMAGE].
  */
 object WeatherProtocol {
     const val ACTION = "net.getportaltv.WEATHER_SOURCE"
@@ -19,6 +25,21 @@ object WeatherProtocol {
     const val MSG_ALERTS = 2
     const val MSG_REPLY = 3
     const val MSG_SEARCH_CITIES = 4
+    const val MSG_RADAR_INDEX = 5
+    const val MSG_RADAR_IMAGE = 6
+
+    const val KEY_REF = "ref"
+    const val KEY_ZOOM = "z"
+    const val KEY_X = "x0"
+    const val KEY_Y = "y0"
+    const val KEY_W = "w"
+    const val KEY_H = "h"
+    const val KEY_IMAGE = "image"
+
+    /** The most of a radar picture Portal will take, in bytes. A reply travels in one transaction, which is about a megabyte at most for everything in flight. */
+    const val MAX_IMAGE_BYTES = 400_000
+    /** The biggest picture, in pixels each way. */
+    const val MAX_IMAGE_SIDE = 2048
 
     const val KEY_QUERY = "query"
     const val KEY_LAT = "lat"

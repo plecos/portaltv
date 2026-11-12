@@ -20,11 +20,15 @@ object HostApi {
     const val WEATHER_GET = "weather.get"
     const val WEATHER_REPORT = "weather.report"
     const val WEATHER_ALERTS = "weather.alerts"
+    const val WEATHER_RADAR = "weather.radar"
+    const val WEATHER_RADAR_IMAGE = "weather.radar_image"
+    const val WEATHER_SPOT = "weather.spot"
 
     /** The argument names a call may carry. Anything else the caller puts in its Bundle is ignored, unread. */
     val ARG_KEYS = listOf(
         "id", "title", "text", "at_millis", "repeat", "tone", "manual", "snooze_minutes",
-        "seconds", "area", "badge", "subtitle"
+        "seconds", "area", "badge", "subtitle",
+        "lat", "lon", "ref", "z", "x0", "y0", "w", "h", "refresh"
     )
 
     /** Every answer has `ok`; when it is false `error` is one of these. */
@@ -55,6 +59,8 @@ object HostLimits {
     /** Calls that change something (add, update, delete, set, remove), per extension. */
     const val WRITES_PER_MINUTE = 20
     const val CARD_INTERVAL_MS = 60_000L
+    /** Radar calls (the list of pictures, and a picture) per minute, per extension; they are counted apart from other calls, since one radar view takes about a dozen. */
+    const val RADAR_PER_MINUTE = 300
     /** Most changes an extension may keep to its home screen items. */
     const val MAX_ITEM_CHANGES = 8
 }

@@ -59,6 +59,22 @@ private class FakeTv : HostEnv {
     var metric = true
     override fun alerts() = alerts
     override fun metricUnits() = metric
+    var pageBackground = true
+    var showAlerts = true
+    var refreshes = 0
+    var radar: com.portal.tv.weather.ProviderResult<com.portal.tv.weather.RadarIndex> = com.portal.tv.weather.ProviderResult.Failed("No radar")
+    var radarPicture: com.portal.tv.weather.ProviderResult<ByteArray> = com.portal.tv.weather.ProviderResult.Failed("No picture")
+    val radarAsked = mutableListOf<List<Any>>()
+    var spot: Pair<Double, Double>? = null
+    override fun pageBackground() = pageBackground
+    override fun showAlerts() = showAlerts
+    override fun refreshWeather() { refreshes++ }
+    override fun radarIndex(lat: Double, lon: Double) = radar
+    override fun radarImage(ref: String, zoom: Int, x0: Double, y0: Double, w: Int, h: Int): com.portal.tv.weather.ProviderResult<ByteArray> {
+        radarAsked += listOf(ref, zoom, x0, y0, w, h)
+        return radarPicture
+    }
+    override fun setSpot(lat: Double, lon: Double) { writes++; spot = lat to lon }
     override fun showCard(from: String, title: String, text: String, seconds: Int): Boolean {
         if (cardWorks) { writes++; cardsShown += listOf(from, title, text, seconds.toString()) }
         return cardWorks
@@ -524,6 +540,122 @@ class HostConformanceTest {
         val h = handler()
         repeat(60) { assertTrue(h.call(A, HostApi.WEATHER_ALERTS, emptyMap()).ok) }
         assertEquals(0, tv.writes)
+    }
+
+    // ---------- weather page: radar, refresh and the spot ----------
+
+    private val page = setOf(Capability.WEATHER_PAGE)
+    private val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+    @Test
+    fun radarAndTheSpotNeedTheWeatherPageCapability() {
+        tv.install(A, ALL - Capability.WEATHER_PAGE)
+        val h = handler()
+        h.call(A, HostApi.WEATHER_RADAR, mapOf("lat" to 47.6, "lon" to -122.3)).assertError(HostApi.Error.NOT_ALLOWED)
+        h.call(A, HostApi.WEATHER_RADAR_IMAGE, emptyMap()).assertError(HostApi.Error.NOT_ALLOWED)
+        h.call(A, HostApi.WEATHER_SPOT, mapOf("lat" to 47.6, "lon" to -122.3)).assertError(HostApi.Error.NOT_ALLOWED)
+        assertNull(tv.spot)
+    }
+
+    @Test
+    fun theRadarIndexComesBackAsJsonForAValidPlaceOnly() {
+        tv.radar = com.portal.tv.weather.ProviderResult.Ok(com.portal.tv.weather.RadarIndex("Radar: x", 10, 7, 300, listOf(com.portal.tv.weather.RadarFrame(1L, "r1"))))
+        tv.install(A, page)
+        val h = handler()
+        val back = WeatherJson.decodeRadar(h.call(A, HostApi.WEATHER_RADAR, mapOf("lat" to 47.6, "lon" to -122.3)).data["json"] as String)
+        assertEquals("Radar: x", back.credit)
+        h.call(A, HostApi.WEATHER_RADAR, mapOf("lat" to 95.0, "lon" to 0.0)).assertError(HostApi.Error.BAD_ARGUMENT)
+        h.call(A, HostApi.WEATHER_RADAR, mapOf("lat" to 10.0)).assertError(HostApi.Error.BAD_ARGUMENT)
+        h.call(A, HostApi.WEATHER_RADAR, mapOf("lat" to "10", "lon" to "10")).assertError(HostApi.Error.BAD_ARGUMENT)
+        h.call(A, HostApi.WEATHER_RADAR, mapOf("lat" to Double.NaN, "lon" to 1.0)).assertError(HostApi.Error.BAD_ARGUMENT)
+    }
+
+    @Test
+    fun aSourceWithNoRadarIsUnavailableNotAnError() {
+        tv.install(A, page)
+        handler().call(A, HostApi.WEATHER_RADAR, mapOf("lat" to 1.0, "lon" to 1.0)).assertError(HostApi.Error.UNAVAILABLE)
+    }
+
+    private fun picture(vararg extra: Pair<String, Any?>) =
+        mapOf<String, Any?>("ref" to "nws:t", "z" to 7, "x0" to 100.0, "y0" to 200.0, "w" to 640, "h" to 360) + extra
+
+    @Test
+    fun aRadarPictureIsPassedOnWithEveryArgumentChecked() {
+        tv.radarPicture = com.portal.tv.weather.ProviderResult.Ok(png)
+        tv.install(A, page)
+        val h = handler()
+        val reply = h.call(A, HostApi.WEATHER_RADAR_IMAGE, picture())
+        assertTrue(reply.ok)
+        assertTrue((reply.data["image"] as ByteArray).contentEquals(png))
+        assertEquals(listOf<Any>("nws:t", 7, 100.0, 200.0, 640, 360), tv.radarAsked.single())
+    }
+
+    @Test
+    fun aRadarPictureWithABadArgumentNeverReachesTheSource() {
+        tv.radarPicture = com.portal.tv.weather.ProviderResult.Ok(png)
+        tv.install(A, page)
+        val h = handler()
+        for (bad in listOf(
+            picture("ref" to ""), picture("ref" to "x".repeat(500)), picture("ref" to "bad\u202Eref"), picture("ref" to 5),
+            picture("z" to 13), picture("z" to -1), picture("w" to 0), picture("h" to 5000), picture("w" to "640"),
+            picture("x0" to Double.NaN), picture("y0" to 1e12), picture("x0" to 5)
+        )) {
+            h.call(A, HostApi.WEATHER_RADAR_IMAGE, bad).assertError(HostApi.Error.BAD_ARGUMENT)
+        }
+        assertTrue(tv.radarAsked.isEmpty())
+    }
+
+    @Test
+    fun radarCallsAreCountedApartFromOtherCallsAndLimitedOnTheirOwn() {
+        tv.radarPicture = com.portal.tv.weather.ProviderResult.Ok(png)
+        tv.install(A, page + Capability.WEATHER)
+        val h = handler()
+        // A dozen pictures for one view is normal and costs nothing against the ordinary limit.
+        repeat(HostLimits.CALLS_PER_MINUTE) { assertTrue(h.admit(A, HostApi.WEATHER_RADAR_IMAGE)) }
+        assertTrue(h.admit(A, HostApi.WEATHER_GET))
+        // But radar has its own ceiling.
+        var allowed = HostLimits.CALLS_PER_MINUTE
+        while (allowed < HostLimits.RADAR_PER_MINUTE + 5 && h.admit(A, HostApi.WEATHER_RADAR_IMAGE)) allowed++
+        assertEquals(HostLimits.RADAR_PER_MINUTE, allowed)
+    }
+
+    @Test
+    fun askingForFreshWeatherIsCountedAsAChange() {
+        tv.weather = WeatherSnapshot(report(), tv.now)
+        tv.install(A, page)
+        val h = HostHandler(tv, RateLimiter(2, 60_000L), RateLimiter(1, 60_000L))
+        assertTrue(h.call(A, HostApi.WEATHER_REPORT, mapOf("refresh" to true)).ok)
+        assertTrue(h.call(A, HostApi.WEATHER_ALERTS, mapOf("refresh" to true)).ok)
+        h.call(A, HostApi.WEATHER_REPORT, mapOf("refresh" to true)).assertError(HostApi.Error.RATE_LIMITED)
+        assertEquals(2, tv.refreshes)
+        // Reading what Portal already holds is not limited that way.
+        assertTrue(h.call(A, HostApi.WEATHER_REPORT, emptyMap()).ok)
+        assertEquals(2, tv.refreshes)
+    }
+
+    @Test
+    fun theReportCarriesWhatThePersonChoseForThePage() {
+        tv.weather = WeatherSnapshot(report(), tv.now)
+        tv.pageBackground = false
+        tv.showAlerts = false
+        tv.install(A, page)
+        val d = handler().call(A, HostApi.WEATHER_REPORT, emptyMap()).data
+        assertEquals(false, d["page_background"])
+        assertEquals(false, d["show_alerts"])
+    }
+
+    @Test
+    fun theSpotIsSavedOnAnAdultsProfileOnlyAndCountsAsAChange() {
+        tv.install(A, page)
+        val h = handler()
+        assertTrue(h.call(A, HostApi.WEATHER_SPOT, mapOf("lat" to 47.61, "lon" to -122.33)).ok)
+        assertEquals(47.61 to -122.33, tv.spot)
+        h.call(A, HostApi.WEATHER_SPOT, mapOf("lat" to 95.0, "lon" to 0.0)).assertError(HostApi.Error.BAD_ARGUMENT)
+        h.call(A, HostApi.WEATHER_SPOT, mapOf("lat" to 1)).assertError(HostApi.Error.BAD_ARGUMENT)
+        tv.spot = null
+        tv.profile = HostProfile(2, true)
+        h.call(A, HostApi.WEATHER_SPOT, mapOf("lat" to 47.61, "lon" to -122.33)).assertError(HostApi.Error.KID_PROFILE)
+        assertNull(tv.spot)
     }
 
     @Test

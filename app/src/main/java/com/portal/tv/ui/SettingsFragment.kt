@@ -1259,23 +1259,8 @@ class SettingsFragment : Fragment() {
     private fun setupWeatherSource(view: View) {
         val context = requireContext()
         val bundled = com.portal.tv.extensions.BundledExtension.WEATHER_PACKAGE
-        val source = setupChoiceRow(view, ChoiceRow(
-            R.id.row_weather_source, R.id.label_weather_source, R.id.weather_source_hint,
-            describe = "Weather from",
-            offers = { com.portal.tv.extensions.Capability.WEATHER_SOURCE in it.granted && it.weatherService != null },
-            selected = { com.portal.tv.weather.WeatherSource.selected(it) },
-            select = { c, pkg -> com.portal.tv.weather.WeatherSource.select(c, pkg ?: bundled) },
-            builtInLabel = null,
-            hint = { chosen, usable ->
-                when {
-                    chosen == bundled && usable -> "Comes with Portal: the forecast from Open-Meteo and US alerts from the National Weather Service."
-                    chosen == bundled -> "Portal's weather isn't installed here, or isn't allowed. Choose Install weather and confirm on the screen Android shows. Until then the weather won't update."
-                    !usable -> "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another."
-                    else -> "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts."
-                }
-            },
-            extraTile = { available ->
-                if (bundled in available) null else "Install weather" to {
+        // Installing the weather extension that ships with Portal: Android shows its own confirmation, so the answer here is only what to do next.
+        val installAction: () -> Unit = {
                     viewLifecycleOwner.lifecycleScope.launch {
                         val result = withContext(Dispatchers.IO) { com.portal.tv.extensions.BundledExtension.installIfNeeded(context, force = true) }
                         val say = when (result) {
@@ -1294,8 +1279,23 @@ class SettingsFragment : Fragment() {
                         }
                         Toast.makeText(context, say, Toast.LENGTH_LONG).show()
                     }
+        }
+        val source = setupChoiceRow(view, ChoiceRow(
+            R.id.row_weather_source, R.id.label_weather_source, R.id.weather_source_hint,
+            describe = "Weather from",
+            offers = { com.portal.tv.extensions.Capability.WEATHER_SOURCE in it.granted && it.weatherService != null },
+            selected = { com.portal.tv.weather.WeatherSource.selected(it) },
+            select = { c, pkg -> com.portal.tv.weather.WeatherSource.select(c, pkg ?: bundled) },
+            builtInLabel = null,
+            hint = { chosen, usable ->
+                when {
+                    chosen == bundled && usable -> "Comes with Portal: the forecast from Open-Meteo and US alerts from the National Weather Service."
+                    chosen == bundled -> "Portal's weather isn't installed here, or isn't allowed. Choose Install weather and confirm on the screen Android shows. Until then the weather won't update."
+                    !usable -> "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another."
+                    else -> "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts."
                 }
             },
+            extraTile = { available -> if (bundled in available) null else "Install weather" to installAction },
             // The old source's weather was forgotten; ask the new one now rather than at the next refresh.
             after = {
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -1309,18 +1309,24 @@ class SettingsFragment : Fragment() {
             describe = "Weather page by",
             offers = { com.portal.tv.extensions.Capability.WEATHER_PAGE in it.granted && it.weatherPage != null },
             selected = { com.portal.tv.weather.WeatherPage.selected(it) },
-            select = { c, pkg -> com.portal.tv.weather.WeatherPage.select(c, pkg) },
+            select = { c, pkg -> com.portal.tv.weather.WeatherPage.select(c, pkg ?: bundled) },
+            builtInLabel = null,
             hint = { chosen, usable ->
                 when {
-                    chosen == null -> "Built in: Portal's own weather page."
-                    !usable -> "The page you chose isn't available (removed, switched off or not allowed), so Portal's own page opens instead."
-                    else -> "An extension you chose opens when you press the time and weather. It can read the forecast, the alerts and where this TV roughly is, with the city's name. Kids always get Portal's own page."
+                    chosen == bundled && usable -> "Comes with Portal: the weather page, alerts and radar. Every profile, kids included, gets the page chosen here."
+                    chosen == bundled -> "Portal's weather isn't installed here, or isn't allowed. Choose Install weather and confirm on the screen Android shows. Until then the time and weather panel opens nothing."
+                    !usable -> "The page you chose isn't available (removed, switched off or not allowed), so the time and weather panel opens nothing. Pick another."
+                    else -> "An extension you chose opens when you press the time and weather, for every profile, kids included. It can read the forecast, the alerts, the radar and where this TV roughly is, with the city's name."
                 }
-            }
+            },
+            extraTile = { available -> if (bundled in available) null else "Install weather" to installAction }
         ))
         refreshWeatherSources = { source(); page() }
         // Installing the weather extension from here finishes later, with Android's own screen in between: show it when it lands.
-        com.portal.tv.extensions.BundledExtension.onInstalled = { view.post { source() } }
+        com.portal.tv.extensions.BundledExtension.onInstalled = {
+            // The Extensions page lists it too, and its own refresh (which also redoes these rows) came before the install finished.
+            view.post { refreshExtensions?.invoke() ?: run { source(); page() } }
+        }
         viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
             override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
                 com.portal.tv.extensions.BundledExtension.onInstalled = null

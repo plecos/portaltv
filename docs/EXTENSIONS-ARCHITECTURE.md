@@ -334,6 +334,8 @@ Design points that matter for review:
 | `tile.update` | `tiles` | Badge (6 chars) and subtitle (24); only for the extension's own declared tile ids |
 | `items.set/remove/list` | `bar` or `clock` (by the `area` argument) | Change words of declared items, remove them, add text lines, within 2 per area |
 | `weather.get` | `weather` | Reads Portal's cached weather as numbers; never touches the network; location rounded to 0.1 degree; works on kid profiles |
+| `weather.radar`, `weather.radar_image` | `weather-page` | The list of radar pictures and one picture (PNG bytes) from the weather source in use. Portal checks the list, and that a picture is a PNG of exactly the size asked and under 400 KB, and keeps recent ones for a short while. They have a separate limit of 300 calls a minute. The source's own keys never leave it |
+| `weather.spot` | `weather-page` | Saves an exact spot as the place the weather is for; counted as a change; refused on a kid profile |
 | `weather.report`, `weather.alerts` | `weather-page` | The whole cached report (Portal's own JSON format, location rounded to 0.1 degree, with the city's name) and the alerts in force, for an extension that is the weather page; never touches the network; works on kid profiles |
 
 Limits live in `HostLimits` (50 reminders, 80/60/140 character caps, 120 calls and 20 changes per minute, 8 item changes kept, a

@@ -556,6 +556,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
     }
 
     private fun bindWeather(r: WeatherReport) {
+        com.portal.tv.repo.MoonSky.where = com.portal.tv.repo.WeatherRepository.knownLocation(context)
         val metric = AppSettings.isMetric(context)
         val temp = if (metric) "${Math.round(r.tempC)}°C" else "${Math.round(r.tempC * 9.0 / 5.0 + 32.0)}°F"
         weatherIcon.removeAllViews()

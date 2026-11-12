@@ -27,12 +27,15 @@ class WeatherService : Service() {
     private val messenger = Messenger(object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
             val replyTo = msg.replyTo ?: return
-            val answer = when (msg.what) {
+            val answer: String? = when (msg.what) {
                 MSG_REPORT -> report(msg.data?.getString("city"))
                 MSG_ALERTS -> alerts()
-                else -> return
+                // A question this source doesn't answer (a city search, radar) still gets a reply, so Portal isn't left waiting.
+                else -> null
             }
-            val reply = Message.obtain(null, MSG_REPLY).apply { data = Bundle().apply { putString("json", answer) } }
+            val reply = Message.obtain(null, MSG_REPLY).apply {
+                data = Bundle().apply { if (answer != null) putString("json", answer) else putString("error", "Not offered") }
+            }
             runCatching { replyTo.send(reply) }
         }
     })

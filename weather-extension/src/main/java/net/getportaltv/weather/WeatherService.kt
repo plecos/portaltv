@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
+import android.util.Log
 import com.portal.tv.weather.WeatherJson
 import com.portal.tv.weather.WeatherPlace
 import com.portal.tv.weather.WeatherProtocol
@@ -34,7 +35,10 @@ class WeatherService : Service() {
                 val reply = Message.obtain(null, WeatherProtocol.MSG_REPLY).apply {
                     this.data = Bundle().apply {
                         when (answer) {
-                            is Fetched.Ok -> putString(WeatherProtocol.KEY_JSON, answer.value)
+                            is Fetched.Ok -> when (val v = answer.value) {
+                                is ByteArray -> putByteArray(WeatherProtocol.KEY_IMAGE, v)
+                                else -> putString(WeatherProtocol.KEY_JSON, v as String)
+                            }
                             is Fetched.Failed -> putString(WeatherProtocol.KEY_ERROR, answer.reason.take(WeatherProtocol.MAX_ERROR))
                         }
                     }
@@ -46,13 +50,16 @@ class WeatherService : Service() {
 
     override fun onBind(intent: Intent): IBinder = messenger.binder
 
+    private val radar = RadarSource()
+
     override fun onDestroy() {
         workers.shutdown()
+        radar.shutdown()
         super.onDestroy()
     }
 
-    /** The answer to one question, as the JSON Portal reads, or why there isn't one. Never throws past the caller. */
-    private fun answer(what: Int, data: Bundle?): Fetched<String> = when (what) {
+    /** The answer to one question, as the JSON Portal reads (or the bytes of a picture), or why there isn't one. Never throws past the caller. */
+    private fun answer(what: Int, data: Bundle?): Fetched<Any> = when (what) {
         WeatherProtocol.MSG_REPORT -> place(data)?.let { p ->
             when (val r = OpenMeteoSource(base("weather_debug", "forecast_base", OpenMeteoSource.DEFAULT_BASE)).fetch(p)) {
                 is Fetched.Ok -> Fetched.Ok(WeatherJson.encode(r.value))
@@ -71,6 +78,22 @@ class WeatherService : Service() {
                 is Fetched.Failed -> r
             }
         } ?: Fetched.Failed("No search")
+        WeatherProtocol.MSG_RADAR_INDEX -> place(data)?.let { p ->
+            when (val r = radar.index(p.lat, p.lon)) {
+                is Fetched.Ok -> Fetched.Ok(WeatherJson.encodeRadar(r.value))
+                is Fetched.Failed -> r
+            }
+        } ?: Fetched.Failed("No place")
+        WeatherProtocol.MSG_RADAR_IMAGE -> data?.let { d ->
+            // Only the named keys are read, each with its own typed getter; a missing or wrong-typed one is refused.
+            val ref = d.getString(WeatherProtocol.KEY_REF)
+            val x0 = d.getDouble(WeatherProtocol.KEY_X, Double.NaN)
+            val y0 = d.getDouble(WeatherProtocol.KEY_Y, Double.NaN)
+            if (ref == null || ref.length > 150) Fetched.Failed("Bad picture")
+            else radar.image(ref, d.getInt(WeatherProtocol.KEY_ZOOM, -1), x0, y0, d.getInt(WeatherProtocol.KEY_W, 0), d.getInt(WeatherProtocol.KEY_H, 0)).also {
+                if (BuildConfig.DEBUG) Log.d("PortalWeather", "radar picture $ref: " + (if (it is Fetched.Ok) "${it.value.size} bytes" else (it as Fetched.Failed).reason))
+            }
+        } ?: Fetched.Failed("Bad picture")
         else -> Fetched.Failed("Unknown question")
     }
 

@@ -3,14 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Behind everything: a weather video, or a drawn scene when there is none -->
-    <TextureView
-        android:id="@+id/weather_bg_video"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
-
-    <com.portal.tv.ui.WeatherEffectView
+    <!-- Behind everything: a drawn scene for the weather -->
+    <net.getportaltv.weather.page.WeatherEffectView
         android:id="@+id/weather_bg_effect"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -241,7 +235,7 @@
                     android:background="@drawable/bg_header_panel"
                     android:padding="12dp">
 
-                    <com.portal.tv.ui.RadarView
+                    <net.getportaltv.weather.page.RadarView
                         android:id="@+id/weather_radar"
                         android:layout_width="0dp"
                         android:layout_height="340dp"

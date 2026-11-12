@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Liquid glass" selection: translucent body, bright rim, and a soft top sheen. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Frosted body, lighter at the top -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#5CFFFFFF"
+                android:endColor="#1FFFFFFF" />
+            <corners android:radius="20dp" />
+            <stroke android:width="1.5dp" android:color="#B3FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Specular sheen across the upper edge -->
+    <item
+        android:left="2dp"
+        android:top="2dp"
+        android:right="2dp"
+        android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#66FFFFFF"
+                android:centerColor="#14FFFFFF"
+                android:endColor="#00FFFFFF"
+                android:centerY="0.35" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+</layer-list>

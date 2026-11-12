@@ -159,15 +159,15 @@ class HomeFragment : Fragment() {
                 .commit()
         }
 
-        // The time and weather panel opens the weather page: an extension's, if an adult chose one that can still be used, else Portal's own.
+        // The time and weather panel opens the weather page: the extension's that ships with Portal, or the one an adult chose.
         view.findViewById<View>(R.id.panel_weather).setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
                 val chosen = withContext(Dispatchers.IO) { com.portal.tv.weather.WeatherPage.intent(requireContext()) }
-                if (chosen != null && runCatching { startActivity(chosen) }.isSuccess) return@launch
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.container, WeatherFragment())
-                    .addToBackStack("weather")
-                    .commit()
+                if (chosen == null || runCatching { startActivity(chosen) }.isFailure) {
+                    android.widget.Toast.makeText(
+                        requireContext(), "The weather page isn't available. See Settings, Weather.", android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
 
@@ -1056,6 +1056,8 @@ class HomeFragment : Fragment() {
     private fun bindWeather(r: WeatherReport, stale: Boolean) {
         val context = context ?: return
         setWeatherErrorVisible(false)
+        // The moon in the icon is turned to match the sky at the weather's place.
+        com.portal.tv.repo.MoonSky.where = com.portal.tv.repo.WeatherRepository.knownLocation(context)
         val metric = AppSettings.isMetric(context)
         val tempDisplay = if (metric) "${Math.round(r.tempC)}°C"
         else "${Math.round(r.tempC * 9.0 / 5.0 + 32.0)}°F"

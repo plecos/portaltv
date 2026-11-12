@@ -99,7 +99,7 @@ object BundledExtension {
         val ext = ExtensionRegistry.find(context, WEATHER_PACKAGE) ?: return
         // Only the one signed with Portal's own key: the exact package name alone proves nothing.
         if (!ext.madeByPortal) return
-        if (ExtensionRegistry.allow(context, WEATHER_PACKAGE, setOf(Capability.WEATHER_SOURCE))) {
+        if (ExtensionRegistry.allow(context, WEATHER_PACKAGE, setOf(Capability.WEATHER_SOURCE, Capability.WEATHER_PAGE))) {
             prefs.edit().putBoolean("weather_allowed", true).apply()
             Log.d(TAG, "The weather extension that ships with Portal was allowed")
         }

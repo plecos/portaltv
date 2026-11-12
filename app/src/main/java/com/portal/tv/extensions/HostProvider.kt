@@ -47,7 +47,7 @@ class HostProvider : ContentProvider() {
     private fun dispatch(context: Context, caller: String, method: String, args: Bundle): Bundle {
         val handler = handler(context)
         // Cheapest first: anybody can reach this door and each step after this one costs more than the one before.
-        if (!handler.admit(caller)) return toBundle(HostReply.fail(HostApi.Error.RATE_LIMITED))
+        if (!handler.admit(caller, method)) return toBundle(HostReply.fail(HostApi.Error.RATE_LIMITED))
         // Then: is it an installed extension, found once for the whole call?
         val ext = handler.lookup(caller) ?: return toBundle(HostReply.fail(HostApi.Error.NOT_ALLOWED))
         // Nothing the caller sent is looked at unless an adult has allowed it something. (host.info needs no argument.)
@@ -71,6 +71,7 @@ class HostProvider : ContentProvider() {
                 is Double -> putDouble(key, value)
                 is Boolean -> putBoolean(key, value)
                 is String -> putString(key, value)
+                is ByteArray -> putByteArray(key, value)
                 is List<*> -> if (value.all { it is Map<*, *> }) {
                     putParcelableArrayList(key, ArrayList(value.map { m -> toBundle(HostReply.ok(@Suppress("UNCHECKED_CAST") (m as Map<String, Any?>))).apply { remove("ok") } }))
                 } else putStringArrayList(key, ArrayList(value.map { it.toString() }))
@@ -116,6 +117,9 @@ internal object HostArgs {
         // A real boolean gives the same answer for either default; any other type gives each default back.
         val b = args.getBoolean(key, false)
         if (b == args.getBoolean(key, true)) return b
+        // A double, if that is what it is (any other type gives NaN back).
+        val d = args.getDouble(key, Double.NaN)
+        if (!d.isNaN()) return d
         return null
     }
 }
@@ -143,6 +147,53 @@ private class RealHostEnv(private val context: Context) : HostEnv {
 
     override fun alerts() = com.portal.tv.repo.WeatherAlerts.cached(context)
     override fun metricUnits() = com.portal.tv.settings.AppSettings.isMetric(context)
+    override fun pageBackground() = com.portal.tv.settings.BackgroundSettings.getWeatherBackground(context)
+    override fun showAlerts() = com.portal.tv.settings.AppSettings.showWeatherAlerts(context)
+
+    override fun refreshWeather() {
+        // The call comes in on a binder thread, which may wait: a source that doesn't answer in time is given up on.
+        kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.withTimeoutOrNull(REFRESH_WAIT_MS) {
+                com.portal.tv.repo.WeatherRepository.load(context)
+                com.portal.tv.repo.WeatherAlerts.load(context, force = true)
+            }
+        }
+    }
+
+    override fun setSpot(lat: Double, lon: Double) = com.portal.tv.repo.WeatherRepository.setCustomSpot(context, lat, lon)
+
+    // The radar pictures Portal has just had from the source are kept briefly, since a page asks again as it is panned and replayed.
+    private val radarIndexes = HashMap<String, Pair<Long, com.portal.tv.weather.RadarIndex>>()
+    private val radarImages = object : LinkedHashMap<String, ByteArray>(16, 0.75f, true) {
+        var bytes = 0
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>): Boolean = false
+    }
+
+    private fun source() = com.portal.tv.weather.WeatherProviders.active(context)
+
+    @Synchronized
+    override fun radarIndex(lat: Double, lon: Double): com.portal.tv.weather.ProviderResult<com.portal.tv.weather.RadarIndex> {
+        val key = "%.1f,%.1f".format(java.util.Locale.US, lat, lon)
+        val now = SystemClock.elapsedRealtime()
+        radarIndexes[key]?.let { (at, index) -> if (now - at < INDEX_KEEP_MS) return com.portal.tv.weather.ProviderResult.Ok(index) }
+        val result = kotlinx.coroutines.runBlocking { source().radarIndex(com.portal.tv.weather.WeatherPlace(lat, lon, null)) }
+        if (result is com.portal.tv.weather.ProviderResult.Ok) radarIndexes[key] = now to result.value
+        return result
+    }
+
+    override fun radarImage(ref: String, zoom: Int, x0: Double, y0: Double, w: Int, h: Int): com.portal.tv.weather.ProviderResult<ByteArray> {
+        val key = "%s|%d|%.1f|%.1f|%d|%d".format(java.util.Locale.US, ref, zoom, x0, y0, w, h)
+        synchronized(radarImages) { radarImages[key]?.let { return com.portal.tv.weather.ProviderResult.Ok(it) } }
+        // Asked of the source outside the lock, so several pictures can be fetched at once.
+        val result = kotlinx.coroutines.runBlocking { source().radarImage(ref, zoom, x0, y0, w, h) }
+        if (result is com.portal.tv.weather.ProviderResult.Ok) synchronized(radarImages) {
+            radarImages[key] = result.value
+            radarImages.bytes += result.value.size
+            val it = radarImages.entries.iterator()
+            while (radarImages.bytes > IMAGE_KEEP_BYTES && it.hasNext()) { val e = it.next(); radarImages.bytes -= e.value.size; it.remove() }
+        }
+        return result
+    }
 
     /** The saved weather, read again only when a new one was saved, because extensions may ask often. */
     private var weatherMemo: Pair<Long, WeatherSnapshot?>? = null
@@ -154,5 +205,13 @@ private class RealHostEnv(private val context: Context) : HostEnv {
         val snapshot = com.portal.tv.repo.WeatherRepository.cached(context)?.report?.let { WeatherSnapshot(it, stamp) }
         weatherMemo = stamp to snapshot
         return snapshot
+    }
+
+    private companion object {
+        /** How long a call that asks for fresh weather waits for the source, at most. */
+        const val REFRESH_WAIT_MS = 25_000L
+        /** How long a list of radar pictures is reused, and how much of the pictures are kept. */
+        const val INDEX_KEEP_MS = 2 * 60_000L
+        const val IMAGE_KEEP_BYTES = 6_000_000
     }
 }

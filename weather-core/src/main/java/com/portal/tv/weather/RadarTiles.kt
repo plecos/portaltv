@@ -1,4 +1,4 @@
-package com.portal.tv.repo
+package com.portal.tv.weather
 
 import org.json.JSONObject
 import kotlin.math.PI

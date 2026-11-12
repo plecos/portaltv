@@ -1,4 +1,4 @@
-package com.portal.tv.ui
+package net.getportaltv.weather.page
 
 import android.content.Context
 import android.graphics.Canvas
@@ -10,6 +10,8 @@ import android.graphics.drawable.Drawable
 import android.graphics.Shader
 import android.view.View
 import com.portal.tv.background.WeatherBackground.Kind
+import com.portal.tv.repo.MoonPhase
+import com.portal.tv.ui.MoonPhotoDrawable
 import kotlin.math.sin
 import kotlin.random.Random
 

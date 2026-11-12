@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <com.portal.tv.ui.RadarView
+    <net.getportaltv.weather.page.RadarView
         android:id="@+id/radar_full"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

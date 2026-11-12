@@ -1,4 +1,4 @@
-package com.portal.tv.repo
+package net.getportaltv.weather.page
 
 import com.portal.tv.weather.WeatherDay
 import org.junit.Assert.assertEquals
