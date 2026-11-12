@@ -65,6 +65,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
+        clipChildren = false
     }
     /** The most serious weather alert, in its usual colour, under the weather; hidden when there is none. */
     private val alertBadge = text(ALERT_SP, bold = true).apply {
@@ -73,7 +74,11 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         setPadding(dp(16), dp(6), dp(16), dp(8))
     }
     private val greetingText = text(GREETING_SP, bold = true).apply { visibility = View.GONE }
-    private val clockBlock = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val clockBlock = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        clipChildren = false
+        clipToPadding = false
+    }
 
     private var surface: Surface? = null
     private var player: MediaPlayer? = null
@@ -577,13 +582,19 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         else resources.getFont(R.font.inter)
         setTextColor(if (secondary) Color.argb(200, 255, 255, 255) else Color.WHITE)
         // A soft shadow keeps the text readable over bright parts of a video.
-        setShadowLayer(18f, 0f, 2f, Color.argb(230, 0, 0, 0))
+        setShadowLayer(SHADOW_PX, 0f, 2f, Color.argb(230, 0, 0, 0))
+        // The view is only as wide as its text and clips to that, so give the blur room to fade out
+        // on every side instead of being cut off at the edge of the letters.
+        val room = Math.ceil(SHADOW_PX.toDouble()).toInt()
+        setPadding(room, room / 2, room, room / 2)
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private companion object {
         const val TAG = "Portal"
+        /** The blur radius of the text's drop shadow, in pixels. */
+        const val SHADOW_PX = 18f
         // The clock's sizes at Large, which is how it has always looked.
         const val TIME_SP = 72f
         const val WEATHER_SP = 26f
