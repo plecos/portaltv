@@ -156,6 +156,37 @@ class WeatherValidatorTest {
         assertEquals(WeatherValidator.MAX_ALERTS, alerts(*many)!!.size)
     }
 
+    // ---------- Cities ----------
+
+    private fun cities(vararg c: WeatherCity) = WeatherValidator.cities(WeatherJson.encodeCities(c.toList()))
+
+    @Test
+    fun sensibleCitiesAreAccepted() {
+        val list = cities(WeatherCity("Portland", "Oregon, US", 45.5, -122.7), WeatherCity("Portland", null, 43.7, -70.3))!!
+        assertEquals(2, list.size)
+        assertNull(list[1].region)
+    }
+
+    @Test
+    fun aCityThatCannotBeShownOrPlacedIsDroppedAndTheRestKept() {
+        val list = cities(
+            WeatherCity("Good", null, 10.0, 10.0),
+            WeatherCity("Evil‮gnirts", null, 10.0, 10.0),
+            WeatherCity("Off the map", null, 95.0, 10.0),
+            WeatherCity("Nowhere", null, 10.0, 200.0),
+            WeatherCity("x".repeat(WeatherValidator.MAX_CITY_NAME + 1), null, 10.0, 10.0)
+        )!!
+        assertEquals(listOf("Good"), list.map { it.name })
+    }
+
+    @Test
+    fun aLongListOfCitiesIsTrimmedAndNotAListIsRefused() {
+        val many = (1..30).map { WeatherCity("City $it", null, 1.0, 1.0) }.toTypedArray()
+        assertEquals(WeatherValidator.MAX_CITIES, cities(*many)!!.size)
+        assertNull(WeatherValidator.cities("{}"))
+        assertNull(WeatherValidator.cities("x".repeat(WeatherValidator.MAX_JSON + 1)))
+    }
+
     @Test
     fun notAListIsRefused() {
         assertNull(WeatherValidator.alerts("""{"a":1}""", "p", "n", now))

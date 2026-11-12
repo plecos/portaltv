@@ -34,7 +34,7 @@ object WeatherAlerts {
     fun cached(context: Context, now: OffsetDateTime = OffsetDateTime.now()): List<WeatherAlert> {
         val body = prefs(context).getString(ALERTS_KEY, null) ?: return emptyList()
         return runCatching { WeatherJson.decodeAlerts(body) }.getOrDefault(emptyList())
-            .filter { it.ends == null || !it.ends.isBefore(now) }
+            .filter { alert -> alert.ends.let { it == null || !it.isBefore(now) } }
     }
 
     /** Alerts for the weather location, from the cache when fresh (unless [force]), else from the weather source. */

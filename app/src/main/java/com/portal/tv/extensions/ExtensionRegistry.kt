@@ -63,6 +63,14 @@ object ExtensionRegistry {
         val pm = context.packageManager
         forgetUninstalled(context, pm)
         val apps = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+            .toMutableList()
+        // A running Portal can be handed a stale list of installed apps right after it installs the weather extension itself, so
+        // that one app is also asked for by name (which is always current).
+        if (apps.none { it.packageName == BundledExtension.WEATHER_PACKAGE }) {
+            runCatching {
+                pm.getApplicationInfo(BundledExtension.WEATHER_PACKAGE, PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+            }.getOrNull()?.let { apps += it }
+        }
         return apps.filter { it.packageName != context.packageName && it.enabled && it.metaData?.containsKey(META_KEY) == true }
             .map { describe(context, pm, it) }
             .sortedBy { it.name.lowercase() }

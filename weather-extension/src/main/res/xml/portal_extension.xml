@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Describes this extension to Portal. See docs/EXTENSIONS.md in the Portal repository. -->
+<portal-extension
+    contract="1"
+    id="weather"
+    label="@string/ext_name"
+    description="@string/ext_description">
+
+    <!-- Where Portal gets its weather and alerts: Open-Meteo for the forecast, the US National Weather Service for alerts. -->
+    <weather-source service=".WeatherService" />
+</portal-extension>

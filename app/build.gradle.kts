@@ -82,6 +82,40 @@ android {
     }
 }
 
+// The weather extension (:weather-extension) ships inside Portal: its APK, built for the same build type, is copied into the
+// app's assets as bundled/weather-extension.apk, and Portal installs it at first run (see BundledExtension). It is signed by
+// the same key as Portal, which is what lets Portal allow it without asking an adult.
+evaluationDependsOn(":weather-extension")
+
+abstract class EmbedWeatherApk : DefaultTask() {
+    @get:InputDirectory
+    abstract val apkDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val assetsDir: DirectoryProperty
+
+    @TaskAction
+    fun embed() {
+        val apk = apkDir.get().asFile.listFiles { f -> f.extension == "apk" }?.firstOrNull()
+            ?: throw GradleException("The weather extension's APK wasn't built in ${apkDir.get().asFile}")
+        val out = assetsDir.get().asFile.resolve("bundled").apply { mkdirs() }
+        out.listFiles()?.forEach { it.delete() }
+        apk.copyTo(out.resolve("weather-extension.apk"), overwrite = true)
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val cap = variant.name.replaceFirstChar { it.uppercase() }
+        val ext = project(":weather-extension")
+        val embed = tasks.register<EmbedWeatherApk>("embedWeatherExtension$cap") {
+            dependsOn(ext.tasks.named("assemble$cap"))
+            apkDir.set(ext.layout.buildDirectory.dir("outputs/apk/${variant.name}"))
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(embed, EmbedWeatherApk::assetsDir)
+    }
+}
+
 // Android lint runs from its own tool classpath, which the buildscript constraints in the root build.gradle.kts don't
 // reach. It pulls in the same libraries with security advisories, so pin them here too. Build-time only, not in the
 // APK. Drop an entry when the Android Gradle plugin ships a version at or above it.
@@ -104,6 +138,7 @@ configurations.configureEach {
 }
 
 dependencies {
+    implementation(project(":weather-core"))  // the shape of the weather and the protocol to a weather extension, shared with it
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)

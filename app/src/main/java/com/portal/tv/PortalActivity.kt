@@ -59,6 +59,10 @@ class PortalActivity : FragmentActivity() {
         // Watching for severe weather alerts carries on while another app is open.
         com.portal.tv.alerts.SevereAlertService.ensureRunning(this)
         com.portal.tv.reminders.ReminderService.ensureRunning(this)
+        // The weather comes from an extension that ships inside Portal: once setup is done, install it if it isn't there yet.
+        if (com.portal.tv.repo.Onboarding.isDone(this)) {
+            kotlin.concurrent.thread(name = "bundled-extensions") { com.portal.tv.extensions.BundledExtension.onStart(applicationContext) }
+        }
         // Keep the TV's start time in step with the screen saver's "Start after", which is the same for every
         // profile. Quietly: it only writes if Portal is already allowed to.
         com.portal.tv.adb.SelfSetup.syncStartAfterQuietly(this, ScreensaverSettings.idleMinutes(this))

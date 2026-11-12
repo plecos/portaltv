@@ -30,3 +30,5 @@ rootProject.name = "Portal"
 include(":app")
 include(":sample-extension")
 include(":conformance-extension")
+include(":weather-core")
+include(":weather-extension")

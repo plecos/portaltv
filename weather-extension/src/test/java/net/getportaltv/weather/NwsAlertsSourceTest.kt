@@ -1,5 +1,6 @@
-package com.portal.tv.weather
+package net.getportaltv.weather
 
+import com.portal.tv.weather.AlertSeverity
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals

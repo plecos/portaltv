@@ -1,7 +1,8 @@
-package com.portal.tv.weather
+package net.getportaltv.weather
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.portal.tv.weather.AlertSeverity
+import com.portal.tv.weather.WeatherAlert
+import com.portal.tv.weather.WeatherPlace
 import org.json.JSONObject
 import java.time.OffsetDateTime
 
@@ -11,21 +12,21 @@ import java.time.OffsetDateTime
  */
 internal class NwsAlertsSource(private val base: String = DEFAULT_BASE) {
 
-    suspend fun fetch(place: WeatherPlace): ProviderResult<List<WeatherAlert>> = withContext(Dispatchers.IO) {
+    fun fetch(place: WeatherPlace): Fetched<List<WeatherAlert>> {
         val point = "%.2f,%.2f".format(java.util.Locale.US, place.lat, place.lon)
-        val response = WeatherHttp.get(
+        val response = Http.get(
             "$base/alerts/active?point=$point",
-            userAgent = "Portal TV (https://github.com/plecos/portaltv)",
+            userAgent = "Portal TV Weather (https://github.com/plecos/portaltv)",
             accept = "application/geo+json"
         )
-        when {
+        return when {
             // A 404 or 400 means a place the service doesn't cover, which is simply no alerts.
-            response.code == 404 || response.code == 400 -> ProviderResult.Ok(emptyList())
-            !response.ok -> ProviderResult.Failed(response.failure ?: "Server error")
+            response.code == 404 || response.code == 400 -> Fetched.Ok(emptyList())
+            !response.ok -> Fetched.Failed(response.failure ?: "Server error")
             else -> try {
-                ProviderResult.Ok(parse(response.body!!))
+                Fetched.Ok(parse(response.body!!))
             } catch (e: Exception) {
-                ProviderResult.Failed("Weather error")
+                Fetched.Failed("Weather error")
             }
         }
     }
@@ -36,7 +37,8 @@ internal class NwsAlertsSource(private val base: String = DEFAULT_BASE) {
 
         /**
          * Serious enough to interrupt: a warning rated Severe or Extreme (Tornado, Severe Thunderstorm, Flash Flood and the
-         * like), or a Tornado Watch. Other warnings, watches and advisories are shown in colour but never cover an app.
+         * like), or a Tornado Watch. Other warnings, watches and advisories are shown in colour but never cover an app. Portal
+         * checks this again and limits it, so it is a request, not a decision.
          */
         internal fun interrupts(event: String, severity: AlertSeverity) =
             (event.endsWith("Warning", ignoreCase = true) && severity.rank >= AlertSeverity.SEVERE.rank) ||

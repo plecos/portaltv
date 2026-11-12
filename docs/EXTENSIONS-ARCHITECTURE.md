@@ -227,6 +227,27 @@ in its history is the same as Portal's own (`ownSigners`). The same signer test 
 Portal" instead of an unlisted-extension warning. This is why Scenic Travel (`net.getportaltv.scenic`) has to be signed with Portal's
 release key to be usable.
 
+### 4.9 The extension that ships with Portal
+
+**Files:** `BundledExtension.kt`, `weather-extension/` (the extension), `weather-core/` (what it shares with Portal).
+
+Portal fetches no weather itself: Open-Meteo, the National Weather Service and city search live in `net.getportaltv.weather`, an
+ordinary extension. Its APK is built by Gradle and embedded in Portal's assets, and it is signed with Portal's release key. The
+rules above are not loosened for it, with two exceptions that are narrow on purpose:
+
+- **Installing.** Portal installs it through Android's own installer, so Android still shows its confirmation. Portal asks at most
+  once for each of its own versions, and Settings, Weather has an "Install weather" button for anyone who declined.
+- **Allowing.** The first time Portal sees the package `net.getportaltv.weather` installed **and** signed with the same key as
+  Portal itself, it allows that one extension one capability, `weather-source`, without the PIN, so weather works out of the box.
+  It is not a rule for "extensions signed by Portal": the package name is part of the test. It happens once; after that an adult
+  can turn it off and Portal never turns it back on. If the package is uninstalled, what was allowed is forgotten like any
+  extension's, and a fresh copy is allowed once again.
+
+Its package name is reserved, and a reserved name is only usable when signed by Portal's key (4.8), so another app can't take its
+place. Its name has no "Portal" in it, because Portal refuses any extension name that could pass for part of itself, its own too.
+
+---
+
 ---
 
 ## 5. Text and picture safety

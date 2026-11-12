@@ -51,8 +51,17 @@ class ExtensionWeatherProvider(
         }
     }
 
+    override suspend fun searchCities(query: String): ProviderResult<List<WeatherCity>> {
+        val (answer, _) = ask(WeatherProtocol.MSG_SEARCH_CITIES, null, query)
+        return when (answer) {
+            is ProviderResult.Failed -> answer
+            is ProviderResult.Ok -> WeatherValidator.cities(answer.value)?.let { ProviderResult.Ok(it) }
+                ?: ProviderResult.Failed(UNUSABLE)
+        }
+    }
+
     /** The extension's raw answer, or why there is none; and the name to show it under. */
-    private suspend fun ask(what: Int, place: WeatherPlace): Pair<ProviderResult<String>, String> {
+    private suspend fun ask(what: Int, place: WeatherPlace?, query: String? = null): Pair<ProviderResult<String>, String> {
         // Checked again now: still installed, still signed by who was allowed, still allowed to supply the weather.
         val ext = withContext(Dispatchers.IO) { ExtensionRegistry.find(context, packageName) }
         val service = ext?.weatherService
@@ -60,14 +69,14 @@ class ExtensionWeatherProvider(
             return ProviderResult.Failed("It isn't available") to name
         }
         val result = try {
-            withTimeout(WeatherProtocol.ANSWER_TIMEOUT_MS) { exchange(service, what, place) }
+            withTimeout(WeatherProtocol.ANSWER_TIMEOUT_MS) { exchange(service, what, place, query) }
         } catch (e: TimeoutCancellationException) {
             ProviderResult.Failed("It didn't answer")
         }
         return result to ext.name
     }
 
-    private suspend fun exchange(service: String, what: Int, place: WeatherPlace): ProviderResult<String> =
+    private suspend fun exchange(service: String, what: Int, place: WeatherPlace?, query: String?): ProviderResult<String> =
         suspendCancellableCoroutine { cont ->
             var connection: ServiceConnection? = null
             fun finish(result: ProviderResult<String>) {
@@ -95,9 +104,12 @@ class ExtensionWeatherProvider(
                     val request = Message.obtain(null, what).apply {
                         replyTo = replies
                         data = Bundle().apply {
-                            putDouble(WeatherProtocol.KEY_LAT, WeatherProtocol.rounded(place.lat))
-                            putDouble(WeatherProtocol.KEY_LON, WeatherProtocol.rounded(place.lon))
-                            place.city?.let { putString(WeatherProtocol.KEY_CITY, it) }
+                            if (place != null) {
+                                putDouble(WeatherProtocol.KEY_LAT, WeatherProtocol.rounded(place.lat))
+                                putDouble(WeatherProtocol.KEY_LON, WeatherProtocol.rounded(place.lon))
+                                place.city?.let { putString(WeatherProtocol.KEY_CITY, it) }
+                            }
+                            query?.let { putString(WeatherProtocol.KEY_QUERY, it) }
                         }
                     }
                     if (runCatching { Messenger(binder).send(request) }.isFailure) finish(ProviderResult.Failed("Portal couldn't reach it"))

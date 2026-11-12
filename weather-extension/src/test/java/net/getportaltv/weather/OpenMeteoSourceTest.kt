@@ -1,4 +1,4 @@
-package com.portal.tv.weather
+package net.getportaltv.weather
 
 import org.json.JSONArray
 import org.json.JSONObject

@@ -63,6 +63,19 @@ class WeatherJsonTest {
     }
 
     @Test
+    fun citiesSurviveBeingSentAndRead() {
+        val cities = listOf(WeatherCity("Portland", "Oregon, US", 45.5, -122.7), WeatherCity("Portland", null, 43.7, -70.3))
+        assertEquals(cities, WeatherJson.decodeCities(WeatherJson.encodeCities(cities)))
+        assertEquals(emptyList<WeatherCity>(), WeatherJson.decodeCities("[]"))
+    }
+
+    @Test
+    fun aCityWithoutANameOrPlaceIsRefused() {
+        assertThrows(Exception::class.java) { WeatherJson.decodeCities("""[{"region":"x"}]""") }
+        assertThrows(Exception::class.java) { WeatherJson.decodeCities("""[{"name":"x"}]""") }
+    }
+
+    @Test
     fun anUnknownSeverityReadsAsUnknownRatherThanFailing() {
         val read = WeatherJson.decodeAlerts("""[{"id":"x","event":"Odd","severity":"Cosmic"}]""").single()
         assertEquals(AlertSeverity.UNKNOWN, read.severity)

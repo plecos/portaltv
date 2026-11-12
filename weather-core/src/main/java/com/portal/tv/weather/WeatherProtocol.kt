@@ -8,6 +8,9 @@ package com.portal.tv.weather
  * Request ([MSG_REPORT] or [MSG_ALERTS], `replyTo` set): [KEY_LAT], [KEY_LON] (rounded to a tenth of a degree) and, when Portal
  * has one, [KEY_CITY]. Reply ([MSG_REPLY]): [KEY_JSON], the answer in the format of [WeatherJson], or [KEY_ERROR], a few words
  * saying why not. Nothing else in the message is read.
+ *
+ * A city search ([MSG_SEARCH_CITIES]) carries [KEY_QUERY], what the person typed, and is answered with a JSON array of
+ * `{name, region, lat, lon}`.
  */
 object WeatherProtocol {
     const val ACTION = "net.getportaltv.WEATHER_SOURCE"
@@ -15,7 +18,9 @@ object WeatherProtocol {
     const val MSG_REPORT = 1
     const val MSG_ALERTS = 2
     const val MSG_REPLY = 3
+    const val MSG_SEARCH_CITIES = 4
 
+    const val KEY_QUERY = "query"
     const val KEY_LAT = "lat"
     const val KEY_LON = "lon"
     const val KEY_CITY = "city"

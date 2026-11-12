@@ -1,15 +1,17 @@
-package com.portal.tv.weather
+package net.getportaltv.weather
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.portal.tv.weather.WeatherDay
+import com.portal.tv.weather.WeatherHour
+import com.portal.tv.weather.WeatherPlace
+import com.portal.tv.weather.WeatherReport
 import org.json.JSONObject
 import java.time.LocalDate
 
 /** Current conditions and forecast from Open-Meteo (free, no API key). [base] is only different when a debug build points it at a test server. */
 internal class OpenMeteoSource(private val base: String = DEFAULT_BASE) {
 
-    suspend fun fetch(place: WeatherPlace): ProviderResult<WeatherReport> = withContext(Dispatchers.IO) {
-        try {
+    fun fetch(place: WeatherPlace): Fetched<WeatherReport> {
+        return try {
             val url = "$base/v1/forecast?latitude=${place.lat}&longitude=${place.lon}" +
                 "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
                 "wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,cloud_cover,is_day" +
@@ -17,18 +19,17 @@ internal class OpenMeteoSource(private val base: String = DEFAULT_BASE) {
                 "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max," +
                 "sunrise,sunset,uv_index_max,precipitation_sum,wind_speed_10m_max,snowfall_sum" +
                 "&timezone=auto&forecast_days=7"
-            val response = WeatherHttp.get(url)
-            val body = response.body.takeIf { response.ok }
-                ?: return@withContext ProviderResult.Failed(response.failure ?: "Weather error")
-            ProviderResult.Ok(parse(JSONObject(body), place.city).copy(aqi = airQuality(place)))
+            val response = Http.get(url)
+            val body = response.body.takeIf { response.ok } ?: return Fetched.Failed(response.failure ?: "Weather error")
+            Fetched.Ok(parse(JSONObject(body), place.city).copy(aqi = airQuality(place)))
         } catch (e: Exception) {
-            ProviderResult.Failed("Weather error")
+            Fetched.Failed("Weather error")
         }
     }
 
     /** The US air quality index here now, or null. Best effort: a failure never fails the weather. */
     private fun airQuality(place: WeatherPlace): Int? {
-        val response = WeatherHttp.get(
+        val response = Http.get(
             "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${place.lat}&longitude=${place.lon}" +
                 "&current=us_aqi"
         )

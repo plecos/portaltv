@@ -18,6 +18,8 @@ local.properties
 /.idea/
 /sample-extension/build
 /conformance-extension/build
+/weather-core/build
+/weather-extension/build
 conformance-logcat.txt
 
 # Catalog signing keys: the real private key must never be committed (only the labelled test key is).

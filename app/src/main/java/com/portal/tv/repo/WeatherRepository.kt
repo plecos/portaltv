@@ -98,27 +98,11 @@ object WeatherRepository {
             .apply()
     }
 
-    /** City search for the Settings picker. Null on a network failure, empty when nothing matches. */
-    suspend fun searchCities(query: String): List<GeoResult>? = withContext(Dispatchers.IO) {
-        val url = "https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=" +
-            java.net.URLEncoder.encode(query.trim(), "UTF-8")
-        val body = WeatherHttp.get(url).body ?: return@withContext null
-        try {
-            val results = JSONObject(body).optJSONArray("results") ?: return@withContext emptyList()
-            (0 until results.length()).map { i ->
-                val o = results.getJSONObject(i)
-                GeoResult(
-                    name = o.getString("name"),
-                    region = listOfNotNull(
-                        o.optString("admin1").takeIf { it.isNotEmpty() },
-                        o.optString("country_code").takeIf { it.isNotEmpty() }
-                    ).joinToString(", ").takeIf { it.isNotEmpty() },
-                    lat = o.getDouble("latitude"),
-                    lon = o.getDouble("longitude")
-                )
-            }
-        } catch (e: Exception) {
-            null
+    /** City search for the Settings picker, answered by the weather source in use. Null if it couldn't search, empty when nothing matches. */
+    suspend fun searchCities(context: Context, query: String): List<GeoResult>? = withContext(Dispatchers.IO) {
+        when (val result = WeatherProviders.active(context).searchCities(query.trim())) {
+            is ProviderResult.Failed -> null
+            is ProviderResult.Ok -> result.value.map { GeoResult(it.name, it.region, it.lat, it.lon) }
         }
     }
 

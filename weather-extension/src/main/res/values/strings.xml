@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No "Portal" in the names: Portal refuses any extension name that could pass for part of itself, even its own.
+         Short, too: it is a button in Settings, Weather, Weather source. -->
+    <string name="app_name">Open-Meteo + NWS</string>
+    <string name="ext_name">Open-Meteo + NWS</string>
+    <string name="ext_description">The weather that comes with Portal: the forecast from Open-Meteo and US alerts from the National Weather Service.</string>
+</resources>

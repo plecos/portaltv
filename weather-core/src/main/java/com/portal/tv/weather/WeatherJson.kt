@@ -9,7 +9,7 @@ import java.time.OffsetDateTime
  * The saved form of a report and of alerts: Portal's own format, not any service's, so what is kept on the TV reads back
  * the same whichever source produced it. Reading is strict about what must be there and forgiving about what may be missing.
  */
-internal object WeatherJson {
+object WeatherJson {
 
     private fun JSONObject.number(name: String): Double? =
         if (has(name) && !isNull(name)) optDouble(name, Double.NaN).takeIf { !it.isNaN() } else null
@@ -71,6 +71,20 @@ internal object WeatherJson {
             cloudCover = o.number("cloud_cover")?.toInt(), visibilityKm = o.number("visibility_km"),
             uvIndex = o.number("uv_index"), aqi = o.number("aqi")?.toInt()
         )
+    }
+
+    // ---------- Cities ----------
+
+    fun encodeCities(cities: List<WeatherCity>): String = JSONArray(cities.map { c ->
+        JSONObject().put("name", c.name).put("region", c.region).put("lat", c.lat).put("lon", c.lon)
+    }).toString()
+
+    fun decodeCities(json: String): List<WeatherCity> {
+        val list = JSONArray(json)
+        return (0 until list.length()).map { i ->
+            val c = list.getJSONObject(i)
+            WeatherCity(c.getString("name"), c.text("region"), c.getDouble("lat"), c.getDouble("lon"))
+        }
     }
 
     // ---------- Alerts ----------

@@ -102,7 +102,7 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | `reminders` | `<uses capability="reminders"/>` | Add and change reminders that belong to you. |
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
 | `weather` | `<uses capability="weather"/>` | Read the current weather and where the TV roughly is (to within about 10 km). |
-| `weather-source` | declaring `<weather-source>` | Be where Portal gets its weather and alerts, when an adult chooses you under Settings, Weather. |
+| `weather-source` | declaring `<weather-source>` | Be where Portal gets its weather, alerts and city search, when an adult chooses you under Settings, Weather. |
 | `weather-page` | declaring `<weather-page>` | Be the weather page that opens from the home screen, when an adult chooses you under Settings, Weather. You can read the full forecast and alerts, and where the TV roughly is, with the city's name. |
 
 A capability name Portal doesn't know is never granted. You can list one for a newer Portal and it is ignored by older ones.
@@ -234,10 +234,11 @@ removed when `tiles` is turned off for you or you are uninstalled.
 
 ## Supplying the weather
 
-An extension with `weather-source` allowed can be chosen under Settings, Weather, Weather source, in place of the built-in
-forecast (Open-Meteo) and alerts (US National Weather Service). One source is used at a time, and none stands in for it: if yours
-can't answer, Portal keeps showing the last weather it had, marked as old. Portal asks on its own schedule, so you need no timer or
-background work; you only answer.
+Portal fetches no weather itself. Where it comes from is an extension: the one that ships inside Portal (`net.getportaltv.weather`,
+the forecast from Open-Meteo and US alerts from the National Weather Service), or yours, if an adult chooses it under Settings,
+Weather, Weather source. One source is used at a time, and none stands in for it: if the one in use can't answer, Portal keeps
+showing the last weather it had, marked as old. Portal asks on its own schedule, so you need no timer or background work; you
+only answer.
 
 Declare a service, and export it with the action `net.getportaltv.WEATHER_SOURCE`:
 
@@ -247,7 +248,9 @@ Declare a service, and export it with the action `net.getportaltv.WEATHER_SOURCE
 
 Portal binds to it for one question at a time. The question is a `Message` with `replyTo` set and a `Bundle` holding `lat` and `lon`
 (doubles, rounded to a tenth of a degree, about 10 km) and sometimes `city` (a name to show). `what` is `1` for the weather and `2`
-for the alerts. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
+for the alerts. A third question, `4`, is a city search: the `Bundle` holds `query` (what the person typed, up to 80 characters)
+and you answer with a JSON array of up to ten `{name, region, lat, lon}` (`region`, such as a state and country, is optional), so
+the person can choose where the weather is for. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
 words, at most 40 characters, saying why not). You have 20 seconds. `sample-extension` has a complete example, `WeatherService`.
 
 **The weather** (`what` = 1) is one JSON object. Temperatures are °C, speeds km/h, and every `code` is a WMO weather

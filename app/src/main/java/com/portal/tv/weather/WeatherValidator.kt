@@ -91,6 +91,20 @@ object WeatherValidator {
         }
     }
 
+    const val MAX_CITIES = 10
+    const val MAX_CITY_NAME = 60
+
+    /** The cities in [json] that are valid, at most [MAX_CITIES]. A bad one is dropped, not the rest. Null if [json] isn't a list at all. */
+    fun cities(json: String): List<WeatherCity>? {
+        if (json.length > MAX_JSON) return null
+        val read = try { WeatherJson.decodeCities(json) } catch (e: Exception) { return null }
+        return read.take(MAX_CITIES).mapNotNull { c ->
+            val name = text(c.name, MAX_CITY_NAME)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            if (!between(c.lat, -90.0, 90.0) || !between(c.lon, -180.0, 180.0)) return@mapNotNull null
+            WeatherCity(name, c.region?.let { text(it, MAX_CITY_NAME) }?.takeIf { it.isNotEmpty() }, c.lat, c.lon)
+        }
+    }
+
     /** [value] with its line breaks turned into spaces, or null if it is too long or has anything that can't be shown. */
     private fun text(value: String, max: Int): String? {
         val flat = value.replace(Regex("[\\r\\n\\t]+"), " ").trim()
