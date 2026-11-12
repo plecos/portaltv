@@ -1814,6 +1814,40 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="32dp" />
 
+            <!-- Weather page: Portal's own, or the screen of an extension an adult has allowed -->
+            <TextView
+                android:id="@+id/label_weather_page"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Weather page"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:clipToPadding="false">
+
+                <LinearLayout
+                    android:id="@+id/row_weather_page"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <TextView
+                android:id="@+id/weather_page_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="32dp" />
+
             </LinearLayout>
         </ScrollView>
 

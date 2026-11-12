@@ -23,9 +23,10 @@ object Capability {
     const val BACKGROUND = "background"
     const val WEATHER = "weather"
     const val WEATHER_SOURCE = "weather-source"
+    const val WEATHER_PAGE = "weather-page"
 
     /** The capabilities this version of Portal knows, in the order they are shown. */
-    val known = listOf(TILES, SETTINGS, BAR, CLOCK, BACKGROUND, REMINDERS, CARDS, WEATHER, WEATHER_SOURCE)
+    val known = listOf(TILES, SETTINGS, BAR, CLOCK, BACKGROUND, REMINDERS, CARDS, WEATHER, WEATHER_SOURCE, WEATHER_PAGE)
 
     /** What turning it on means, in plain words. */
     fun describe(capability: String): String = when (capability) {
@@ -38,6 +39,7 @@ object Capability {
         CARDS -> "Show cards over other apps"
         WEATHER -> "Read the current weather and where this TV roughly is (to within about 10 km)"
         WEATHER_SOURCE -> "Be where Portal gets its weather and weather alerts, if you choose it in Settings. Portal tells it where this TV roughly is (to within about 10 km) and shows what it answers, including alerts"
+        WEATHER_PAGE -> "Be the weather page that opens from the home screen, if you choose it in Settings. It can read the full forecast and alerts, and where this TV roughly is (to within about 10 km), including the city name"
         else -> "Something this version of Portal doesn't know ($capability)"
     }
 }
@@ -91,7 +93,9 @@ data class ExtensionManifest(
     /** Whether its background asked to be sent left and right presses while it is the screen saver (`screenSaverKeys="true"`). */
     val backgroundKeys: Boolean = false,
     /** Full class name of the service Portal asks for the weather and alerts, if it offers to be a weather source. */
-    val weatherService: String? = null
+    val weatherService: String? = null,
+    /** Full class name of the screen that opens in place of Portal's weather page, if it offers one. */
+    val weatherPage: String? = null
 )
 
 /**
@@ -149,6 +153,7 @@ object ManifestParser {
         var background: String? = null
         var backgroundKeys = false
         var weatherService: String? = null
+        var weatherPage: String? = null
 
         for (child in root.children) {
             when (child.name) {
@@ -185,6 +190,11 @@ object ManifestParser {
                     weatherService = child.attr("service")?.let { className(it, packageName) }
                         ?: return Result.Invalid("Its weather source names no service.")
                 }
+                "weather-page" -> {
+                    if (weatherPage != null) return Result.Invalid("It has more than one weather page.")
+                    weatherPage = child.attr("activity")?.let { className(it, packageName) }
+                        ?: return Result.Invalid("Its weather page names no activity.")
+                }
                 "bar-button", "bar-text", "clock-button", "clock-text" -> {
                     val area = if (child.name.startsWith("bar")) ItemArea.BAR else ItemArea.CLOCK
                     val button = child.name.endsWith("button")
@@ -214,8 +224,9 @@ object ManifestParser {
         items.forEach { capabilities += it.area.capability }
         if (background != null) capabilities += Capability.BACKGROUND
         if (weatherService != null) capabilities += Capability.WEATHER_SOURCE
+        if (weatherPage != null) capabilities += Capability.WEATHER_PAGE
         val ordered = Capability.known.filter { it in capabilities }.toCollection(linkedSetOf())
-        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background, root.attrs["icon"]?.resId ?: 0, backgroundKeys, weatherService))
+        return Result.Ok(ExtensionManifest(id, label, description, contract, ordered, unknown, tiles, settings, items, background, root.attrs["icon"]?.resId ?: 0, backgroundKeys, weatherService, weatherPage))
     }
 
     /** ".Foo" and "Foo" are inside the extension's own package; a name with a package in it is used as written. */

@@ -159,12 +159,16 @@ class HomeFragment : Fragment() {
                 .commit()
         }
 
-        // The time and weather panel opens the weather page.
+        // The time and weather panel opens the weather page: an extension's, if an adult chose one that can still be used, else Portal's own.
         view.findViewById<View>(R.id.panel_weather).setOnClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.container, WeatherFragment())
-                .addToBackStack("weather")
-                .commit()
+            viewLifecycleOwner.lifecycleScope.launch {
+                val chosen = withContext(Dispatchers.IO) { com.portal.tv.weather.WeatherPage.intent(requireContext()) }
+                if (chosen != null && runCatching { startActivity(chosen) }.isSuccess) return@launch
+                parentFragmentManager.beginTransaction()
+                    .replace(R.id.container, WeatherFragment())
+                    .addToBackStack("weather")
+                    .commit()
+            }
         }
 
         // Kids get the settings button too, with only the background, app layout and weather units in it.

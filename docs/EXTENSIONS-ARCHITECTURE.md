@@ -313,6 +313,7 @@ Design points that matter for review:
 | `tile.update` | `tiles` | Badge (6 chars) and subtitle (24); only for the extension's own declared tile ids |
 | `items.set/remove/list` | `bar` or `clock` (by the `area` argument) | Change words of declared items, remove them, add text lines, within 2 per area |
 | `weather.get` | `weather` | Reads Portal's cached weather as numbers; never touches the network; location rounded to 0.1 degree; works on kid profiles |
+| `weather.report`, `weather.alerts` | `weather-page` | The whole cached report (Portal's own JSON format, location rounded to 0.1 degree, with the city's name) and the alerts in force, for an extension that is the weather page; never touches the network; works on kid profiles |
 
 Limits live in `HostLimits` (50 reminders, 80/60/140 character caps, 120 calls and 20 changes per minute, 8 item changes kept, a
 reminder at most two years ahead). `RateLimiter` is a per-package sliding window kept in memory only, so a restart starts fresh.

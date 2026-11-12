@@ -47,6 +47,33 @@ class WeatherSourceManifestTest {
     }
 
     @Test
+    fun aWeatherPageIsReadAndImpliesItsCapability() {
+        val m = ok("""<weather-page activity=".PageActivity"/>""")
+        assertEquals("net.example.skies.PageActivity", m.weatherPage)
+        assertTrue(Capability.WEATHER_PAGE in m.capabilities)
+        assertNull(m.weatherService)
+    }
+
+    @Test
+    fun aSourceAndAPageCanBeOfferedTogether() {
+        val m = ok("""<weather-source service=".S"/><weather-page activity=".P"/>""")
+        assertTrue(Capability.WEATHER_SOURCE in m.capabilities && Capability.WEATHER_PAGE in m.capabilities)
+    }
+
+    @Test
+    fun twoWeatherPagesOrOneWithoutAnActivityAreRefused() {
+        assertTrue(parse("""<weather-page activity=".A"/><weather-page activity=".B"/>""") is ManifestParser.Result.Invalid)
+        assertTrue(parse("""<weather-page/>""") is ManifestParser.Result.Invalid)
+    }
+
+    @Test
+    fun theWeatherPageCapabilityIsDescribedWithWhatItCanSee() {
+        assertTrue(Capability.WEATHER_PAGE in Capability.known)
+        val words = Capability.describe(Capability.WEATHER_PAGE)
+        assertTrue(words.contains("10 km") && words.contains("city"))
+    }
+
+    @Test
     fun theCapabilityIsKnownAndDescribed() {
         assertTrue(Capability.WEATHER_SOURCE in Capability.known)
         assertTrue(Capability.describe(Capability.WEATHER_SOURCE).contains("10 km"))

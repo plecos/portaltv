@@ -18,6 +18,8 @@ object HostApi {
     const val ITEMS_LIST = "items.list"
     const val TILE_UPDATE = "tile.update"
     const val WEATHER_GET = "weather.get"
+    const val WEATHER_REPORT = "weather.report"
+    const val WEATHER_ALERTS = "weather.alerts"
 
     /** The argument names a call may carry. Anything else the caller puts in its Bundle is ignored, unread. */
     val ARG_KEYS = listOf(

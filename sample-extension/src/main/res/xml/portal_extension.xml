@@ -22,6 +22,9 @@
     <!-- Offers to be where Portal gets its weather and alerts, when chosen in Settings, Weather. Portal asks; this answers. -->
     <weather-source service=".WeatherService" />
 
+    <!-- Offers a weather page: opens in place of Portal's own when chosen in Settings, Weather, Weather page. -->
+    <weather-page activity=".WeatherPageActivity" />
+
     <!-- Things on the home screen: Portal draws them. At most two per area. -->
     <bar-button id="lights" label="@string/bar_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
     <bar-text id="mode" text="@string/bar_mode" />

@@ -1161,22 +1161,33 @@ class SettingsFragment : Fragment() {
         highlight()
     }
 
-    /**
-     * Where the weather comes from: the one built in, or an extension an adult has allowed to supply it. One at a time, and no
-     * other stands in if it can't answer: Portal keeps showing the last weather it had, marked as old.
-     */
-    private fun setupWeatherSource(view: View) {
+    /** One row of choices on the Weather page: Portal's own, then each extension that may do the job right now. */
+    private class ChoiceRow(
+        val rowId: Int, val labelId: Int, val hintId: Int,
+        /** What each tile is for, for the screen reader: "Weather from X". */
+        val describe: String,
+        val offers: (com.portal.tv.extensions.Extension) -> Boolean,
+        val selected: (android.content.Context) -> String?,
+        val select: (android.content.Context, String?) -> Unit,
+        val builtInHint: String,
+        val unavailableHint: String,
+        val extensionHint: String,
+        val after: () -> Unit = {}
+    )
+
+    /** Fills a [ChoiceRow] and returns what looks the extensions up again (an extension may have been allowed or changed). */
+    private fun setupChoiceRow(view: View, spec: ChoiceRow): () -> Unit {
         val context = requireContext()
-        val row = view.findViewById<android.widget.LinearLayout>(R.id.row_weather_source)
-        val hint = view.findViewById<TextView>(R.id.weather_source_hint)
-        // Which source to trust is an adult's choice.
+        val row = view.findViewById<android.widget.LinearLayout>(spec.rowId)
+        val hint = view.findViewById<TextView>(spec.hintId)
+        // Which extension to trust is an adult's choice.
         if (com.portal.tv.repo.ProfileManager.isActiveKids(context)) {
-            listOf(R.id.label_weather_source, R.id.weather_source_hint).forEach { view.findViewById<View>(it).visibility = View.GONE }
+            listOf(spec.labelId, spec.hintId).forEach { view.findViewById<View>(it).visibility = View.GONE }
             (row.parent as View).visibility = View.GONE
-            return
+            return {}
         }
         val dp = resources.displayMetrics.density
-        // The built-in tile, then one for each extension that may supply the weather right now.
+        // The built-in tile, then one for each extension that may do the job right now.
         val tiles = mutableListOf<Pair<String?, TextView>>()
         var available = emptySet<String>()
 
@@ -1186,13 +1197,13 @@ class SettingsFragment : Fragment() {
         }
 
         fun highlight() {
-            val chosen = com.portal.tv.weather.WeatherSource.selected(context)
+            val chosen = spec.selected(context)
             val usable = chosen == null || chosen in available
             tiles.forEach { (pkg, tv) -> style(tv, usable && pkg == chosen) }
             hint.text = when {
-                chosen == null -> "Built in: the forecast from Open-Meteo and US alerts from the National Weather Service."
-                !usable -> "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another."
-                else -> "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts."
+                chosen == null -> spec.builtInHint
+                !usable -> spec.unavailableHint
+                else -> spec.extensionHint
             }
         }
 
@@ -1209,35 +1220,64 @@ class SettingsFragment : Fragment() {
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (48 * dp).toInt()
             ).apply { if (pkg != null) marginStart = (12 * dp).toInt() }
-            contentDescription = "Weather from $label"
+            contentDescription = "${spec.describe} $label"
             setOnClickListener {
-                com.portal.tv.weather.WeatherSource.select(context, pkg)
-                Log.d("Portal", "settings: weather source=${pkg ?: "built in"}")
+                spec.select(context, pkg)
+                Log.d("Portal", "settings: ${spec.describe} ${pkg ?: "built in"}")
                 highlight()
-                // The old source's weather was forgotten; ask the new one now rather than at the next refresh.
+                spec.after()
+            }
+        }
+
+        val load = { viewLifecycleOwner.lifecycleScope.launch {
+            val found = withContext(Dispatchers.IO) { com.portal.tv.extensions.ExtensionRegistry.scan(context).filter(spec.offers) }
+            available = found.map { it.packageName }.toSet()
+            tiles.forEach { row.removeView(it.second) }
+            tiles.clear()
+            tiles += null to tile("Built in", null)
+            found.forEach { tiles += it.packageName to tile(it.name, it.packageName) }
+            tiles.forEach { row.addView(it.second) }
+            highlight()
+        } }
+        load()
+        return { load() }
+    }
+
+    /**
+     * Where the weather comes from, and which page shows it. Each is Portal's own or an extension an adult has allowed, and
+     * one at a time. If the chosen source can't answer, nothing stands in: Portal keeps the last weather it had, marked as old.
+     * A chosen page that can't be opened is replaced by Portal's own, so the panel always opens something.
+     */
+    private fun setupWeatherSource(view: View) {
+        val context = requireContext()
+        val source = setupChoiceRow(view, ChoiceRow(
+            R.id.row_weather_source, R.id.label_weather_source, R.id.weather_source_hint,
+            describe = "Weather from",
+            offers = { com.portal.tv.extensions.Capability.WEATHER_SOURCE in it.granted && it.weatherService != null },
+            selected = { com.portal.tv.weather.WeatherSource.selected(it) },
+            select = { c, pkg -> com.portal.tv.weather.WeatherSource.select(c, pkg) },
+            builtInHint = "Built in: the forecast from Open-Meteo and US alerts from the National Weather Service.",
+            unavailableHint = "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another.",
+            extensionHint = "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts.",
+            // The old source's weather was forgotten; ask the new one now rather than at the next refresh.
+            after = {
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                     WeatherRepository.load(context)
                     com.portal.tv.repo.WeatherAlerts.load(context, force = true)
                 }
             }
-        }
-
-        val load = { viewLifecycleOwner.lifecycleScope.launch {
-            val sources = withContext(Dispatchers.IO) {
-                com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
-                    com.portal.tv.extensions.Capability.WEATHER_SOURCE in it.granted && it.weatherService != null
-                }
-            }
-            available = sources.map { it.packageName }.toSet()
-            tiles.forEach { row.removeView(it.second) }
-            tiles.clear()
-            tiles += null to tile("Built in", null)
-            sources.forEach { tiles += it.packageName to tile(it.name, it.packageName) }
-            tiles.forEach { row.addView(it.second) }
-            highlight()
-        } }
-        refreshWeatherSources = { load() }
-        load()
+        ))
+        val page = setupChoiceRow(view, ChoiceRow(
+            R.id.row_weather_page, R.id.label_weather_page, R.id.weather_page_hint,
+            describe = "Weather page by",
+            offers = { com.portal.tv.extensions.Capability.WEATHER_PAGE in it.granted && it.weatherPage != null },
+            selected = { com.portal.tv.weather.WeatherPage.selected(it) },
+            select = { c, pkg -> com.portal.tv.weather.WeatherPage.select(c, pkg) },
+            builtInHint = "Built in: Portal's own weather page.",
+            unavailableHint = "The page you chose isn't available (removed, switched off or not allowed), so Portal's own page opens instead.",
+            extensionHint = "An extension you chose opens when you press the time and weather. It can read the forecast, the alerts and where this TV roughly is, with the city's name. Kids always get Portal's own page."
+        ))
+        refreshWeatherSources = { source(); page() }
     }
 
     private fun setupUnits(view: View) {

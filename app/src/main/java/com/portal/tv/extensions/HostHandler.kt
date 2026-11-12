@@ -3,6 +3,8 @@ package com.portal.tv.extensions
 import com.portal.tv.BuildConfig
 import com.portal.tv.reminders.Reminder
 import com.portal.tv.reminders.ReminderTones
+import com.portal.tv.weather.WeatherAlert
+import com.portal.tv.weather.WeatherJson
 
 /** An answer to a host call: `ok`, or `error` from [HostApi.Error], plus any values (strings, numbers, lists of strings or of maps). */
 class HostReply(val ok: Boolean, val error: String? = null, val data: Map<String, Any?> = emptyMap()) {
@@ -46,6 +48,10 @@ interface HostEnv {
     fun showCard(from: String, title: String, text: String, seconds: Int): Boolean
     /** The weather Portal last fetched (no network is touched), or null if it has none. */
     fun weather(): WeatherSnapshot?
+    /** The alerts Portal last fetched that are still in force (no network is touched). */
+    fun alerts(): List<WeatherAlert>
+    /** Whether the person shows the weather in metric units; a weather page follows it. */
+    fun metricUnits(): Boolean
 }
 
 /**
@@ -86,12 +92,15 @@ class HostHandler(
             HostApi.CARD_SHOW -> Capability.CARDS
             HostApi.TILE_UPDATE -> Capability.TILES
             HostApi.WEATHER_GET -> Capability.WEATHER
+            HostApi.WEATHER_REPORT, HostApi.WEATHER_ALERTS -> Capability.WEATHER_PAGE
             HostApi.ITEMS_SET, HostApi.ITEMS_REMOVE, HostApi.ITEMS_LIST -> area(args)?.capability ?: return HostReply.fail(HostApi.Error.BAD_ARGUMENT)
             else -> return HostReply.fail(HostApi.Error.NO_SUCH_METHOD)
         }
         if (needs !in ext.granted) return HostReply.fail(HostApi.Error.NOT_ALLOWED)
         // The weather is shown to everyone on Portal's own weather page, kids included, so it is given to whoever is using the TV.
         if (method == HostApi.WEATHER_GET) return weather()
+        if (method == HostApi.WEATHER_REPORT) return weatherReport()
+        if (method == HostApi.WEATHER_ALERTS) return weatherAlerts()
         val profile = env.activeProfile() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
         if (profile.isKids) return HostReply.fail(HostApi.Error.KID_PROFILE)
         val changes = method != HostApi.REMINDERS_LIST && method != HostApi.ITEMS_LIST
@@ -133,6 +142,28 @@ class HostHandler(
         val snapshot = env.weather() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
         return HostReply.ok(WeatherForExtensions.from(snapshot, env.nowMillis()))
     }
+
+    /**
+     * The whole report, for a weather page: Portal's own format (see [WeatherJson]), with the place rounded to a tenth of a
+     * degree like `weather.get` (the city's name is the one the person chose or Portal worked out, so it is given as it is).
+     */
+    private fun weatherReport(): HostReply {
+        val snapshot = env.weather() ?: return HostReply.fail(HostApi.Error.UNAVAILABLE)
+        val r = snapshot.report
+        val rounded = r.copy(latitude = WeatherForExtensions.tenth(r.latitude), longitude = WeatherForExtensions.tenth(r.longitude))
+        val now = env.nowMillis()
+        return HostReply.ok(
+            mapOf(
+                "json" to WeatherJson.encode(rounded),
+                "as_of_millis" to snapshot.updatedAtMs,
+                "stale" to (now - snapshot.updatedAtMs > WeatherForExtensions.STALE_AFTER_MS),
+                "metric" to env.metricUnits()
+            )
+        )
+    }
+
+    /** The alerts in force, for a weather page, in the same format an alert source sends (see [WeatherJson]). */
+    private fun weatherAlerts() = HostReply.ok(mapOf("json" to WeatherJson.encodeAlerts(env.alerts())))
 
     // ---------- reminders ----------
 

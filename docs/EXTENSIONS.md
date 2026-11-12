@@ -103,6 +103,7 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
 | `weather` | `<uses capability="weather"/>` | Read the current weather and where the TV roughly is (to within about 10 km). |
 | `weather-source` | declaring `<weather-source>` | Be where Portal gets its weather and alerts, when an adult chooses you under Settings, Weather. |
+| `weather-page` | declaring `<weather-page>` | Be the weather page that opens from the home screen, when an adult chooses you under Settings, Weather. You can read the full forecast and alerts, and where the TV roughly is, with the city's name. |
 
 A capability name Portal doesn't know is never granted. You can list one for a newer Portal and it is ignored by older ones.
 
@@ -198,6 +199,8 @@ nobody can act for you.
 | `items.remove` | `bar` or `clock` | `area`, `id` | |
 | `items.list` | `bar` or `clock` | `area` | `items`: a list of Bundles with `id`, `text`, `button` |
 | `weather.get` | `weather` | none | The weather as numbers; see below |
+| `weather.report` | `weather-page` | none | The whole report, for a weather page; see "Being the weather page" |
+| `weather.alerts` | `weather-page` | none | The alerts in force, for a weather page |
 
 **Weather** (`weather.get`) is what Portal already holds, from the forecast service it uses, as plain numbers, so you need no weather
 code of your own. It never touches the network, so asking is cheap and counts as a read; Portal keeps the weather up to date. The
@@ -279,6 +282,34 @@ Portal checks all of it before it uses any of it, and decides some things itself
 
 An adult allows `weather-source` on the Extensions page, and sees that you will be told where the TV roughly is. Allowing it does not
 make you the source: they also choose you under Settings, Weather. A kid's Settings doesn't offer the choice.
+
+## Being the weather page
+
+An extension with `weather-page` allowed can be chosen under Settings, Weather, Weather page. When someone presses the time and
+weather panel on the home screen, your screen opens in place of Portal's own page. A page and a source are chosen separately, so a
+page works with whatever source Portal is using and needs no weather code of its own.
+
+```xml
+<weather-page activity=".WeatherPageActivity" />
+```
+
+Declare the activity, and export it. It is an ordinary screen of yours that Portal opens in a new task; the Back button returns to
+Portal's home screen. Portal re-checks every time that you are still installed, still signed by who was allowed and still allowed,
+and if not, or if the screen can't be opened, Portal's own page opens instead. A kid profile always gets Portal's own page.
+
+Your screen gets what it shows from two calls (see "Calling Portal"). Both are reads of what Portal already holds, never touch the
+network and work on any profile:
+
+- **`weather.report`** answers with `json`, the whole report in the format described under "Supplying the weather" (current
+  conditions, `hours`, `days`, `city`, `lat` and `lon`); `as_of_millis`; `stale` (more than three hours old); and `metric`
+  (whether the person shows °C and km/h). Follow `metric`, so your page matches the rest of Portal. The place is rounded to a
+  tenth of a degree (about 10 km); the city is the name the person chose or Portal worked out. If there is no weather yet the
+  answer is `unavailable`.
+- **`weather.alerts`** answers with `json`, an array in the format of an alert source, for the alerts still in force. Each is
+  already checked and says which source it came through.
+
+Ask again when your screen comes to the front; Portal keeps the weather up to date itself. `sample-extension` has a complete
+example, `WeatherPageActivity`.
 
 ## Drawing the home screen background
 

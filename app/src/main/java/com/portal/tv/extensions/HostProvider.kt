@@ -141,6 +141,9 @@ private class RealHostEnv(private val context: Context) : HostEnv {
     override fun tilesChanged() = HostEvents.tilesChanged()
     override fun showCard(from: String, title: String, text: String, seconds: Int) = ReminderService.showCard(context, from, title, text, seconds)
 
+    override fun alerts() = com.portal.tv.repo.WeatherAlerts.cached(context)
+    override fun metricUnits() = com.portal.tv.settings.AppSettings.isMetric(context)
+
     /** The saved weather, read again only when a new one was saved, because extensions may ask often. */
     private var weatherMemo: Pair<Long, WeatherSnapshot?>? = null
 
