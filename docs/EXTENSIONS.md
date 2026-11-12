@@ -102,6 +102,7 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | `reminders` | `<uses capability="reminders"/>` | Add and change reminders that belong to you. |
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
 | `weather` | `<uses capability="weather"/>` | Read the current weather and where the TV roughly is (to within about 10 km). |
+| `weather-source` | declaring `<weather-source>` | Be where Portal gets its weather and alerts, when an adult chooses you under Settings, Weather. |
 
 A capability name Portal doesn't know is never granted. You can list one for a newer Portal and it is ignored by older ones.
 
@@ -227,6 +228,57 @@ there is no way to name them, and a call that tries gets `not_found`. If the hom
 you like (limited like other changes). Only your own declared tiles can be decorated; the badge shows in every layout (tiles, icons,
 list) and the line in the tiles and list layouts. Kid profiles don't see either, since it is text from another app. They are
 removed when `tiles` is turned off for you or you are uninstalled.
+
+## Supplying the weather
+
+An extension with `weather-source` allowed can be chosen under Settings, Weather, Weather source, in place of the built-in
+forecast (Open-Meteo) and alerts (US National Weather Service). One source is used at a time, and none stands in for it: if yours
+can't answer, Portal keeps showing the last weather it had, marked as old. Portal asks on its own schedule, so you need no timer or
+background work; you only answer.
+
+Declare a service, and export it with the action `net.getportaltv.WEATHER_SOURCE`:
+
+```xml
+<weather-source service=".WeatherService" />
+```
+
+Portal binds to it for one question at a time. The question is a `Message` with `replyTo` set and a `Bundle` holding `lat` and `lon`
+(doubles, rounded to a tenth of a degree, about 10 km) and sometimes `city` (a name to show). `what` is `1` for the weather and `2`
+for the alerts. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
+words, at most 40 characters, saying why not). You have 20 seconds. `sample-extension` has a complete example, `WeatherService`.
+
+**The weather** (`what` = 1) is one JSON object. Temperatures are °C, speeds km/h, and every `code` is a WMO weather
+code (0 clear, 1 to 3 cloud, 45 and 48 fog, 51 to 57 drizzle, 61 to 67 rain, 71 to 77 snow, 80 to 86 showers, 95 to 99 thunderstorm).
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `temp_c`, `feels_like_c` | number | -90 to 70 |
+| `humidity` | int | 0 to 100 |
+| `wind_kmh`, `wind_dir` | number, int | direction in degrees the wind comes from |
+| `code`, `is_day` | int, boolean | now |
+| `hours` | array of `{h, temp_c, code, is_day, rain}` | 1 to 48 entries, starting now; `h` is the local hour, `rain` the chance in percent (optional) |
+| `days` | array of `{date, code, high_c, low_c, rain, sunrise, sunset}` | 1 to 16 entries, from today; `date` is `2026-11-12`, `sunrise` and `sunset` are local times like `2026-11-12T07:12` (optional); `uv_max`, `precip_mm`, `wind_max_kmh` and `snow_cm` are optional |
+| `utc_offset_s` | int | the place's offset from UTC, for turning local times into moments |
+| `gust_kmh`, `pressure_hpa`, `cloud_cover`, `visibility_km`, `uv_index`, `aqi` | optional | `aqi` is the US air quality index |
+
+**The alerts** (`what` = 2) are a JSON array, most serious first, of `{id, event, severity, headline, description, instruction,
+area, onset, ends, interrupts}`. `severity` is one of `EXTREME`, `SEVERE`, `MODERATE`, `MINOR`, `UNKNOWN`; `onset` and `ends` are
+ISO times with an offset (optional). An empty array means no alerts.
+
+Portal checks all of it before it uses any of it, and decides some things itself:
+
+- **A bad answer is not used.** Numbers outside what is possible, lists that are too long or empty, or more than 200,000 characters
+  refuse the whole weather. A bad alert (no id or event, text that can't be shown) is dropped and the rest kept; a bad field of an
+  alert (too long) is emptied. Line breaks in alert text become spaces. Text must be plain, as for names and cards.
+- **The place is Portal's.** Whatever you put for where the weather is, Portal shows the TV's place and its name.
+- **Alerts are shown as yours.** Each says "via" and your extension's name, whatever issuer you write, and its id is tied to your
+  package so it can't clash with another source's.
+- **Covering an app is limited.** An alert covers the app that is open (a red banner and a tone, once) only when you set
+  `interrupts` to true **and** its severity is `SEVERE` or `EXTREME`; at most three alerts at once can. All others show in colour on
+  the home screen and the weather page.
+
+An adult allows `weather-source` on the Extensions page, and sees that you will be told where the TV roughly is. Allowing it does not
+make you the source: they also choose you under Settings, Weather. A kid's Settings doesn't offer the choice.
 
 ## Drawing the home screen background
 

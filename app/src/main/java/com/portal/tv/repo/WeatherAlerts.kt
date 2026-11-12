@@ -25,6 +25,11 @@ object WeatherAlerts {
     /** Where the saved alerts are kept, in Portal's own format (the older "body" key held one service's raw answer). */
     private const val ALERTS_KEY = "alerts_json"
 
+    /** Forgets the saved alerts (they came from a weather source that is no longer the one in use). */
+    fun forgetCached(context: Context) {
+        prefs(context).edit().remove(ALERTS_KEY).remove("key").remove("time").apply()
+    }
+
     /** The alerts last saved that are still in force, without the network. */
     fun cached(context: Context, now: OffsetDateTime = OffsetDateTime.now()): List<WeatherAlert> {
         val body = prefs(context).getString(ALERTS_KEY, null) ?: return emptyList()

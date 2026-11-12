@@ -15,10 +15,20 @@ class BuiltInWeatherProvider internal constructor(
     override suspend fun fetchAlerts(place: WeatherPlace) = alerts.fetch(place)
 }
 
-/** The one source Portal gets its weather from. Today that is the built-in one. */
+/** The one source Portal gets its weather from: the extension an adult chose in Settings, else the built-in one. */
 object WeatherProviders {
 
+    /** Call from a background thread: finding the extension reads the package manager. */
     fun active(context: Context): WeatherProvider {
+        WeatherSource.selected(context)?.let { pkg ->
+            // The name only labels alerts and errors; if the extension has gone, asking it fails and says so.
+            val name = com.portal.tv.extensions.ExtensionRegistry.find(context, pkg)?.name ?: pkg
+            return ExtensionWeatherProvider(context, pkg, name)
+        }
+        return builtIn(context)
+    }
+
+    private fun builtIn(context: Context): WeatherProvider {
         if (!com.portal.tv.BuildConfig.DEBUG) return BuiltInWeatherProvider()
         // Debug builds can point each service at a test server, to try odd forecasts and a severe alert.
         fun override(file: String, key: String, default: String) =

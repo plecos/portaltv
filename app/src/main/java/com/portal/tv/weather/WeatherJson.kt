@@ -79,7 +79,7 @@ internal object WeatherJson {
         JSONObject().put("id", a.id).put("event", a.event).put("severity", a.severity.name)
             .put("headline", a.headline).put("description", a.description).put("instruction", a.instruction)
             .put("area", a.area).put("ends", a.ends?.toString()).put("onset", a.onset?.toString())
-            .put("source", a.source)
+            .put("source", a.source).put("interrupts", a.interrupts)
     }).toString()
 
     fun decodeAlerts(json: String): List<WeatherAlert> {
@@ -96,7 +96,8 @@ internal object WeatherJson {
                 area = a.optString("area"),
                 ends = a.text("ends")?.let { runCatching { OffsetDateTime.parse(it) }.getOrNull() },
                 onset = a.text("onset")?.let { runCatching { OffsetDateTime.parse(it) }.getOrNull() },
-                source = a.optString("source")
+                source = a.optString("source"),
+                interrupts = a.optBoolean("interrupts", false)
             )
         }
     }

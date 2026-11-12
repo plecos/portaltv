@@ -19,6 +19,9 @@
     <!-- Draws the home screen background (in this app's own process) when chosen in Settings, Background. -->
     <background service=".BackgroundService" />
 
+    <!-- Offers to be where Portal gets its weather and alerts, when chosen in Settings, Weather. Portal asks; this answers. -->
+    <weather-source service=".WeatherService" />
+
     <!-- Things on the home screen: Portal draws them. At most two per area. -->
     <bar-button id="lights" label="@string/bar_lights" icon="@drawable/ic_sample" activity=".LightsActivity" />
     <bar-text id="mode" text="@string/bar_mode" />

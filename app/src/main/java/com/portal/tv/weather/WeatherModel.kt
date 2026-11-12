@@ -83,19 +83,19 @@ data class WeatherAlert(
     /** When it begins, if it is not already in force. */
     val onset: OffsetDateTime? = null,
     /** Who issued it, for showing, such as "National Weather Service". */
-    val source: String = ""
+    val source: String = "",
+    /**
+     * Serious enough to cover whatever app is open, and be announced once. The source says so; for a source outside Portal
+     * this is only honoured when [severity] is Severe or Extreme (see [WeatherValidator]). Other alerts are shown in colour
+     * on the home screen but never cover an app.
+     */
+    val interrupts: Boolean = false
 ) {
     /** Warnings are the serious ones; watches and advisories rank below them. */
     val isWarning get() = event.endsWith("Warning", ignoreCase = true)
     val isWatch get() = event.endsWith("Watch", ignoreCase = true)
 
-    /**
-     * Serious enough to interrupt: a warning rated Severe or Extreme (Tornado, Severe Thunderstorm,
-     * Flash Flood and the like), or a Tornado Watch. Other warnings, watches and advisories are shown
-     * in colour on the home screen but never cover an app.
-     */
-    val isSevere get() = (isWarning && severity.rank >= AlertSeverity.SEVERE.rank) ||
-        event.equals("Tornado Watch", ignoreCase = true)
+    val isSevere get() = interrupts
 }
 
 /** A source's answer: the value, or the short reason it could not be had (such as "No connection"). */

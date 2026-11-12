@@ -58,6 +58,8 @@ class SettingsFragment : Fragment() {
     private var refreshShaderColors: (() -> Unit)? = null
     /** Looks again at which extensions may draw the background and updates the choices on the Background page. */
     private var refreshBackgroundChoices: (() -> Unit)? = null
+    /** Looks the weather sources up again; called when an extension is allowed or changed. */
+    private var refreshWeatherSources: (() -> Unit)? = null
     /** Looks up the extensions that can draw the screen saver again (one was just allowed, changed or removed). */
     private var refreshSaverLooks: (() -> Unit)? = null
 
@@ -78,6 +80,7 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupUnits(view)
         setupWeatherLocation(view)
+        setupWeatherSource(view)
         setupShaderColors(view)
         setupSpeed(view)
         setupBrightness(view)
@@ -1158,6 +1161,85 @@ class SettingsFragment : Fragment() {
         highlight()
     }
 
+    /**
+     * Where the weather comes from: the one built in, or an extension an adult has allowed to supply it. One at a time, and no
+     * other stands in if it can't answer: Portal keeps showing the last weather it had, marked as old.
+     */
+    private fun setupWeatherSource(view: View) {
+        val context = requireContext()
+        val row = view.findViewById<android.widget.LinearLayout>(R.id.row_weather_source)
+        val hint = view.findViewById<TextView>(R.id.weather_source_hint)
+        // Which source to trust is an adult's choice.
+        if (com.portal.tv.repo.ProfileManager.isActiveKids(context)) {
+            listOf(R.id.label_weather_source, R.id.weather_source_hint).forEach { view.findViewById<View>(it).visibility = View.GONE }
+            (row.parent as View).visibility = View.GONE
+            return
+        }
+        val dp = resources.displayMetrics.density
+        // The built-in tile, then one for each extension that may supply the weather right now.
+        val tiles = mutableListOf<Pair<String?, TextView>>()
+        var available = emptySet<String>()
+
+        fun style(tv: TextView, selected: Boolean) {
+            tv.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tv.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
+        }
+
+        fun highlight() {
+            val chosen = com.portal.tv.weather.WeatherSource.selected(context)
+            val usable = chosen == null || chosen in available
+            tiles.forEach { (pkg, tv) -> style(tv, usable && pkg == chosen) }
+            hint.text = when {
+                chosen == null -> "Built in: the forecast from Open-Meteo and US alerts from the National Weather Service."
+                !usable -> "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another."
+                else -> "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts."
+            }
+        }
+
+        fun tile(label: String, pkg: String?) = TextView(context).apply {
+            text = label
+            textSize = 18f
+            typeface = resources.getFont(R.font.inter)
+            gravity = android.view.Gravity.CENTER
+            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+            maxWidth = (240 * dp).toInt()
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            isFocusable = true
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (48 * dp).toInt()
+            ).apply { if (pkg != null) marginStart = (12 * dp).toInt() }
+            contentDescription = "Weather from $label"
+            setOnClickListener {
+                com.portal.tv.weather.WeatherSource.select(context, pkg)
+                Log.d("Portal", "settings: weather source=${pkg ?: "built in"}")
+                highlight()
+                // The old source's weather was forgotten; ask the new one now rather than at the next refresh.
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    WeatherRepository.load(context)
+                    com.portal.tv.repo.WeatherAlerts.load(context, force = true)
+                }
+            }
+        }
+
+        val load = { viewLifecycleOwner.lifecycleScope.launch {
+            val sources = withContext(Dispatchers.IO) {
+                com.portal.tv.extensions.ExtensionRegistry.scan(context).filter {
+                    com.portal.tv.extensions.Capability.WEATHER_SOURCE in it.granted && it.weatherService != null
+                }
+            }
+            available = sources.map { it.packageName }.toSet()
+            tiles.forEach { row.removeView(it.second) }
+            tiles.clear()
+            tiles += null to tile("Built in", null)
+            sources.forEach { tiles += it.packageName to tile(it.name, it.packageName) }
+            tiles.forEach { row.addView(it.second) }
+            highlight()
+        } }
+        refreshWeatherSources = { load() }
+        load()
+    }
+
     private fun setupUnits(view: View) {
         val metric = view.findViewById<TextView>(R.id.opt_metric)
         val imperial = view.findViewById<TextView>(R.id.opt_imperial)
@@ -1227,7 +1309,7 @@ class SettingsFragment : Fragment() {
                 !on -> "Off: severe alerts show only on the home screen and the weather page."
                 !allowed -> "Needs permission to display over other apps. Allow it under Settings, Family, " +
                     "\"Timer over apps\" (it covers both)."
-                else -> "A red banner and a tone, for about 30 seconds, for each new severe alert. US only."
+                else -> "A red banner and a tone, for about 30 seconds, for each new severe alert. The built-in source covers the US only."
             }
         }
         severeOn.setOnClickListener {
@@ -2047,6 +2129,7 @@ class SettingsFragment : Fragment() {
             extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed, updates)
             refreshCategories?.invoke()
             refreshBackgroundChoices?.invoke()
+            refreshWeatherSources?.invoke()
             refreshSaverLooks?.invoke()
         }) {
             // Back from the catalog lands on this page again.

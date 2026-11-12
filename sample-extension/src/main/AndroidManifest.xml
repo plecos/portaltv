@@ -30,6 +30,13 @@
                 <action android:name="net.getportaltv.BACKGROUND" />
             </intent-filter>
         </service>
+
+        <!-- Portal binds to this to ask for the weather; it must be exported. -->
+        <service android:name=".WeatherService" android:exported="true">
+            <intent-filter>
+                <action android:name="net.getportaltv.WEATHER_SOURCE" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

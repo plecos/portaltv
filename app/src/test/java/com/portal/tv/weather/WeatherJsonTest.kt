@@ -55,7 +55,7 @@ class WeatherJsonTest {
             WeatherAlert(
                 "a1", "Tornado Warning", AlertSeverity.EXTREME, "headline", "description", "take cover", "King County",
                 OffsetDateTime.parse("2026-11-12T20:00:00-08:00"), OffsetDateTime.parse("2026-11-12T18:00:00-08:00"),
-                "National Weather Service"
+                "National Weather Service", true
             ),
             WeatherAlert("a2", "Frost Advisory", AlertSeverity.MINOR, "", "", "", "", null)
         )
