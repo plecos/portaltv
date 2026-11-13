@@ -98,6 +98,9 @@ object BundledExtension {
     fun needsOffer(context: Context): Boolean =
         !isDeclined(context) && !offeredThisVersion(context) && installIfNeeded(context, force = true, onlyCheck = true) == Result.STARTED
 
+    /** Whether Portal carries a copy it could install (built in and signed with Portal's own key), whatever was asked or answered before. */
+    fun canOffer(context: Context): Boolean = installIfNeeded(context, force = true, onlyCheck = true) == Result.STARTED
+
     /** The question is asked once for each version of Portal, so coming back from Android's installer doesn't ask it again. */
     private fun offeredThisVersion(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("offered_for", 0) == BuildConfig.VERSION_CODE

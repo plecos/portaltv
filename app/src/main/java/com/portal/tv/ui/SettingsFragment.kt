@@ -1321,17 +1321,73 @@ class SettingsFragment : Fragment() {
             },
             extraTile = { available -> if (bundled in available) null else "Install weather" to installAction }
         ))
-        refreshWeatherSources = { source(); page() }
+        val availability = setupWeatherAvailability(view, installAction)
+        refreshWeatherSources = { source(); page(); availability() }
+        availability()
         // Installing the weather extension from here finishes later, with Android's own screen in between: show it when it lands.
         com.portal.tv.extensions.BundledExtension.onInstalled = {
             // The Extensions page lists it too, and its own refresh (which also redoes these rows) came before the install finished.
-            view.post { refreshExtensions?.invoke() ?: run { source(); page() } }
+            view.post { refreshExtensions?.invoke() ?: run { refreshWeatherSources?.invoke() } }
         }
         viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
             override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
                 com.portal.tv.extensions.BundledExtension.onInstalled = null
             }
         })
+    }
+
+    /**
+     * With no weather provider installed none of the weather settings mean anything, so the page says what to do instead: install
+     * Portal TV Weather (the default provider) if Portal carries a usable copy, or find one under Extensions. A kid is only told to
+     * ask a parent. Returns what looks again, for when an extension is installed or removed.
+     */
+    private fun setupWeatherAvailability(view: View, installAction: () -> Unit): () -> Unit {
+        val context = requireContext()
+        val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
+        val settings = view.findViewById<View>(R.id.weather_settings)
+        val missing = view.findViewById<View>(R.id.weather_missing)
+        val text = view.findViewById<TextView>(R.id.weather_missing_text)
+        val install = view.findViewById<View>(R.id.weather_missing_install)
+        val extensions = view.findViewById<View>(R.id.weather_missing_extensions)
+        install.setOnClickListener { installAction() }
+        extensions.setOnClickListener {
+            view.findViewById<View>(R.id.cat_extensions)?.let { it.performClick(); it.requestFocus() }
+        }
+        return {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val (provided, copy) = withContext(Dispatchers.IO) {
+                    val provider = com.portal.tv.extensions.ExtensionRegistry.scan(context).any { it.weatherService != null }
+                    // Whether Portal carries a copy of the default provider it could install (nothing is installed by asking).
+                    val usable = !provider && com.portal.tv.extensions.BundledExtension.canOffer(context)
+                    provider to usable
+                }
+                if (!isAdded) return@launch
+                settings.visibility = if (provided) View.VISIBLE else View.GONE
+                missing.visibility = if (provided) View.GONE else View.VISIBLE
+                when {
+                    provided -> Unit
+                    kid -> {
+                        text.text = "Weather isn't set up on this TV yet. A parent can set it up under Settings, Weather."
+                        install.visibility = View.GONE
+                        extensions.visibility = View.GONE
+                    }
+                    copy -> {
+                        text.text = "Portal needs a weather provider to show the weather, and none is installed. Portal TV Weather is " +
+                            "the default weather provider, and it comes with Portal. It gets the forecast from Open-Meteo and US alerts " +
+                            "from the National Weather Service. You can also install another one from Extensions, Browse extensions."
+                        install.visibility = View.VISIBLE
+                        extensions.visibility = View.VISIBLE
+                    }
+                    else -> {
+                        text.text = "Portal needs a weather provider to show the weather, and none is installed. Portal TV Weather is " +
+                            "the default weather provider. Open Extensions, choose Browse extensions (the catalog) and install a " +
+                            "weather provider there."
+                        install.visibility = View.GONE
+                        extensions.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
     }
 
     private fun setupUnits(view: View) {
