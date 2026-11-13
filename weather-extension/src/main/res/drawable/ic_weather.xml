@@ -1,13 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Portal TV Weather: a sun behind a cloud on Portal's dark blue. The same picture is the catalog icon
+     (site/extensions/icons/portal-tv-weather.png). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
     android:height="48dp"
     android:viewportWidth="48"
     android:viewportHeight="48">
     <path
-        android:fillColor="#FFB300"
-        android:pathData="M18,10m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
-    <path
-        android:fillColor="#E8EAF6"
-        android:pathData="M14,36a8,8 0,0 1,0 -16a11,11 0,0 1,21 -2a7,7 0,0 1,1 18z" />
+        android:fillColor="#22224A"
+        android:pathData="M0,0h48v48h-48z" />
+    <group
+        android:translateX="2.2"
+        android:translateY="3.2"
+        android:scaleX="0.88"
+        android:scaleY="0.88">
+        <!-- The sun's rays: one short rounded bar, turned about the sun's centre. -->
+        <path
+            android:fillColor="#FFB300"
+            android:pathData="M17,1.6a1,1 0,0 1,2 0v1.2a1,1 0,0 1,-2 0z" />
+        <group android:rotation="-45" android:pivotX="18" android:pivotY="14">
+            <path
+                android:fillColor="#FFB300"
+                android:pathData="M17,1.6a1,1 0,0 1,2 0v1.2a1,1 0,0 1,-2 0z" />
+        </group>
+        <group android:rotation="-90" android:pivotX="18" android:pivotY="14">
+            <path
+                android:fillColor="#FFB300"
+                android:pathData="M17,1.6a1,1 0,0 1,2 0v1.2a1,1 0,0 1,-2 0z" />
+        </group>
+        <group android:rotation="45" android:pivotX="18" android:pivotY="14">
+            <path
+                android:fillColor="#FFB300"
+                android:pathData="M17,1.6a1,1 0,0 1,2 0v1.2a1,1 0,0 1,-2 0z" />
+        </group>
+        <group android:rotation="-135" android:pivotX="18" android:pivotY="14">
+            <path
+                android:fillColor="#FFB300"
+                android:pathData="M17,1.6a1,1 0,0 1,2 0v1.2a1,1 0,0 1,-2 0z" />
+        </group>
+        <path
+            android:fillColor="#FFB300"
+            android:pathData="M18,14m-7.2,0a7.2,7.2 0,1 1,14.4 0a7.2,7.2 0,1 1,-14.4 0" />
+        <path
+            android:fillColor="#E8EAF6"
+            android:pathData="M14,36a8,8 0,0 1,0 -16a11,11 0,0 1,21 -2a7,7 0,0 1,1 18z" />
+    </group>
 </vector>
