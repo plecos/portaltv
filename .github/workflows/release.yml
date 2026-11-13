@@ -42,7 +42,8 @@ jobs:
       # every catalog (and so never hear of a withdrawal), so it is not published. This runs the real values through a test,
       # not a text search, so how they are written doesn't matter. See docs/CATALOG.md, Signing.
       - name: Catalog key and minimum serial must be set
-        run: PORTAL_RELEASE_CHECK=1 ./gradlew testDebugUnitTest --tests '*ReleaseReadinessTest' --rerun
+        # Only :app has this test; a filter that matches nothing in the other modules (weather-core, weather-extension) is an error.
+        run: PORTAL_RELEASE_CHECK=1 ./gradlew :app:testDebugUnitTest --tests '*ReleaseReadinessTest' --rerun
 
       # A new or reset TV accepts any signed, unexpired catalog at or above MIN_SERIAL, so it must not be lower than the live one.
       - name: Minimum serial must not be below the live catalog
