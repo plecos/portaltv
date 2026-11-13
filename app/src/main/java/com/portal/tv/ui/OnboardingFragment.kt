@@ -466,7 +466,7 @@ class OnboardingFragment : Fragment() {
                     statusText = "Installed"
                     primary.text = "Continue"
                 } else {
-                    body.text = "To show weather, Portal needs this extension: Open-Meteo + NWS. It comes with Portal. It gets the " +
+                    body.text = "To show weather, Portal needs this extension: Portal TV Weather. It comes with Portal. It gets the " +
                         "forecast from Open-Meteo and US alerts from the National Weather Service, and is told roughly where your " +
                         "TV is (to within about 10 km). Android may first ask you to let Portal install apps (it calls them \"unknown " +
                         "apps\" because they don't come from the Play Store), then to confirm the install. You can also install it " +

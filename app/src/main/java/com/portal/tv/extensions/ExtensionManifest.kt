@@ -140,7 +140,11 @@ object ManifestParser {
         val label = root.attr("label") ?: return Result.Invalid("It has no name.")
         if (label.length > MAX_LABEL) return Result.Invalid("Its name is longer than $MAX_LABEL characters.")
         if (!TextSafety.isPlain(label)) return Result.Invalid("Its name has characters that can't be shown.")
-        Impersonation.reason(label)?.let { return Result.Invalid("Its name \"$label\" $it") }
+        // A package name that looks like Portal's own is already refused by the registry unless Portal's own key signed it, so a name
+        // such as "Portal TV Weather" is only ever shown for one of ours.
+        if (!Impersonation.isReservedPackage(packageName)) {
+            Impersonation.reason(label)?.let { return Result.Invalid("Its name \"$label\" $it") }
+        }
         val description = root.attr("description").orEmpty()
         if (description.length > MAX_DESCRIPTION) return Result.Invalid("Its description is longer than $MAX_DESCRIPTION characters.")
         if (!TextSafety.isPlain(description)) return Result.Invalid("Its description has characters that can't be shown.")

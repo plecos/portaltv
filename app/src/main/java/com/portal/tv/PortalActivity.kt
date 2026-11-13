@@ -59,7 +59,8 @@ class PortalActivity : FragmentActivity() {
         // Watching for severe weather alerts carries on while another app is open.
         com.portal.tv.alerts.SevereAlertService.ensureRunning(this)
         com.portal.tv.reminders.ReminderService.ensureRunning(this)
-        // The weather comes from an extension that ships inside Portal: once setup is done, install it if it isn't there yet.
+        // The weather comes from an extension that ships inside Portal: once setup is done, allow it if it has just arrived.
+        // Asking to install it is done on the home screen, for an adult.
         if (com.portal.tv.repo.Onboarding.isDone(this)) {
             kotlin.concurrent.thread(name = "bundled-extensions") { com.portal.tv.extensions.BundledExtension.onStart(applicationContext) }
         }

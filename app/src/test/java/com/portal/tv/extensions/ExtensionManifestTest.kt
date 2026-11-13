@@ -127,4 +127,13 @@ class ExtensionManifestTest {
         Capability.known.forEach { assertTrue(it, Capability.describe(it).isNotBlank() && !Capability.describe(it).contains("doesn't know")) }
         assertTrue(Capability.describe("teleport").contains("teleport"))
     }
+
+    @Test
+    fun aReservedPackageMayUsePortalInItsName() {
+        // The registry refuses a reserved package that Portal's own key didn't sign, so this name is only ever Portal's.
+        val own = ManifestParser.parse(xml("""<portal-extension contract="1" id="weather" label="Portal TV Weather"/>"""), "net.getportaltv.weather")
+        assertTrue(own is ManifestParser.Result.Ok)
+        val other = ManifestParser.parse(xml("""<portal-extension contract="1" id="weather" label="Portal TV Weather"/>"""), "net.example.skies")
+        assertTrue(other is ManifestParser.Result.Invalid)
+    }
 }

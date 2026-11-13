@@ -56,7 +56,7 @@ object BundledExtension {
      * Unless [force], it asks at most once for each version of Portal, so a person who declined isn't asked at every start.
      * Blocks (copies a file), so not on the main thread.
      */
-    fun installIfNeeded(context: Context, force: Boolean = false): Result {
+    fun installIfNeeded(context: Context, force: Boolean = false, onlyCheck: Boolean = false): Result {
         val own = ownSigner(context) ?: return Result.UNAVAILABLE
         val installed = CatalogInstaller.installedFacts(context, WEATHER_PACKAGE)
         if (installed != null && installed.signer != own) return Result.FOREIGN
@@ -78,6 +78,8 @@ object BundledExtension {
             if (installed != null && installed.versionCode >= archive.longVersionCode) { file.delete(); return Result.UP_TO_DATE }
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             if (!force && prefs.getInt("asked_for", 0) == BuildConfig.VERSION_CODE) { file.delete(); return Result.ALREADY_ASKED }
+            // Only asking whether it should be offered: nothing is installed, and what was asked is not recorded.
+            if (onlyCheck) { file.delete(); return Result.STARTED }
             if (!CatalogInstaller.canInstall(context)) { file.delete(); return Result.NOT_ALLOWED }
             val edit = prefs.edit().putInt("asked_for", BuildConfig.VERSION_CODE)
             // The person asked for it (from setup or Settings), so an earlier Skip no longer holds.
@@ -90,6 +92,18 @@ object BundledExtension {
             file.delete()
             return Result.UNAVAILABLE
         }
+    }
+
+    /** Whether to ask the person about installing it: it isn't there (or is older than the copy in Portal), they haven't said no, and a copy Portal can use is built in. */
+    fun needsOffer(context: Context): Boolean =
+        !isDeclined(context) && !offeredThisVersion(context) && installIfNeeded(context, force = true, onlyCheck = true) == Result.STARTED
+
+    /** The question is asked once for each version of Portal, so coming back from Android's installer doesn't ask it again. */
+    private fun offeredThisVersion(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("offered_for", 0) == BuildConfig.VERSION_CODE
+
+    fun markOffered(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("offered_for", BuildConfig.VERSION_CODE).apply()
     }
 
     /** Whether the person chose Skip when asked to install it during setup. Portal then stops offering at each start; the button in Settings still installs it. */
@@ -118,15 +132,13 @@ object BundledExtension {
     private val checkedThisRun = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /**
-     * What to do when Portal starts (once for each run of the app): allow it if it has just arrived, install it if it is
-     * missing. Not on the main thread.
+     * What to do when Portal starts (once for each run of the app): allow the weather extension if it has just arrived. It never
+     * installs anything: a person who upgraded is asked on the home screen ([com.portal.tv.ui.WeatherOffer]), and a new one in setup.
+     * Not on the main thread.
      */
     fun onStart(context: Context) {
         if (!checkedThisRun.compareAndSet(false, true)) return
         allowOnce(context)
-        // Skipped during setup: respected, until the person installs it from Settings.
-        if (isDeclined(context)) return
-        installIfNeeded(context)
     }
 
     /** The copy in Portal's assets, written to the cache so Android can read it; null if there isn't one. */

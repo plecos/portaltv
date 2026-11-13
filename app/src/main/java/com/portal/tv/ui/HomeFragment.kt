@@ -1163,6 +1163,8 @@ class HomeFragment : Fragment() {
         applySearchLevel()
         refreshUpdateButton()
         refreshExtensionItems()
+        // An upgraded Portal explains the weather extension once and asks whether to install it.
+        activity?.let { WeatherOffer.checkAndShow(it) }
         com.portal.tv.extensions.HostEvents.onItemsChanged = { refreshExtensionItems() }
         com.portal.tv.extensions.HostEvents.onTilesChanged = { loadApps() }
         // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
