@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import com.portal.tv.data.Profile
 import com.portal.tv.repo.ParentPin
+import com.portal.tv.repo.ParentUnlock
 import com.portal.tv.repo.ProfileCode
 
 /** Dialogs for entering, setting and changing the parent PIN. */
@@ -17,11 +18,20 @@ object PinDialogs {
     /** Said every time the PIN is asked for, so a look-alike screen from an app is easier to spot. */
     const val PIN_WARNING = "Portal asks for this PIN only here, in its own Settings and profile screens. If any other app or page asks for it, don't enter it."
 
-    /** Asks for the current PIN and runs [onVerified] if it matches. */
-    fun verify(context: Context, title: String = "Enter parent PIN", onVerified: () -> Unit) {
+    /**
+     * Asks for the current PIN and runs [onVerified] if it matches. On an adult profile that remembers the PIN, it isn't asked
+     * again for a while after it was entered (see [ParentUnlock]), unless [alwaysAsk] (for changing or removing the PIN itself).
+     */
+    fun verify(context: Context, title: String = "Enter parent PIN", alwaysAsk: Boolean = false, onVerified: () -> Unit) {
+        if (!alwaysAsk && ParentUnlock.isUnlocked(context)) {
+            onVerified()
+            return
+        }
         PinPad.ask(context, title, PIN_WARNING, onDone = { pin ->
-            if (ParentPin.verify(context, pin)) onVerified()
-            else toast(context, "Wrong PIN")
+            if (ParentPin.verify(context, pin)) {
+                ParentUnlock.remember(context)
+                onVerified()
+            } else toast(context, "Wrong PIN")
         })
     }
 
@@ -43,6 +53,8 @@ object PinDialogs {
                     toast(context, "PINs don't match")
                 } else {
                     ParentPin.set(context, first)
+                    // Just entered, twice: counts as entering it.
+                    ParentUnlock.remember(context)
                     onSet()
                 }
             })
@@ -66,8 +78,9 @@ object PinDialogs {
                 .show()
             return
         }
-        verify(context, "Enter PIN to remove it") {
+        verify(context, "Enter PIN to remove it", alwaysAsk = true) {
             ParentPin.clear(context)
+            ParentUnlock.clear()
             toast(context, "PIN removed")
             onRemoved()
         }
@@ -75,7 +88,8 @@ object PinDialogs {
 
     /** Verifies the current PIN, then sets a new one. */
     fun change(context: Context, onChanged: () -> Unit = {}) {
-        verify(context, "Enter current PIN") {
+        verify(context, "Enter current PIN", alwaysAsk = true) {
+            ParentUnlock.clear()
             create(
                 context,
                 title = "Choose a new PIN",

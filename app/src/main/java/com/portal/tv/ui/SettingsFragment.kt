@@ -1626,6 +1626,73 @@ class SettingsFragment : Fragment() {
             if (ParentPin.isSet(context)) PinDialogs.remove(context) { refresh() }
         }
         refresh()
+        setupPinRemember(view)
+    }
+
+    /**
+     * Whether the PIN is asked for again right after it was entered, and for how long it is remembered. A setting of the profile
+     * in use (this page is for adult profiles), so each adult chooses their own.
+     */
+    private fun setupPinRemember(view: View) {
+        val context = requireContext()
+        val dp = resources.displayMetrics.density
+        val onOffRow = view.findViewById<android.widget.LinearLayout>(R.id.row_pin_remember)
+        val minutesRow = view.findViewById<android.widget.LinearLayout>(R.id.row_pin_minutes)
+        val hint = view.findViewById<TextView>(R.id.pin_remember_hint)
+
+        fun tile(label: String, description: String, row: android.widget.LinearLayout, onClick: () -> Unit) = TextView(context).apply {
+            text = label
+            textSize = 18f
+            typeface = resources.getFont(R.font.inter)
+            gravity = android.view.Gravity.CENTER
+            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+            minHeight = (48 * dp).toInt()
+            isFocusable = true
+            contentDescription = description
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (12 * dp).toInt() }
+            setOnClickListener { onClick() }
+            row.addView(this)
+        }
+
+        fun style(tile: TextView, selected: Boolean) {
+            tile.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tile.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
+        }
+
+        val name = com.portal.tv.repo.ProfileManager.getActive(context)?.name ?: "this profile"
+        lateinit var restyle: () -> Unit
+        val onOff = listOf("On" to true, "Off" to false).map { (label, value) ->
+            tile(label, "Remember the PIN: $label", onOffRow) {
+                com.portal.tv.repo.ParentUnlock.setEnabled(context, value)
+                restyle()
+            } to value
+        }
+        val minutes = com.portal.tv.repo.ParentUnlock.CHOICES_MINUTES.map { m ->
+            val label = if (m == 60) "1 hour" else "$m min"
+            tile(label, "Remember the PIN for $label", minutesRow) {
+                com.portal.tv.repo.ParentUnlock.setMinutes(context, m)
+                restyle()
+            } to m
+        }
+        restyle = {
+            val on = com.portal.tv.repo.ParentUnlock.enabled(context)
+            val chosen = com.portal.tv.repo.ParentUnlock.minutes(context)
+            onOff.forEach { (tile, value) -> style(tile, value == on) }
+            minutes.forEach { (tile, m) -> style(tile, on && m == chosen) }
+            // How long means nothing while it is off.
+            view.findViewById<View>(R.id.label_pin_minutes).alpha = if (on) 1f else 0.4f
+            view.findViewById<View>(R.id.scroll_pin_minutes).alpha = if (on) 1f else 0.4f
+            hint.text = if (on) {
+                "After the PIN is entered on $name's profile it isn't asked again for " +
+                    (if (chosen == 1) "1 minute" else if (chosen == 60) "1 hour" else "$chosen minutes") + ", or until the profile is switched. " +
+                    "Changing or removing the PIN always asks. Saved for $name's profile."
+            } else {
+                "The PIN is asked for every time on $name's profile. Saved for $name's profile."
+            }
+        }
+        restyle()
     }
 
     /**
