@@ -1403,7 +1403,7 @@ class SettingsFragment : Fragment() {
                 !on -> "Off: severe alerts show only on the home screen and the weather page."
                 !allowed -> "Needs permission to display over other apps. Allow it under Settings, Family, " +
                     "\"Timer over apps\" (it covers both)."
-                else -> "A red banner and a tone, for about 30 seconds, for each new severe alert. The built-in source covers the US only."
+                else -> "A red banner and a tone, for about 30 seconds, for each new severe alert. The weather that comes with Portal has US alerts only."
             }
         }
         severeOn.setOnClickListener {

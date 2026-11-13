@@ -79,7 +79,10 @@ object BundledExtension {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             if (!force && prefs.getInt("asked_for", 0) == BuildConfig.VERSION_CODE) { file.delete(); return Result.ALREADY_ASKED }
             if (!CatalogInstaller.canInstall(context)) { file.delete(); return Result.NOT_ALLOWED }
-            prefs.edit().putInt("asked_for", BuildConfig.VERSION_CODE).apply()
+            val edit = prefs.edit().putInt("asked_for", BuildConfig.VERSION_CODE)
+            // The person asked for it (from setup or Settings), so an earlier Skip no longer holds.
+            if (force) edit.putBoolean("declined", false)
+            edit.apply()
             CatalogInstaller.install(context, file, WEATHER_PACKAGE)
             return Result.STARTED
         } catch (e: IOException) {
@@ -87,6 +90,13 @@ object BundledExtension {
             file.delete()
             return Result.UNAVAILABLE
         }
+    }
+
+    /** Whether the person chose Skip when asked to install it during setup. Portal then stops offering at each start; the button in Settings still installs it. */
+    fun isDeclined(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("declined", false)
+
+    fun setDeclined(context: Context, declined: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("declined", declined).apply()
     }
 
     /**
@@ -105,16 +115,17 @@ object BundledExtension {
         }
     }
 
-    @Volatile private var checkedThisRun = false
+    private val checkedThisRun = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /**
      * What to do when Portal starts (once for each run of the app): allow it if it has just arrived, install it if it is
      * missing. Not on the main thread.
      */
     fun onStart(context: Context) {
-        if (checkedThisRun) return
-        checkedThisRun = true
+        if (!checkedThisRun.compareAndSet(false, true)) return
         allowOnce(context)
+        // Skipped during setup: respected, until the person installs it from Settings.
+        if (isDeclined(context)) return
         installIfNeeded(context)
     }
 

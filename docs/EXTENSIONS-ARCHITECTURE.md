@@ -235,10 +235,13 @@ Portal fetches no weather itself: Open-Meteo, the National Weather Service and c
 ordinary extension. Its APK is built by Gradle and embedded in Portal's assets, and it is signed with Portal's release key. The
 rules above are not loosened for it, with two exceptions that are narrow on purpose:
 
-- **Installing.** Portal installs it through Android's own installer, so Android still shows its confirmation. Portal asks at most
-  once for each of its own versions, and Settings, Weather has an "Install weather" button for anyone who declined.
+- **Installing.** Portal installs it through Android's own installer, so Android still shows its confirmation. Setup offers it
+  right after the first profile is created, with a plain explanation of what it is and what it is told, and an Install or Skip
+  choice. Skip is remembered: Portal does not offer again at each start, and Settings, Weather has an "Install weather" button for
+  whoever changes their mind. A Portal that finds it missing for any other reason (an update, say) offers it at most once for each
+  of its own versions.
 - **Allowing.** The first time Portal sees the package `net.getportaltv.weather` installed **and** signed with the same key as
-  Portal itself, it allows that one extension one capability, `weather-source`, without the PIN, so weather works out of the box.
+  Portal itself, it allows that one extension two capabilities, `weather-source` and `weather-page`, without the PIN, so weather works out of the box.
   It is not a rule for "extensions signed by Portal": the package name is part of the test. It happens once; after that an adult
   can turn it off and Portal never turns it back on. If the package is uninstalled, what was allowed is forgotten like any
   extension's, and a fresh copy is allowed once again.
