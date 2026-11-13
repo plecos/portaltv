@@ -53,6 +53,9 @@ class OnboardingFragment : Fragment() {
         /** Pages that only exist to reach a result, and so are left out when it already holds. */
         private val SKIPPABLE = setOf(Step.DEVMODE, Step.DEBUGGING, Step.CONNECT, Step.HOME, Step.OVERLAY, Step.MIC)
 
+        /** The plan made when the first-run setup began, kept until it ends so the last pages show the same dots. */
+        private var planMemo: List<Step>? = null
+
         private const val STATE_STEP = "step"
         private const val STATE_ANSWERED = "answered"
 
@@ -76,13 +79,27 @@ class OnboardingFragment : Fragment() {
     private var step = Step.WELCOME
 
     /**
-     * The pages in order. A page whose result already holds is left out, and running the setup again has no
-     * profile to create. The page being shown always stays in the list.
+     * The pages worth showing when the setup began: one whose result already held then is left out, and running the setup again has
+     * no profile to create. It is fixed from then on (and kept for the last pages, which are a separate screen), so the dots and
+     * "step x of y" don't change as permissions are granted along the way.
      */
-    private val steps get() = Step.values().filter { s ->
-        s == step || when {
+    private fun computePlan() = Step.values().filter { s ->
+        when {
             s == Step.PROFILE -> !rerun
             // Only offered when the weather extension that ships with Portal isn't installed yet.
+            s == Step.WEATHER -> !weatherInstalled()
+            s in SKIPPABLE -> !satisfied(s)
+            else -> true
+        }
+    }
+
+    private val plan: List<Step> by lazy {
+        (if (rerun) null else planMemo) ?: computePlan().also { if (!rerun) planMemo = it }
+    }
+
+    /** The pages to move through: the plan, without the pages whose result holds by now. The page being shown always stays. */
+    private val steps get() = plan.filter { s ->
+        s == step || when {
             s == Step.WEATHER -> !weatherInstalled()
             s in SKIPPABLE -> !satisfied(s)
             else -> true
@@ -94,13 +111,12 @@ class OnboardingFragment : Fragment() {
     private fun weatherInstalled(): Boolean =
         installedMemo ?: com.portal.tv.extensions.BundledExtension.isInstalled(requireContext()).also { installedMemo = it }
 
-    /** The pages as they stood when the current one was shown, so the count and dots don't shift under the reader. */
-    private var shown: List<Step> = emptyList()
+    /** The pages the dots and the count show: all of the plan, even those skipped because they already held. */
+    private val shown: List<Step> get() = plan
 
     /** Show a page. */
     private fun goTo(s: Step) {
         step = s
-        shown = steps
     }
 
     /** Steps the person has dealt with, by granting, declining or being told it can't be done here. */
@@ -206,8 +222,6 @@ class OnboardingFragment : Fragment() {
             step = Step.values()[state.getInt(STATE_STEP)]
             state.getIntArray(STATE_ANSWERED)?.forEach { answered += Step.values()[it] }
         }
-
-        shown = steps
 
         // Told when the install finishes (it ends with Android's own screen, so it lands later): show it as done.
         com.portal.tv.extensions.BundledExtension.onInstalled = {
@@ -716,6 +730,7 @@ class OnboardingFragment : Fragment() {
     }
 
     private fun finish() {
+        planMemo = null
         Onboarding.markDone(requireContext())
         if (rerun) {
             parentFragmentManager.popBackStack()
