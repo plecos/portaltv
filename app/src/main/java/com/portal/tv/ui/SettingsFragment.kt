@@ -1176,7 +1176,12 @@ class SettingsFragment : Fragment() {
         val hint: (chosen: String?, usable: Boolean) -> String,
         /** A button after the choices (such as one to install what is missing), given the packages that can be chosen now. */
         val extraTile: (available: Set<String>) -> Pair<String, () -> Unit>? = { null },
-        val after: () -> Unit = {}
+        val after: () -> Unit = {},
+        /**
+         * Told each time the row is filled: whether it is shown, and if it is hidden because there is nothing to choose
+         * between, the name of the one extension that does the job. The row hides itself then.
+         */
+        val onShown: (shown: Boolean, only: String?) -> Unit = { _, _ -> }
     )
 
     /** Fills a [ChoiceRow] and returns what looks the extensions up again (an extension may have been allowed or changed). */
@@ -1245,6 +1250,12 @@ class SettingsFragment : Fragment() {
                 tile(label, label, tiles.isEmpty(), action).also { style(it, false); row.addView(it) }
             }
             highlight()
+            // A row with one choice, already chosen and working, has nothing to choose: it is hidden until there is a second.
+            val chosen = spec.selected(context)
+            val noChoice = spec.builtInLabel == null && found.size == 1 && extra == null && (chosen == null || chosen in available)
+            listOf(spec.labelId, spec.hintId).forEach { view.findViewById<View>(it).visibility = if (noChoice) View.GONE else View.VISIBLE }
+            (row.parent as View).visibility = if (noChoice) View.GONE else View.VISIBLE
+            spec.onShown(!noChoice, if (noChoice) found[0].name else null)
         } }
         load()
         return { load() }
@@ -1280,6 +1291,23 @@ class SettingsFragment : Fragment() {
                         Toast.makeText(context, say, Toast.LENGTH_LONG).show()
                     }
         }
+        val info = view.findViewById<TextView>(R.id.weather_provider_info)
+        var onlySource: String? = null
+        var onlyPage: String? = null
+        fun showInfo() {
+            val a = onlySource
+            val b = onlyPage
+            info.text = when {
+                a == null && b == null -> ""
+                a != null && b != null && a == b ->
+                    "$a provides the weather and the weather page. Install another weather source or page extension to choose between them."
+                else -> listOfNotNull(
+                    a?.let { "The weather comes from $it." }, b?.let { "The weather page is $it." },
+                    "Install another weather source or page extension to choose between them."
+                ).joinToString(" ")
+            }
+            info.visibility = if (a == null && b == null) View.GONE else View.VISIBLE
+        }
         val source = setupChoiceRow(view, ChoiceRow(
             R.id.row_weather_source, R.id.label_weather_source, R.id.weather_source_hint,
             describe = "Weather from",
@@ -1302,7 +1330,8 @@ class SettingsFragment : Fragment() {
                     WeatherRepository.load(context)
                     com.portal.tv.repo.WeatherAlerts.load(context, force = true)
                 }
-            }
+            },
+            onShown = { _, only -> onlySource = only; showInfo() }
         ))
         val page = setupChoiceRow(view, ChoiceRow(
             R.id.row_weather_page, R.id.label_weather_page, R.id.weather_page_hint,
@@ -1319,7 +1348,8 @@ class SettingsFragment : Fragment() {
                     else -> "An extension you chose opens when you press the time and weather, for every profile, kids included. It can read the forecast, the alerts, the radar and where this TV roughly is, with the city's name."
                 }
             },
-            extraTile = { available -> if (bundled in available) null else "Install weather" to installAction }
+            extraTile = { available -> if (bundled in available) null else "Install weather" to installAction },
+            onShown = { _, only -> onlyPage = only; showInfo() }
         ))
         val availability = setupWeatherAvailability(view, installAction)
         refreshWeatherSources = { source(); page(); availability() }

@@ -1843,6 +1843,18 @@
                     android:focusable="true" />
             </LinearLayout>
 
+            <!-- Who provides the weather, in words, while there is nothing to choose between (the choice sections below are hidden then) -->
+            <TextView
+                android:id="@+id/weather_provider_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:lineSpacingMultiplier="1.15"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="32dp"
+                android:visibility="gone" />
+
             <!-- Weather source: the built-in one, or an extension an adult has allowed to supply the weather -->
             <TextView
                 android:id="@+id/label_weather_source"
