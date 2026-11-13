@@ -199,6 +199,15 @@ Changing what an extension may do is gated in `ExtensionsPage`: if a parent PIN 
 must be created first (otherwise anyone on an adult profile could allow things). Reading an extension's page needs no PIN. Installing
 from the catalog also asks for the PIN, before the download.
 
+**Remembering the PIN** (`ParentUnlock.kt`, called from `PinDialogs.verify`). Asking for it again after every single change made
+allowing several capabilities tedious, so an adult profile can remember it for a while. The rules are narrow on purpose: it is
+kept **in memory only** (a restart of Portal forgets it) as the profile it was entered on and a deadline on the monotonic clock;
+switching the active profile (`ProfileManager.setActive`) forgets it, as do changing or removing the PIN and turning the setting
+off; a **kid profile never skips** the PIN, whatever was entered before, and changing or removing the PIN itself always asks
+(`alwaysAsk`). Setting a new PIN counts as entering it. The time runs from the entry, not from the last use. Whether it is on
+(default) and for how long (default 10 minutes; 1, 5, 10, 15, 30 or 60 in Settings, Family) is a setting of each profile
+(`ProfilePrefs`, deleted with the profile). The window logic, `ParentUnlock.Window`, has no Android in it and is unit tested.
+
 ### 4.6 Kid profiles
 
 | Surface | Rule on a kid profile |
@@ -238,8 +247,14 @@ rules above are not loosened for it, with two exceptions that are narrow on purp
 - **Installing.** Portal installs it through Android's own installer, so Android still shows its confirmation. Setup offers it
   right after the first profile is created, with a plain explanation of what it is and what it is told, and an Install or Skip
   choice. Skip is remembered: Portal does not offer again at each start, and Settings, Weather has an "Install weather" button for
-  whoever changes their mind. A Portal that finds it missing for any other reason (an update, say) offers it at most once for each
-  of its own versions.
+  whoever changes their mind. A Portal that was **upgraded** has no setup to show, so an adult's home screen (`WeatherOffer`)
+  explains it once and offers Install or Not now, and only on a TV the extension has never been on (`BundledExtension.everInstalled`,
+  set whenever it is seen installed): removing it later is the person's choice and is not asked about again. Not now, or Back,
+  is remembered for good, and a kid profile is never asked. Portal never opens Android's installer without being asked.
+- **No provider, no weather.** The weather is shown only while the chosen source is installed (`WeatherSource.installed`). With
+  none, the repositories hand out and keep nothing (what was saved is forgotten), the home screen hides the weather line and the
+  alert badge, and Settings, Weather shows instructions instead of settings: install Portal TV Weather when Portal carries a usable
+  copy, otherwise find one under Extensions. When a source is installed but can't answer, the last weather is kept, marked old.
 - **Allowing.** The first time Portal sees the package `net.getportaltv.weather` installed **and** signed with the same key as
   Portal itself, it allows that one extension two capabilities, `weather-source` and `weather-page`, without the PIN, so weather works out of the box.
   It is not a rule for "extensions signed by Portal": the package name is part of the test. It happens once; after that an adult
@@ -247,7 +262,15 @@ rules above are not loosened for it, with two exceptions that are narrow on purp
   extension's, and a fresh copy is allowed once again.
 
 Its package name is reserved, and a reserved name is only usable when signed by Portal's key (4.8), so another app can't take its
-place. Its name has no "Portal" in it, because Portal refuses any extension name that could pass for part of itself, its own too.
+place. That is also why its name, **Portal TV Weather**, may contain "Portal" although Portal refuses any other extension name that
+could pass for part of itself: the manifest parser skips that one check for a reserved package name, which the registry has
+already rejected unless Portal's own key signed it. It is listed in the catalog like any extension (signer in
+`docs/catalog/first-party-signers.txt`), which is how it is updated and found again after being removed.
+
+**What Settings shows.** Settings, Weather offers the choice of source and of page only while there is a choice: a row with one
+option, already chosen and working, is hidden, and a line says which extension provides both. Settings, Extensions marks each row with
+a shield: solid with an exclamation mark when nothing it asks for is allowed, half filled when only some is, none when all is
+(`ExtensionLabels.permissionLevel`).
 
 ---
 

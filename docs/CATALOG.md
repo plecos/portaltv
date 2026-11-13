@@ -139,8 +139,9 @@ Settings, Extensions. Selecting a card opens its details.
 - The request carries nothing about the TV: no account, no id, no list of installed apps.
 - The kept copy and when it was fetched are left out of backups and device transfers.
 
-The live catalog is at `https://getportaltv.net/extensions/catalog.json` (with `catalog.json.sig` beside it). It starts with no
-entries, so Browse shows an empty list until the first extension is listed. To try Browse with entries, run
+The live catalog is at `https://getportaltv.net/extensions/catalog.json` (with `catalog.json.sig` beside it). Its first listing is
+Portal TV Weather, the weather extension that comes with Portal (package `net.getportaltv.weather`), so Browse is not empty. To try
+Browse with more entries, run
 `scripts/test-catalog.sh`: it serves the test catalog in `docs/catalog/test` from your computer and points a debug build of
 Portal at it (`HOST=<your computer's address>` for a real TV, `ANDROID_SERIAL=<device>` to pick one device,
 `scripts/test-catalog.sh --off` to undo). Underneath, a debug build reads the address in the `url` preference of
