@@ -171,12 +171,11 @@ class WeatherPageFragment : Fragment() {
                 view.findViewById(R.id.radar_layers),
                 view.findViewById(R.id.radar_move),
                 view.findViewById(R.id.radar_pin)
-            ) { lat, lon ->
+            ) { lat, lon, done ->
                 viewLifecycleOwner.lifecycleScope.launch {
-                    if (!HostClient.setSpot(requireContext(), lat, lon)) {
-                        android.widget.Toast.makeText(requireContext(), "Portal wouldn't change the location", android.widget.Toast.LENGTH_LONG).show()
-                    }
-                    refreshWeather?.invoke()
+                    val saved = HostClient.setSpot(requireContext(), lat, lon)
+                    done(saved)
+                    if (saved) refreshWeather?.invoke()
                 }
             }
             view.findViewById<View>(R.id.radar_fullscreen).setOnClickListener {

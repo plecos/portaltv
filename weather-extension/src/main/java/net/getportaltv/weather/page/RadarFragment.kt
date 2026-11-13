@@ -34,7 +34,7 @@ class RadarFragment : Fragment() {
         val play = view.findViewById<ImageView>(R.id.radar_play)
         radar.bindControls(view.findViewById(R.id.radar_zoom_in), view.findViewById(R.id.radar_zoom_out), play, view.findViewById(R.id.radar_layers),
             view.findViewById(R.id.radar_move), view.findViewById(R.id.radar_pin)
-        ) { lat, lon -> viewLifecycleOwner.lifecycleScope.launch { HostClient.setSpot(requireContext(), lat, lon) } }
+        ) { lat, lon, done -> viewLifecycleOwner.lifecycleScope.launch { done(HostClient.setSpot(requireContext(), lat, lon)) } }
         view.findViewById<View>(R.id.radar_close).setOnClickListener { parentFragmentManager.popBackStack() }
         play.requestFocus()
     }

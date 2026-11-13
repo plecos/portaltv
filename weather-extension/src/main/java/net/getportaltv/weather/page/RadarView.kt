@@ -185,7 +185,7 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
      */
     fun bindControls(
         zoomIn: View, zoomOut: View, playPause: ImageView, layers: View,
-        move: View, pin: View, onSaveSpot: (Double, Double) -> Unit
+        move: View, pin: View, onSaveSpot: (Double, Double, (Boolean) -> Unit) -> Unit
     ) {
         fun update() {
             pin.alpha = if (awayFromHome) 1f else 0.4f
@@ -203,12 +203,18 @@ class RadarView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
             if (awayFromHome) {
                 val lat = centerLat
                 val lon = centerLon
-                // The pin moves here too, since this is now the place the radar is for.
-                latitude = lat
-                longitude = lon
-                onSaveSpot(lat, lon)
-                showNotice("Saved as your location")
-                update()
+                // Portal decides whether the spot can be saved (it won't on a kid profile), so say what it said.
+                onSaveSpot(lat, lon) { saved ->
+                    if (saved) {
+                        // The pin moves here too, since this is now the place the radar is for.
+                        latitude = lat
+                        longitude = lon
+                        showNotice("Saved as your location")
+                    } else {
+                        showNotice("Portal wouldn't change the location")
+                    }
+                    update()
+                }
             } else {
                 showNotice("Move the map first, then save the spot")
             }
