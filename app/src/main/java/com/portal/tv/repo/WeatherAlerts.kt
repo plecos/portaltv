@@ -32,6 +32,8 @@ object WeatherAlerts {
 
     /** The alerts last saved that are still in force, without the network. */
     fun cached(context: Context, now: OffsetDateTime = OffsetDateTime.now()): List<WeatherAlert> {
+        // With no weather provider installed what was kept isn't shown (and is forgotten).
+        if (!com.portal.tv.weather.WeatherSource.installed(context)) { forgetCached(context); return emptyList() }
         val body = prefs(context).getString(ALERTS_KEY, null) ?: return emptyList()
         return runCatching { WeatherJson.decodeAlerts(body) }.getOrDefault(emptyList())
             .filter { alert -> alert.ends.let { it == null || !it.isBefore(now) } }
@@ -40,6 +42,7 @@ object WeatherAlerts {
     /** Alerts for the weather location, from the cache when fresh (unless [force]), else from the weather source. */
     suspend fun load(context: Context, force: Boolean = false): List<WeatherAlert> = withContext(Dispatchers.IO) {
         val p = prefs(context)
+        if (!com.portal.tv.weather.WeatherSource.installed(context)) { forgetCached(context); return@withContext emptyList() }
         val place = WeatherRepository.knownLocation(context) ?: return@withContext emptyList()
         val key = "%.2f,%.2f".format(java.util.Locale.US, place.first, place.second)
         val age = System.currentTimeMillis() - p.getLong("time", 0L)

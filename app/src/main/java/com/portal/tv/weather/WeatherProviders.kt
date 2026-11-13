@@ -6,8 +6,8 @@ import com.portal.tv.extensions.ExtensionRegistry
 
 /**
  * The one source Portal gets its weather from: the extension an adult chose in Settings, else the weather extension that ships
- * with Portal. Portal fetches no weather itself, so with neither installed and allowed there is no weather, and the screens
- * keep showing the last they had, marked as old.
+ * with Portal. Portal fetches no weather itself, so with neither installed there is no weather and nothing is shown. If one is
+ * installed but can't answer, the screens keep showing the last they had, marked as old.
  */
 object WeatherProviders {
 
@@ -27,6 +27,17 @@ object WeatherSource {
 
     /** The package of the extension used as the weather source. */
     fun selected(context: Context): String = prefs(context).getString("package", null) ?: BundledExtension.WEATHER_PACKAGE
+
+    /**
+     * Whether the extension chosen as the source is installed at all. Without one there is no weather provider, and Portal shows
+     * no weather (not what it had kept) until one is installed. A quick package lookup, fine on any thread.
+     */
+    fun installed(context: Context): Boolean = try {
+        context.packageManager.getPackageInfo(selected(context), 0)
+        true
+    } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+        false
+    }
 
     /** Whether the choice is the extension that ships with Portal (nothing else chosen). */
     fun isDefault(context: Context): Boolean = selected(context) == BundledExtension.WEATHER_PACKAGE

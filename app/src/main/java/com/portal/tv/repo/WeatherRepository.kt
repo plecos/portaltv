@@ -40,6 +40,9 @@ object WeatherRepository {
 
     private const val PREFS = "portal_weather"
 
+    /** The reason given when no weather provider is installed: the screens then show no weather at all. */
+    const val NO_PROVIDER = "No weather provider"
+
     /** Where the saved report is kept, in Portal's own format (the older "body" key held one service's raw answer). */
     private const val REPORT_KEY = "report_json"
 
@@ -118,6 +121,8 @@ object WeatherRepository {
 
     /** The last saved report, without touching the network. */
     fun cached(context: Context): Outcome? {
+        // With no weather provider installed what was kept isn't shown (and is forgotten).
+        if (!com.portal.tv.weather.WeatherSource.installed(context)) { forgetCached(context); return null }
         val p = prefs(context)
         val body = p.getString(REPORT_KEY, null) ?: return null
         return try {
@@ -130,6 +135,10 @@ object WeatherRepository {
     /** Asks the weather source for the forecast, falling back to the last saved one when the network or the source fails. */
     suspend fun load(context: Context): Outcome = withContext(Dispatchers.IO) {
         lastFailure = null
+        if (!com.portal.tv.weather.WeatherSource.installed(context)) {
+            forgetCached(context)
+            return@withContext Outcome(null, NO_PROVIDER, 0L, true)
+        }
         val fallback = cached(context)
         fun failed(reason: String) =
             fallback?.copy(error = reason) ?: Outcome(null, reason, 0L, true)

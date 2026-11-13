@@ -967,6 +967,12 @@ class HomeFragment : Fragment() {
     private fun fetchWeather() {
         if (weatherJob?.isActive == true) return
         val context = context ?: return
+        // No weather provider installed: no weather, no badge, nothing old. Settings, Weather says what to do.
+        if (!com.portal.tv.weather.WeatherSource.installed(context)) {
+            showNoWeather()
+            return
+        }
+        weatherRow?.visibility = View.VISIBLE
         weatherJob = lifecycleScope.launch {
             alertBadge?.let { badge ->
                 if (AppSettings.showWeatherAlerts(context)) {
@@ -1075,6 +1081,22 @@ class HomeFragment : Fragment() {
         weatherRow?.alpha = if (stale) 0.6f else 1f
         showingWeather = true
         weatherNeedsRefresh = stale
+    }
+
+    /** Hides the weather line and the alert badge: there is no provider to ask, and nothing kept is shown in its place. */
+    private fun showNoWeather() {
+        showingWeather = false
+        weatherNeedsRefresh = false
+        weatherError = false
+        weatherProgress?.visibility = View.GONE
+        weatherRetry?.visibility = View.GONE
+        weatherTextView?.text = ""
+        windArrowView?.visibility = View.GONE
+        windTextView?.visibility = View.GONE
+        (celestialView?.parent as? View)?.visibility = View.GONE
+        alertBadge?.visibility = View.GONE
+        weatherRow?.visibility = View.GONE
+        syncClockPanel()
     }
 
     private fun showWeatherError(message: String) {
