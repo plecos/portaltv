@@ -23,6 +23,6 @@ Requires Android 14 or newer. Package name: com.portal.tv.
 - Platforms: Android TV and Google TV, Android 14 or newer
 - Price: free for noncommercial use
 - Data: no ads, no analytics, no Portal account; profiles and settings stay on the TV; it asks GitHub once a day whether a newer version is out (can be turned off)
-- Kid profiles: allowed apps only, daily time limit, bedtime, parent PIN; limits count apps opened from Portal
+- Kid profiles: allowed apps only, daily time limit, bedtime, parent PIN (an adult profile can skip re-entering it for a while, 10 minutes by default); limits count apps opened from Portal
 - AI search: no built-in model; connects to any OpenAI-compatible server the user sets up
 - Extensions: separate apps that can add tiles, top-bar and clock-area items, a settings page, a home screen background, reminders and cards, or replace the weather source and the weather page (Portal's own weather is such an extension that ships with it, installed during setup); each thing is allowed one at a time by an adult; not covered by Portal's no-ads, no-tracking promise; kid profiles don't get them unless a parent allows a tile (browse the list at https://getportaltv.net/extensions/)
