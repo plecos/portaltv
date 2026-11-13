@@ -49,7 +49,7 @@ object WeatherProtocol {
     const val KEY_ERROR = "error"
 
     /** How long an extension has to answer before Portal gives up and keeps what it had. */
-    const val ANSWER_TIMEOUT_MS = 20_000L
+    const val ANSWER_TIMEOUT_MS = 40_000L
 
     /** The longest reason from an extension that Portal will show. */
     const val MAX_ERROR = 40

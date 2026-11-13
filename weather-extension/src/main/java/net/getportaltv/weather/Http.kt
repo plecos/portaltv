@@ -48,21 +48,38 @@ internal object Http {
         null
     }
 
-    fun get(url: String, userAgent: String = "PortalWeather/1.0", accept: String? = null): Response = try {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        conn.setRequestProperty("User-Agent", userAgent)
-        accept?.let { conn.setRequestProperty("Accept", it) }
-        try {
-            val code = conn.responseCode
-            if (code == 200) Response(code, conn.inputStream.bufferedReader().readText(), null)
-            else Response(code, null, "Server error")
-        } finally {
-            conn.disconnect()
+    /**
+     * A GET that tries a second time if the first one times out. Just after the extension is installed the TV is busy checking and
+     * compiling it, and the first answer can take longer than a single short wait; a warmed-up second try then succeeds.
+     */
+    fun get(url: String, userAgent: String = "PortalWeather/1.0", accept: String? = null): Response {
+        val first = getOnce(url, userAgent, accept)
+        return if (first.code == -1 && first.failure == "Timed out") getOnce(url, userAgent, accept) else first
+    }
+
+    private fun getOnce(url: String, userAgent: String, accept: String?): Response {
+        val started = android.os.SystemClock.elapsedRealtime()
+        // Only the host is logged, with how long each step took, so a slow service can be told from a slow connection.
+        val host = runCatching { URL(url).host }.getOrDefault("?")
+        return try {
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 15_000
+            conn.setRequestProperty("User-Agent", userAgent)
+            accept?.let { conn.setRequestProperty("Accept", it) }
+            try {
+                val code = conn.responseCode
+                val headers = android.os.SystemClock.elapsedRealtime() - started
+                val result = if (code == 200) Response(code, conn.inputStream.bufferedReader().readText(), null)
+                else Response(code, null, "Server error")
+                Log.i(TAG, "GET $host: $code, headers after $headers ms, done after ${android.os.SystemClock.elapsedRealtime() - started} ms")
+                result
+            } finally {
+                conn.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "GET $host failed after ${android.os.SystemClock.elapsedRealtime() - started} ms: ${e.javaClass.simpleName} ${e.message}")
+            Response(-1, null, if (e is java.net.SocketTimeoutException) "Timed out" else "No connection")
         }
-    } catch (e: Exception) {
-        Log.w(TAG, "HTTP GET $url failed: ${e.message}")
-        Response(-1, null, if (e is java.net.SocketTimeoutException) "Timed out" else "No connection")
     }
 }

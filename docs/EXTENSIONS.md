@@ -261,7 +261,7 @@ zoom), `x0` and `y0` (doubles: the top left of the window, in pixels of the whol
 under 400,000 bytes. Radar goes through Portal picture by picture so that a key for your radar service never leaves you. A source
 with no radar, or no city search, should still answer such a question, with an `error` such as `Not offered`, so Portal isn't
 left waiting. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
-words, at most 40 characters, saying why not). You have 20 seconds. `sample-extension` has a complete example, `WeatherService`.
+words, at most 40 characters, saying why not). You have 40 seconds. `sample-extension` has a complete example, `WeatherService`.
 
 **The weather** (`what` = 1) is one JSON object. Temperatures are °C, speeds km/h, and every `code` is a WMO weather
 code (0 clear, 1 to 3 cloud, 45 and 48 fog, 51 to 57 drizzle, 61 to 67 rain, 71 to 77 snow, 80 to 86 showers, 95 to 99 thunderstorm).
