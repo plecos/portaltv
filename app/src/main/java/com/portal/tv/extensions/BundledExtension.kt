@@ -61,7 +61,7 @@ object BundledExtension {
         val installed = CatalogInstaller.installedFacts(context, WEATHER_PACKAGE)
         if (installed != null && installed.signer != own) return Result.FOREIGN
         // Gone (uninstalled): what was allowed for it is forgotten, so a fresh copy is allowed again once, as the first was.
-        if (installed == null) context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("weather_allowed").apply()
+        if (installed == null && !onlyCheck) context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("weather_allowed").apply()
         val file = extract(context) ?: return Result.UNAVAILABLE
         try {
             val archive = context.packageManager.getPackageArchiveInfo(
@@ -95,8 +95,20 @@ object BundledExtension {
     }
 
     /** Whether to ask the person about installing it: it isn't there (or is older than the copy in Portal), they haven't said no, and a copy Portal can use is built in. */
-    fun needsOffer(context: Context): Boolean =
-        !isDeclined(context) && !offeredThisVersion(context) && installIfNeeded(context, force = true, onlyCheck = true) == Result.STARTED
+    fun needsOffer(context: Context): Boolean {
+        // Seen installed: from then on it is the person's to keep or remove, so Portal never explains or asks again.
+        if (isInstalled(context)) { markEverInstalled(context); return false }
+        return !everInstalled(context) && !isDeclined(context) && !offeredThisVersion(context) &&
+            installIfNeeded(context, force = true, onlyCheck = true) == Result.STARTED
+    }
+
+    /** Whether the weather extension has ever been on this TV. An upgrade explains and offers it once; removing it later is a choice. */
+    private fun everInstalled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("ever_installed", false)
+
+    private fun markEverInstalled(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("ever_installed", true).apply()
+    }
 
     /** Whether Portal carries a copy it could install (built in and signed with Portal's own key), whatever was asked or answered before. */
     fun canOffer(context: Context): Boolean = installIfNeeded(context, force = true, onlyCheck = true) == Result.STARTED
@@ -127,7 +139,7 @@ object BundledExtension {
         // Only the one signed with Portal's own key: the exact package name alone proves nothing.
         if (!ext.madeByPortal) return
         if (ExtensionRegistry.allow(context, WEATHER_PACKAGE, setOf(Capability.WEATHER_SOURCE, Capability.WEATHER_PAGE))) {
-            prefs.edit().putBoolean("weather_allowed", true).apply()
+            prefs.edit().putBoolean("weather_allowed", true).putBoolean("ever_installed", true).apply()
             Log.d(TAG, "The weather extension that ships with Portal was allowed")
         }
     }
