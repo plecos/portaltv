@@ -1,8 +1,36 @@
 {
-  "serial": 2,
-  "updated": "2026-11-10",
-  "expires": "2027-05-09",
+  "serial": 3,
+  "updated": "2026-11-13",
+  "expires": "2027-05-12",
   "format": 1,
-  "extensions": [],
+  "extensions": [
+    {
+      "package": "net.getportaltv.weather",
+      "name": "Portal TV Weather",
+      "description": "The weather that comes with Portal: the forecast from Open-Meteo, US alerts and radar from the National Weather Service, and the weather page.",
+      "author": "Portal TV",
+      "source": "https://github.com/plecos/portaltv/tree/main/weather-extension",
+      "license": "PolyForm Noncommercial 1.0.0",
+      "capabilities": [
+        "weather-source",
+        "weather-page"
+      ],
+      "tags": [
+        "weather"
+      ],
+      "icon": "icons/portal-tv-weather.png",
+      "signer": "5362c877bbfc9723a1b54d20add69f202cd5245a2c15df2ae9170c29e59d51ca",
+      "versions": [
+        {
+          "version_code": 256,
+          "version_name": "2.1.135",
+          "apk": "https://github.com/plecos/portaltv/releases/download/v2.1.135/portal-weather-2.1.135.apk",
+          "sha256": "5d5054da056c5a989798a2c5bd5039a01a9b3227f83dcba03180462950c80019",
+          "size": 8403482,
+          "contract": 1
+        }
+      ]
+    }
+  ],
   "revoked": []
 }
