@@ -136,8 +136,9 @@ A capability name Portal doesn't know is never granted. You can list one for a n
 
 - **Settings, Extensions** lists what is installed, with where each one stands (*Needs your permission*, *Allowed: tiles, cards*, and so
   on). Selecting one shows its description, package, signer and what it asks for. An adult turns each capability on or off
-  and saves; if a parent PIN is set it is asked for before anything changes. *Settings* appears when the settings
-  page is allowed.
+  and saves; if a parent PIN is set it is asked for before anything changes (not again for a while after it was entered, if the
+  profile remembers it). A row has a solid shield with an exclamation mark when nothing it asks for is allowed yet, and a half
+  shield when only some of it is. *Settings* appears when the settings page is allowed.
 - **The app grid** gets one tile per `<tile>` of an allowed extension, with the tile's icon and label, among the other
   apps. They can be hidden, moved, and appear under Frequently Used like any app, and the search box finds them.
 - **The detail page lists the items** the extension would put on the home screen, so an adult sees exactly what turning
@@ -447,6 +448,8 @@ their own. The look-alike list is refreshed with `python3 scripts/gen-confusable
 - Pictures an extension supplies (icons) must be no larger than 512 pixels a side; a bigger one, or one that can't be read, is
   replaced by a generic icon.
 - Changing what an extension may do, or installing one, asks for the parent PIN, and asks you to set one first if there is none.
+  An adult profile can remember the PIN for a while after it was entered (10 minutes by default, per profile, forgotten when the
+  profile is switched); a kid profile never does.
 
 ## A withdrawn extension
 
