@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Portal extensions</title>
-<meta name="description" content="Extensions are apps by other people that add tiles, buttons, backgrounds and reminders to Portal. Browse the list here, or on your TV under Settings, Extensions.">
+<meta name="description" content="Extensions are apps that add tiles, buttons, backgrounds, reminders and the weather to Portal, most made by other people. Browse the list here, or on your TV under Settings, Extensions.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0f0f1a">
 <link rel="canonical" href="https://getportaltv.net/extensions/">
@@ -37,8 +37,8 @@
 <header><div class="wrap"><a href="../">Portal</a> &nbsp;/&nbsp; Extensions</div></header>
 <main class="wrap">
   <h1>Extensions</h1>
-  <p class="lead">Extensions are apps by other people that add things to Portal: a tile, a button in the top bar, a settings page, an animated background, reminders. You find them on your TV under <strong>Settings, Extensions, Browse extensions</strong>. This page shows the same list.</p>
-  <div class="note"><strong>Not covered by Portal's no-ads, no-tracking promise.</strong> Extensions are third-party apps. A listing means someone read the entry and checked its source link; it is not a security audit. Nothing an extension asks for happens until an adult allows it, and kid profiles get no extensions unless a parent says so.</div>
+  <p class="lead">Extensions are separate apps that add things to Portal: a tile, a button in the top bar, a settings page, an animated background, reminders, or where the weather comes from. Most are made by other people; Portal TV Weather, which comes with Portal, is made by Portal. You find them on your TV under <strong>Settings, Extensions, Browse extensions</strong>. This page shows the same list.</p>
+  <div class="note"><strong>Extensions made by other people are not covered by Portal's no-ads, no-tracking promise.</strong> They are third-party apps. A listing means someone read the entry and checked its source link; it is not a security audit. Nothing an extension asks for happens until an adult allows it, and kid profiles get no extensions unless a parent says so.</div>
 
   <h2>Listed extensions</h2>
   <input id="q" type="search" placeholder="Search by name, description or tag" aria-label="Search extensions">
@@ -49,7 +49,7 @@
   <p class="lead">Write an extension in any language: it is an ordinary Android TV app with a small manifest. Start with the <a href="https://github.com/plecos/portaltv/blob/main/docs/EXTENSIONS-QUICKSTART.md">quickstart</a>, then read the <a href="https://github.com/plecos/portaltv/blob/main/docs/EXTENSIONS.md">full contract</a>. To be listed here and in Portal's Browse page, send a pull request to the catalogue repository. The review checklist is in its README.</p>
 
   <h2>What this page sends</h2>
-  <p class="lead">Your browser fetches one file, <a href="catalog.json">catalog.json</a>, from this site. Nothing else is requested, and the page keeps no record of you. Portal on your TV checks the file's signature before it reads it; this page does not, so treat it as a preview.</p>
+  <p class="lead">Your browser fetches one file, <a href="catalog.json">catalog.json</a>, and the small pictures it names, all from this site. Nothing else is requested, and the page keeps no record of you. Portal on your TV checks the file's signature before it reads it; this page does not, so treat it as a preview.</p>
 </main>
 <footer><div class="wrap"><a href="../">Back to Portal</a></div></footer>
 <script>
@@ -60,6 +60,12 @@
   function safeLink(u) { try { var x = new URL(u); return x.protocol === 'https:' ? x.href : null; } catch (e) { return null; } }
   function card(x) {
     var c = el('div', 'card');
+    // A listing's small picture is a file next to catalog.json (icons/name.png), never an address on someone else's server.
+    if (typeof x.icon === 'string' && /^icons\/[A-Za-z0-9._-]+\.png$/.test(x.icon)) {
+      var pic = el('img'); pic.src = x.icon; pic.alt = ''; pic.width = 48; pic.height = 48;
+      pic.style.cssText = 'float:right;border-radius:10px;margin:0 0 8px 12px';
+      c.appendChild(pic);
+    }
     c.appendChild(el('h3', '', x.name));
     c.appendChild(el('div', 'by', 'by ' + x.author + (x.license ? ' · ' + x.license : '')));
     c.appendChild(el('div', 'price', x.price || (x.distribution === 'play' ? 'On Google Play' : 'Free')));
