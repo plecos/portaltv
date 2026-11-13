@@ -1,1 +1,1 @@
-{"key_id": "portal-catalog-1", "signature": "3PkuNAcu7wQvcO6DZivkoV2n0WRue6lduWsoTVSGO+yos/XCCYSYiXQuKZk0vBZm15Qv4iRYhQY/991STkfkDg=="}
+{"key_id": "portal-catalog-1", "signature": "J2pLgeKSwjb9Q73so2Epk/qE8b3QsP15oWixvofw9zVpIdUhTfECLs1wt4VLeZPeNhFMq/GikxJ8+7+92gFtCA=="}
