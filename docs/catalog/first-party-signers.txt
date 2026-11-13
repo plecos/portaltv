@@ -4,3 +4,6 @@
 # checks on catalog pull requests, unless its signer is listed here. Add the fingerprint of the release key (the same one that
 # signs Portal) when the first of our own extensions goes in the catalog:
 #   apksigner verify --print-certs portal-release.apk | grep "SHA-256 digest"
+
+# Portal's release key (it signs Portal and the weather extension that ships with it).
+5362c877bbfc9723a1b54d20add69f202cd5245a2c15df2ae9170c29e59d51ca

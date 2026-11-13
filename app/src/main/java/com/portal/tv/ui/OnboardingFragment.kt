@@ -53,6 +53,9 @@ class OnboardingFragment : Fragment() {
         /** Pages that only exist to reach a result, and so are left out when it already holds. */
         private val SKIPPABLE = setOf(Step.DEVMODE, Step.DEBUGGING, Step.CONNECT, Step.HOME, Step.OVERLAY, Step.MIC)
 
+        /** The plan made when the first-run setup began, kept until it ends so the last pages show the same dots. */
+        private var planMemo: List<Step>? = null
+
         private const val STATE_STEP = "step"
         private const val STATE_ANSWERED = "answered"
 
@@ -70,30 +73,50 @@ class OnboardingFragment : Fragment() {
         }
     }
 
-    private enum class Step { WELCOME, DEVMODE, DEBUGGING, CONNECT, HOME, OVERLAY, MIC, LOCATION, PROFILE, READY }
+    private enum class Step { WELCOME, DEVMODE, DEBUGGING, CONNECT, HOME, OVERLAY, MIC, LOCATION, PROFILE, WEATHER, READY }
 
     private val rerun get() = arguments?.getBoolean(ARG_RERUN) == true
     private var step = Step.WELCOME
 
     /**
-     * The pages in order. A page whose result already holds is left out, and running the setup again has no
-     * profile to create. The page being shown always stays in the list.
+     * The pages worth showing when the setup began: one whose result already held then is left out, and running the setup again has
+     * no profile to create. It is fixed from then on (and kept for the last pages, which are a separate screen), so the dots and
+     * "step x of y" don't change as permissions are granted along the way.
      */
-    private val steps get() = Step.values().filter { s ->
-        s == step || when {
+    private fun computePlan() = Step.values().filter { s ->
+        when {
             s == Step.PROFILE -> !rerun
+            // Only offered when the weather extension that ships with Portal isn't installed yet.
+            s == Step.WEATHER -> !weatherInstalled()
             s in SKIPPABLE -> !satisfied(s)
             else -> true
         }
     }
 
-    /** The pages as they stood when the current one was shown, so the count and dots don't shift under the reader. */
-    private var shown: List<Step> = emptyList()
+    private val plan: List<Step> by lazy {
+        (if (rerun) null else planMemo) ?: computePlan().also { if (!rerun) planMemo = it }
+    }
+
+    /** The pages to move through: the plan, without the pages whose result holds by now. The page being shown always stays. */
+    private val steps get() = plan.filter { s ->
+        s == step || when {
+            s == Step.WEATHER -> !weatherInstalled()
+            s in SKIPPABLE -> !satisfied(s)
+            else -> true
+        }
+    }
+
+    /** Whether the weather extension is installed (looked up once, and again when it may have changed). */
+    private var installedMemo: Boolean? = null
+    private fun weatherInstalled(): Boolean =
+        installedMemo ?: com.portal.tv.extensions.BundledExtension.isInstalled(requireContext()).also { installedMemo = it }
+
+    /** The pages the dots and the count show: all of the plan, even those skipped because they already held. */
+    private val shown: List<Step> get() = plan
 
     /** Show a page. */
     private fun goTo(s: Step) {
         step = s
-        shown = steps
     }
 
     /** Steps the person has dealt with, by granting, declining or being told it can't be done here. */
@@ -153,6 +176,7 @@ class OnboardingFragment : Fragment() {
 
     /** Extra line under the status, for when a step can't be done from the app. */
     private var note = ""
+    private var waitingInstallPermission = false
 
     private lateinit var stepText: TextView
     private lateinit var title: TextView
@@ -186,7 +210,8 @@ class OnboardingFragment : Fragment() {
         secondary = view.findViewById(R.id.onboarding_secondary)
         dots = view.findViewById(R.id.onboarding_dots)
 
-        if (arguments?.getBoolean(ARG_READY) == true) step = Step.READY
+        // The profile exists. The weather extension is offered next, unless it is already there.
+        if (arguments?.getBoolean(ARG_READY) == true) step = if (weatherInstalled()) Step.READY else Step.WEATHER
         else if (!rerun) Onboarding.savedStep(requireContext())?.let { saved ->
             step = Step.values().firstOrNull { it.name == saved } ?: Step.WELCOME
             // Only the weather choice is kept. A permission answered earlier may no longer hold, so those
@@ -198,7 +223,13 @@ class OnboardingFragment : Fragment() {
             state.getIntArray(STATE_ANSWERED)?.forEach { answered += Step.values()[it] }
         }
 
-        shown = steps
+        // Told when the install finishes (it ends with Android's own screen, so it lands later): show it as done.
+        com.portal.tv.extensions.BundledExtension.onInstalled = {
+            view.post {
+                installedMemo = true
+                if (isAdded && ::primary.isInitialized) render()
+            }
+        }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
@@ -206,6 +237,8 @@ class OnboardingFragment : Fragment() {
                     when {
                         // The profile exists by now, so the first run can't go back past this page.
                         step == Step.READY && !rerun -> Unit
+                        // The profile exists too, so the first run doesn't go back to creating it.
+                        step == Step.WEATHER && !rerun -> Unit
                         steps.indexOf(step) > 0 -> {
                             // Going back forgets this step's answer, and the earlier one's, so each can be redone.
                             val earlier = steps[steps.indexOf(step) - 1]
@@ -229,6 +262,7 @@ class OnboardingFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        com.portal.tv.extensions.BundledExtension.onInstalled = null
         watcher.removeCallbacks(watchHome)
         watcher.removeCallbacks(watchSetting)
         super.onDestroyView()
@@ -242,6 +276,18 @@ class OnboardingFragment : Fragment() {
         }
         if (opened.isNotEmpty()) { answered += opened; opened.clear() }
         if (homeRequested && step == Step.HOME && roleHeld()) { afterHomeGranted(); return }
+        // Back from Android's install screen: it may have been installed, or the person may have cancelled.
+        if (step == Step.WEATHER) {
+            installedMemo = null
+            // Still not installed on coming back: the person cancelled, so drop the "confirm it" note.
+            if (!weatherInstalled()) note = ""
+            // Back from Android's "Install unknown apps" page: if Portal is allowed now, carry straight on to the install.
+            if (waitingInstallPermission) {
+                waitingInstallPermission = false
+                if (com.portal.tv.extensions.CatalogInstaller.canInstall(requireContext())) { installWeather(); return }
+                note = "Portal still isn't allowed to install apps. Choose Install to try again, or Skip."
+            }
+        }
         if (::primary.isInitialized) render()
     }
 
@@ -299,6 +345,7 @@ class OnboardingFragment : Fragment() {
     /** Whether the step has what it needs, so the button can say Continue. */
     private fun isDone(s: Step) = when (s) {
         Step.WELCOME, Step.PROFILE, Step.READY -> true
+        Step.WEATHER -> weatherInstalled() || s in answered
         Step.DEVMODE -> devModeOn() || s in answered
         Step.DEBUGGING -> wirelessDebuggingOn() || s in answered
         Step.CONNECT -> allSet() || s in answered
@@ -422,8 +469,26 @@ class OnboardingFragment : Fragment() {
             }
             Step.PROFILE -> {
                 title.text = "Create your profile"
-                body.text = "Last step: add the first profile. Choose a Portal profile, or sign in with a Google account."
+                body.text = "Add the first profile. Choose a Portal profile, or sign in with a Google account."
                 primary.text = "Create profile"
+            }
+            Step.WEATHER -> {
+                title.text = "Get the weather"
+                if (weatherInstalled()) {
+                    body.text = "The weather extension is installed. Portal shows the weather, alerts and radar from it."
+                    good = true
+                    statusText = "Installed"
+                    primary.text = "Continue"
+                } else {
+                    body.text = "To show weather, Portal needs this extension: Portal TV Weather. It comes with Portal. It gets the " +
+                        "forecast from Open-Meteo and US alerts from the National Weather Service, and is told roughly where your " +
+                        "TV is (to within about 10 km). Android may first ask you to let Portal install apps (it calls them \"unknown " +
+                        "apps\" because they don't come from the Play Store), then to confirm the install. You can also install it " +
+                        "later from Settings, Weather."
+                    primary.text = "Install"
+                    secondary.text = "Skip"
+                    secondary.visibility = View.VISIBLE
+                }
             }
             Step.READY -> {
                 if (rerun) {
@@ -456,6 +521,11 @@ class OnboardingFragment : Fragment() {
                 // Do it the long way: the steps after this one ask for each permission in turn.
                 answered += Step.CONNECT
                 connect = Connect.IDLE
+                next()
+            } else if (step == Step.WEATHER) {
+                // Skipped: Portal doesn't offer it again at each start; the button in Settings, Weather still installs it.
+                com.portal.tv.extensions.BundledExtension.setDeclined(requireContext(), true)
+                answered += Step.WEATHER
                 next()
             } else {
                 LocationPicker.show(this) { answered += Step.LOCATION; render() }
@@ -515,12 +585,38 @@ class OnboardingFragment : Fragment() {
                 }
             }
             Step.MIC -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+            Step.WEATHER -> installWeather()
             Step.LOCATION -> {
                 WeatherRepository.useAutomaticLocation(context)
                 answered += Step.LOCATION
                 render()
             }
             else -> next()
+        }
+    }
+
+    /** Starts installing the weather extension. Android shows its own confirmation; coming back, this page shows whether it went in. */
+    private fun installWeather() {
+        val app = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) { com.portal.tv.extensions.BundledExtension.installIfNeeded(app, force = true) }
+            if (!isAdded) return@launch
+            when (result) {
+                com.portal.tv.extensions.BundledExtension.Result.STARTED -> note = "Confirm the install on the screen Android shows."
+                com.portal.tv.extensions.BundledExtension.Result.UP_TO_DATE -> { installedMemo = null; note = "" }
+                com.portal.tv.extensions.BundledExtension.Result.NOT_ALLOWED -> {
+                    // Setup normally allows this itself; if it couldn't, Android's own page for it is the way.
+                    note = "Android's next screen is called \"Install unknown apps\". Select Portal's switch to turn it on, then press Back."
+                    waitingInstallPermission = true
+                    runCatching {
+                        startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}")))
+                    }.onFailure { waitingInstallPermission = false; note = "This TV has no screen for this. You can Skip and install it later." }
+                }
+                com.portal.tv.extensions.BundledExtension.Result.FOREIGN ->
+                    note = "Another app is using the weather extension's name, so Portal left it alone. You can Skip."
+                else -> note = "This copy of Portal doesn't have the weather extension. You can Skip."
+            }
+            render()
         }
     }
 
@@ -634,6 +730,7 @@ class OnboardingFragment : Fragment() {
     }
 
     private fun finish() {
+        planMemo = null
         Onboarding.markDone(requireContext())
         if (rerun) {
             parentFragmentManager.popBackStack()

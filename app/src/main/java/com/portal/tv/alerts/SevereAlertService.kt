@@ -24,6 +24,7 @@ import android.widget.TextView
 import com.portal.tv.R
 import com.portal.tv.repo.WeatherAlerts
 import com.portal.tv.ui.AlertStyle
+import com.portal.tv.weather.WeatherAlert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,7 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Watches for severe weather alerts (see [WeatherAlerts.Alert.isSevere]) while Portal is running, and
+ * Watches for severe weather alerts (see [WeatherAlert.isSevere]) while Portal is running, and
  * when a new one arrives shows a red banner across the top of the screen, over whatever app is open,
  * with a tone. The banner doesn't take the remote, so the app keeps working, and it goes by itself
  * after [BANNER_MS]. Each alert is announced once.
@@ -83,7 +84,7 @@ class SevereAlertService : Service() {
         if (fresh.isNotEmpty()) show(fresh)
     }
 
-    private fun show(alerts: List<WeatherAlerts.Alert>) {
+    private fun show(alerts: List<WeatherAlert>) {
         if (!Settings.canDrawOverlays(this)) return
         removeBanner()
         // On Portal's home screen the red banner is already there, so only the tone is needed.

@@ -80,21 +80,25 @@ jobs:
           ./gradlew assembleRelease
           rm -f "$RUNNER_TEMP/portal-release.jks"
           cp app/build/outputs/apk/release/app-release.apk "portal-$VERSION.apk"
+          # The weather extension that ships inside Portal, as a file of its own too: the catalog installs and updates it from here.
+          cp weather-extension/build/outputs/apk/release/weather-extension-release.apk "portal-weather-$VERSION.apk"
 
       # Debug builds trust a test catalog key whose private half is public, so a debuggable APK must never be published.
       - name: The APK must not be debuggable
         run: |
           aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
-          if "$aapt2" dump badging "portal-$VERSION.apk" | grep -q "application-debuggable"; then
-            echo "::error::The release APK is debuggable."
-            exit 1
-          fi
+          for apk in "portal-$VERSION.apk" "portal-weather-$VERSION.apk"; do
+            if "$aapt2" dump badging "$apk" | grep -q "application-debuggable"; then
+              echo "::error::$apk is debuggable."
+              exit 1
+            fi
+          done
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v$VERSION" "portal-$VERSION.apk" \
+          gh release create "v$VERSION" "portal-$VERSION.apk" "portal-weather-$VERSION.apk" \
             --target "$GITHUB_SHA" --title "Portal $VERSION" --generate-notes
 
       - name: Keep the reports

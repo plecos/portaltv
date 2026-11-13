@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <net.getportaltv.weather.page.RadarView
+        android:id="@+id/radar_full"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <GridLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="22dp"
+        android:columnCount="2">
+
+        <ImageView
+            android:id="@+id/radar_zoom_in"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Zoom in"
+            android:src="@drawable/ic_zoom_in" />
+
+        <ImageView
+            android:id="@+id/radar_zoom_out"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Zoom out"
+            android:src="@drawable/ic_zoom_out" />
+
+        <ImageView
+            android:id="@+id/radar_play"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Pause or play"
+            android:src="@drawable/ic_pause" />
+
+        <ImageView
+            android:id="@+id/radar_layers"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Change map"
+            android:src="@drawable/ic_layers" />
+
+        <ImageView
+            android:id="@+id/radar_move"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Move the map"
+            android:src="@drawable/ic_move" />
+
+        <ImageView
+            android:id="@+id/radar_pin"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Use this spot as my location"
+            android:src="@drawable/ic_pin" />
+
+        <ImageView
+            android:id="@+id/radar_close"
+            style="@style/RadarButtonOverMap"
+            android:contentDescription="Close"
+            android:src="@drawable/ic_close" />
+    </GridLayout>
+</FrameLayout>

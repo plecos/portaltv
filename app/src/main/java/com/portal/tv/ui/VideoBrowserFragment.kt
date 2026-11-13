@@ -23,7 +23,6 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.portal.tv.R
 import com.portal.tv.background.VideoThumbnails
-import com.portal.tv.repo.RadarFeed
 import com.portal.tv.settings.BackgroundSettings
 import com.portal.tv.video.DownloadedVideos
 import com.portal.tv.video.VideoCatalog
@@ -553,10 +552,26 @@ class VideoBrowserFragment : Fragment() {
             images.get(url)?.let { into.setImageBitmap(it); return }
             into.tag = url
             viewLifecycleOwner.lifecycleScope.launch {
-                val bitmap = RadarFeed.tile(url) ?: return@launch
+                val bitmap = downloadPicture(url) ?: return@launch
                 images.put(url, bitmap)
                 if (into.tag == url) into.setImageBitmap(bitmap)
             }
         }
     }
+}
+
+/** A picture from a web address (a video's preview), or null if it couldn't be fetched. */
+private suspend fun downloadPicture(address: String): android.graphics.Bitmap? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    runCatching {
+        val c = java.net.URL(address).openConnection() as java.net.HttpURLConnection
+        try {
+            c.connectTimeout = 10_000
+            c.readTimeout = 15_000
+            c.setRequestProperty("User-Agent", "Portal TV (https://github.com/plecos/portaltv)")
+            if (c.responseCode != 200) return@runCatching null
+            c.inputStream.use { input -> input.readBytes().let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) } }
+        } finally {
+            c.disconnect()
+        }
+    }.getOrNull()
 }

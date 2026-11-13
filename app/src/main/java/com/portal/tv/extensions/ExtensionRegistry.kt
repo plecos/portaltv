@@ -31,7 +31,11 @@ data class Extension(
     val madeByPortal: Boolean = false,
     /** The version the app shows for itself (for example 1.2), if it has one. */
     val versionName: String? = null,
-    val versionCode: Long? = null
+    val versionCode: Long? = null,
+    /** The service Portal asks for weather, if it offers to be a weather source and the service exists and Portal may bind to it. */
+    val weatherService: String? = null,
+    /** The screen that opens in place of Portal's weather page, if it offers one and the screen exists and Portal may open it. */
+    val weatherPage: String? = null
 ) {
     val manifest: ExtensionManifest? get() = (parsed as? ManifestParser.Result.Ok)?.manifest
     /** Whether its background may be sent left and right presses during the screen saver: it asked, and its background can be used. */
@@ -59,6 +63,14 @@ object ExtensionRegistry {
         val pm = context.packageManager
         forgetUninstalled(context, pm)
         val apps = pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+            .toMutableList()
+        // A running Portal can be handed a stale list of installed apps right after it installs the weather extension itself, so
+        // that one app is also asked for by name (which is always current).
+        if (apps.none { it.packageName == BundledExtension.WEATHER_PACKAGE }) {
+            runCatching {
+                pm.getApplicationInfo(BundledExtension.WEATHER_PACKAGE, PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+            }.getOrNull()?.let { apps += it }
+        }
         return apps.filter { it.packageName != context.packageName && it.enabled && it.metaData?.containsKey(META_KEY) == true }
             .map { describe(context, pm, it) }
             .sortedBy { it.name.lowercase() }
@@ -166,7 +178,9 @@ object ExtensionRegistry {
         /** Every certificate in its signing history, for withdrawals. */
         val signers: Set<String>,
         val versionCode: Long?,
-        val versionName: String? = null
+        val versionName: String? = null,
+        val weather: String? = null,
+        val weatherPage: String? = null
     )
 
     private val factsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Facts>>()
@@ -190,6 +204,8 @@ object ExtensionRegistry {
         var settings: String? = null
         var usable = emptyList<ExtensionItem>()
         var background: String? = null
+        var weather: String? = null
+        var weatherPage: String? = null
         if (parsed is ManifestParser.Result.Ok) {
             tiles = parsed.manifest.tiles.filter { tile ->
                 canOpen(pm, pkg, tile.activity).also { if (!it) problems += "The tile \"${tile.label}\" opens a screen that isn't there or isn't open to Portal." }
@@ -199,11 +215,13 @@ object ExtensionRegistry {
                 (screen == null || canOpen(pm, pkg, screen)).also { if (!it) problems += "The button \"${item.text}\" opens a screen that isn't there or isn't open to Portal." }
             }
             background = parsed.manifest.backgroundService?.takeIf { canBind(pm, pkg, it).also { ok -> if (!ok) problems += "Its background service isn't there or isn't open to Portal." } }
+            weather = parsed.manifest.weatherService?.takeIf { canBind(pm, pkg, it).also { ok -> if (!ok) problems += "Its weather service isn't there or isn't open to Portal." } }
+            weatherPage = parsed.manifest.weatherPage?.takeIf { canOpen(pm, pkg, it).also { ok -> if (!ok) problems += "Its weather page isn't there or isn't open to Portal." } }
             settings = parsed.manifest.settingsActivity?.takeIf { canOpen(pm, pkg, it).also { ok -> if (!ok) problems += "Its settings screen isn't there or isn't open to Portal." } }
         }
         val (signer, signers) = signersOf(pm, pkg)
         val info = runCatching { pm.getPackageInfo(pkg, 0) }.getOrNull()
-        return Facts(appLabel, parsed, tiles, settings, usable, background, problems, signer, signers, info?.longVersionCode, info?.versionName?.trim()?.takeIf { it.isNotEmpty() && it.length <= 24 })
+        return Facts(appLabel, parsed, tiles, settings, usable, background, problems, signer, signers, info?.longVersionCode, info?.versionName?.trim()?.takeIf { it.isNotEmpty() && it.length <= 24 }, weather, weatherPage)
     }
 
     private fun describe(context: Context, pm: PackageManager, app: ApplicationInfo): Extension {
@@ -229,7 +247,7 @@ object ExtensionRegistry {
         // Signed with Portal's own key: one of ours (a reserved name is only ever usable by these).
         val ours = f.signers.any { it in ownSigners(context, pm) }
         return if (reserved) Extension(pkg, f.appLabel, parsed, emptyList(), null, emptyList(), null, f.problems, signer, state, effective, revocation?.reason, madeByPortal = false, versionName = f.versionName, versionCode = f.versionCode)
-        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason, madeByPortal = ours, versionName = f.versionName, versionCode = f.versionCode)
+        else Extension(pkg, f.appLabel, parsed, f.tiles, f.settings, items, f.background, f.problems, signer, state, effective, revocation?.reason, madeByPortal = ours, versionName = f.versionName, versionCode = f.versionCode, weatherService = f.weather, weatherPage = f.weatherPage)
     }
 
     @Volatile private var ownSignersMemo: Set<String>? = null

@@ -1,11 +1,13 @@
 package com.portal.tv.extensions
 
 import com.portal.tv.repo.WeatherRepository
+import com.portal.tv.weather.WeatherDay
+import com.portal.tv.weather.WeatherReport
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 /** The weather Portal last fetched and when, as the host API sees it. */
-class WeatherSnapshot(val report: WeatherRepository.Report, val updatedAtMs: Long)
+class WeatherSnapshot(val report: WeatherReport, val updatedAtMs: Long)
 
 /**
  * What `weather.get` tells an extension: the weather as plain numbers it can draw from, and where the TV roughly is. Worked out
@@ -120,7 +122,7 @@ object WeatherForExtensions {
         }
     }
 
-    private fun today(r: WeatherRepository.Report, nowMs: Long): WeatherRepository.Day? {
+    private fun today(r: WeatherReport, nowMs: Long): WeatherDay? {
         val local = java.time.Instant.ofEpochMilli(nowMs).atOffset(ZoneOffset.ofTotalSeconds(r.utcOffsetSeconds)).toLocalDate()
         return r.days.firstOrNull { it.date == local }
     }

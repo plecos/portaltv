@@ -58,6 +58,8 @@ class SettingsFragment : Fragment() {
     private var refreshShaderColors: (() -> Unit)? = null
     /** Looks again at which extensions may draw the background and updates the choices on the Background page. */
     private var refreshBackgroundChoices: (() -> Unit)? = null
+    /** Looks the weather sources up again; called when an extension is allowed or changed. */
+    private var refreshWeatherSources: (() -> Unit)? = null
     /** Looks up the extensions that can draw the screen saver again (one was just allowed, changed or removed). */
     private var refreshSaverLooks: (() -> Unit)? = null
 
@@ -78,6 +80,7 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupUnits(view)
         setupWeatherLocation(view)
+        setupWeatherSource(view)
         setupShaderColors(view)
         setupSpeed(view)
         setupBrightness(view)
@@ -1158,6 +1161,235 @@ class SettingsFragment : Fragment() {
         highlight()
     }
 
+    /** One row of choices on the Weather page: Portal's own (if there is one), then each extension that may do the job right now. */
+    private class ChoiceRow(
+        val rowId: Int, val labelId: Int, val hintId: Int,
+        /** What each tile is for, for the screen reader: "Weather from X". */
+        val describe: String,
+        val offers: (com.portal.tv.extensions.Extension) -> Boolean,
+        /** The package chosen now, or null for Portal's own. */
+        val selected: (android.content.Context) -> String?,
+        val select: (android.content.Context, String?) -> Unit,
+        /** The words on Portal's own choice, or null if the row has none. */
+        val builtInLabel: String? = "Built in",
+        /** What to say under the row, given the choice and whether it can be used now. */
+        val hint: (chosen: String?, usable: Boolean) -> String,
+        /** A button after the choices (such as one to install what is missing), given the packages that can be chosen now. */
+        val extraTile: (available: Set<String>) -> Pair<String, () -> Unit>? = { null },
+        val after: () -> Unit = {}
+    )
+
+    /** Fills a [ChoiceRow] and returns what looks the extensions up again (an extension may have been allowed or changed). */
+    private fun setupChoiceRow(view: View, spec: ChoiceRow): () -> Unit {
+        val context = requireContext()
+        val row = view.findViewById<android.widget.LinearLayout>(spec.rowId)
+        val hint = view.findViewById<TextView>(spec.hintId)
+        // Which extension to trust is an adult's choice.
+        if (com.portal.tv.repo.ProfileManager.isActiveKids(context)) {
+            listOf(spec.labelId, spec.hintId).forEach { view.findViewById<View>(it).visibility = View.GONE }
+            (row.parent as View).visibility = View.GONE
+            return {}
+        }
+        val dp = resources.displayMetrics.density
+        val tiles = mutableListOf<Pair<String?, TextView>>()
+        var extra: TextView? = null
+        var available = emptySet<String>()
+
+        fun style(tv: TextView, selected: Boolean) {
+            tv.setBackgroundResource(if (selected) R.drawable.bg_app_tile_selected else R.drawable.bg_settings_tile)
+            tv.setTextColor(resources.getColor(if (selected) R.color.text_primary else R.color.text_secondary, null))
+        }
+
+        fun highlight() {
+            val chosen = spec.selected(context)
+            val usable = chosen == null || chosen in available
+            tiles.forEach { (pkg, tv) -> style(tv, usable && pkg == chosen) }
+            hint.text = spec.hint(chosen, usable)
+        }
+
+        fun tile(label: String, description: String, first: Boolean, onClick: () -> Unit) = TextView(context).apply {
+            text = label
+            textSize = 18f
+            typeface = resources.getFont(R.font.inter)
+            gravity = android.view.Gravity.CENTER
+            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+            maxWidth = (240 * dp).toInt()
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            isFocusable = true
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, (48 * dp).toInt()
+            ).apply { if (!first) marginStart = (12 * dp).toInt() }
+            contentDescription = description
+            setOnClickListener { onClick() }
+        }
+
+        val load = { viewLifecycleOwner.lifecycleScope.launch {
+            val found = withContext(Dispatchers.IO) { com.portal.tv.extensions.ExtensionRegistry.scan(context).filter(spec.offers) }
+            available = found.map { it.packageName }.toSet()
+            tiles.forEach { row.removeView(it.second) }
+            extra?.let { row.removeView(it) }
+            tiles.clear()
+            fun choose(pkg: String?, label: String) {
+                spec.select(context, pkg)
+                Log.d("Portal", "settings: ${spec.describe} ${pkg ?: "built in"}")
+                highlight()
+                spec.after()
+            }
+            spec.builtInLabel?.let { label -> tiles += null to tile(label, "${spec.describe} $label", true) { choose(null, label) } }
+            found.forEachIndexed { i, ext ->
+                tiles += ext.packageName to tile(ext.name, "${spec.describe} ${ext.name}", spec.builtInLabel == null && i == 0) { choose(ext.packageName, ext.name) }
+            }
+            tiles.forEach { row.addView(it.second) }
+            extra = spec.extraTile(available)?.let { (label, action) ->
+                tile(label, label, tiles.isEmpty(), action).also { style(it, false); row.addView(it) }
+            }
+            highlight()
+        } }
+        load()
+        return { load() }
+    }
+
+    /**
+     * Where the weather comes from, and which page shows it. Each is an extension an adult has allowed (the page can also be
+     * Portal's own), one at a time. The source is the weather extension that ships with Portal unless another is chosen; if the
+     * source can't answer, nothing stands in: Portal keeps the last weather it had, marked as old. A chosen page that can't be
+     * opened is replaced by Portal's own, so the panel always opens something.
+     */
+    private fun setupWeatherSource(view: View) {
+        val context = requireContext()
+        val bundled = com.portal.tv.extensions.BundledExtension.WEATHER_PACKAGE
+        // Installing the weather extension that ships with Portal: Android shows its own confirmation, so the answer here is only what to do next.
+        val installAction: () -> Unit = {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val result = withContext(Dispatchers.IO) { com.portal.tv.extensions.BundledExtension.installIfNeeded(context, force = true) }
+                        val say = when (result) {
+                            com.portal.tv.extensions.BundledExtension.Result.STARTED -> "Confirm the install on the screen Android shows"
+                            com.portal.tv.extensions.BundledExtension.Result.UP_TO_DATE -> "It is installed. Allow it under Extensions."
+                            com.portal.tv.extensions.BundledExtension.Result.NOT_ALLOWED -> {
+                                // Android's own page for letting an app install apps; the person turns it on there.
+                                runCatching {
+                                    startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                        android.net.Uri.parse("package:${context.packageName}")))
+                                }
+                                "Allow Portal to install apps, then choose Install weather again"
+                            }
+                            com.portal.tv.extensions.BundledExtension.Result.FOREIGN -> "Another app uses the weather extension's name, so Portal left it alone"
+                            else -> "This Portal doesn't have the weather extension built in"
+                        }
+                        Toast.makeText(context, say, Toast.LENGTH_LONG).show()
+                    }
+        }
+        val source = setupChoiceRow(view, ChoiceRow(
+            R.id.row_weather_source, R.id.label_weather_source, R.id.weather_source_hint,
+            describe = "Weather from",
+            offers = { com.portal.tv.extensions.Capability.WEATHER_SOURCE in it.granted && it.weatherService != null },
+            selected = { com.portal.tv.weather.WeatherSource.selected(it) },
+            select = { c, pkg -> com.portal.tv.weather.WeatherSource.select(c, pkg ?: bundled) },
+            builtInLabel = null,
+            hint = { chosen, usable ->
+                when {
+                    chosen == bundled && usable -> "Comes with Portal: the forecast from Open-Meteo and US alerts from the National Weather Service."
+                    chosen == bundled -> "Portal's weather isn't installed here, or isn't allowed. Choose Install weather and confirm on the screen Android shows. Until then the weather won't update."
+                    !usable -> "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another."
+                    else -> "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts."
+                }
+            },
+            extraTile = { available -> if (bundled in available) null else "Install weather" to installAction },
+            // The old source's weather was forgotten; ask the new one now rather than at the next refresh.
+            after = {
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    WeatherRepository.load(context)
+                    com.portal.tv.repo.WeatherAlerts.load(context, force = true)
+                }
+            }
+        ))
+        val page = setupChoiceRow(view, ChoiceRow(
+            R.id.row_weather_page, R.id.label_weather_page, R.id.weather_page_hint,
+            describe = "Weather page by",
+            offers = { com.portal.tv.extensions.Capability.WEATHER_PAGE in it.granted && it.weatherPage != null },
+            selected = { com.portal.tv.weather.WeatherPage.selected(it) },
+            select = { c, pkg -> com.portal.tv.weather.WeatherPage.select(c, pkg ?: bundled) },
+            builtInLabel = null,
+            hint = { chosen, usable ->
+                when {
+                    chosen == bundled && usable -> "Comes with Portal: the weather page, alerts and radar. Every profile, kids included, gets the page chosen here."
+                    chosen == bundled -> "Portal's weather isn't installed here, or isn't allowed. Choose Install weather and confirm on the screen Android shows. Until then the time and weather panel opens nothing."
+                    !usable -> "The page you chose isn't available (removed, switched off or not allowed), so the time and weather panel opens nothing. Pick another."
+                    else -> "An extension you chose opens when you press the time and weather, for every profile, kids included. It can read the forecast, the alerts, the radar and where this TV roughly is, with the city's name."
+                }
+            },
+            extraTile = { available -> if (bundled in available) null else "Install weather" to installAction }
+        ))
+        val availability = setupWeatherAvailability(view, installAction)
+        refreshWeatherSources = { source(); page(); availability() }
+        availability()
+        // Installing the weather extension from here finishes later, with Android's own screen in between: show it when it lands.
+        com.portal.tv.extensions.BundledExtension.onInstalled = {
+            // The Extensions page lists it too, and its own refresh (which also redoes these rows) came before the install finished.
+            view.post { refreshExtensions?.invoke() ?: run { refreshWeatherSources?.invoke() } }
+        }
+        viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) {
+                com.portal.tv.extensions.BundledExtension.onInstalled = null
+            }
+        })
+    }
+
+    /**
+     * With no weather provider installed none of the weather settings mean anything, so the page says what to do instead: install
+     * Portal TV Weather (the default provider) if Portal carries a usable copy, or find one under Extensions. A kid is only told to
+     * ask a parent. Returns what looks again, for when an extension is installed or removed.
+     */
+    private fun setupWeatherAvailability(view: View, installAction: () -> Unit): () -> Unit {
+        val context = requireContext()
+        val kid = com.portal.tv.repo.ProfileManager.isActiveKids(context)
+        val settings = view.findViewById<View>(R.id.weather_settings)
+        val missing = view.findViewById<View>(R.id.weather_missing)
+        val text = view.findViewById<TextView>(R.id.weather_missing_text)
+        val install = view.findViewById<View>(R.id.weather_missing_install)
+        val extensions = view.findViewById<View>(R.id.weather_missing_extensions)
+        install.setOnClickListener { installAction() }
+        extensions.setOnClickListener {
+            view.findViewById<View>(R.id.cat_extensions)?.let { it.performClick(); it.requestFocus() }
+        }
+        return {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val (provided, copy) = withContext(Dispatchers.IO) {
+                    val provider = com.portal.tv.extensions.ExtensionRegistry.scan(context).any { it.weatherService != null }
+                    // Whether Portal carries a copy of the default provider it could install (nothing is installed by asking).
+                    val usable = !provider && com.portal.tv.extensions.BundledExtension.canOffer(context)
+                    provider to usable
+                }
+                if (!isAdded) return@launch
+                settings.visibility = if (provided) View.VISIBLE else View.GONE
+                missing.visibility = if (provided) View.GONE else View.VISIBLE
+                when {
+                    provided -> Unit
+                    kid -> {
+                        text.text = "Weather isn't set up on this TV yet. A parent can set it up under Settings, Weather."
+                        install.visibility = View.GONE
+                        extensions.visibility = View.GONE
+                    }
+                    copy -> {
+                        text.text = "Portal needs a weather provider to show the weather, and none is installed. Portal TV Weather is " +
+                            "the default weather provider, and it comes with Portal. It gets the forecast from Open-Meteo and US alerts " +
+                            "from the National Weather Service. You can also install another one from Extensions, Browse extensions."
+                        install.visibility = View.VISIBLE
+                        extensions.visibility = View.VISIBLE
+                    }
+                    else -> {
+                        text.text = "Portal needs a weather provider to show the weather, and none is installed. Portal TV Weather is " +
+                            "the default weather provider. Open Extensions, choose Browse extensions (the catalog) and install a " +
+                            "weather provider there."
+                        install.visibility = View.GONE
+                        extensions.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+    }
+
     private fun setupUnits(view: View) {
         val metric = view.findViewById<TextView>(R.id.opt_metric)
         val imperial = view.findViewById<TextView>(R.id.opt_imperial)
@@ -1227,7 +1459,7 @@ class SettingsFragment : Fragment() {
                 !on -> "Off: severe alerts show only on the home screen and the weather page."
                 !allowed -> "Needs permission to display over other apps. Allow it under Settings, Family, " +
                     "\"Timer over apps\" (it covers both)."
-                else -> "A red banner and a tone, for about 30 seconds, for each new severe alert. US only."
+                else -> "A red banner and a tone, for about 30 seconds, for each new severe alert. The weather that comes with Portal has US alerts only."
             }
         }
         severeOn.setOnClickListener {
@@ -2047,6 +2279,7 @@ class SettingsFragment : Fragment() {
             extensionsSummary = com.portal.tv.extensions.ExtensionLabels.summary(found, allowed, updates)
             refreshCategories?.invoke()
             refreshBackgroundChoices?.invoke()
+            refreshWeatherSources?.invoke()
             refreshSaverLooks?.invoke()
         }) {
             // Back from the catalog lands on this page again.

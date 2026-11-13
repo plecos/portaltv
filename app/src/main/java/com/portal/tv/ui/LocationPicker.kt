@@ -66,7 +66,7 @@ object LocationPicker {
             if (query.isEmpty()) return@setOnClickListener
             busy(true)
             job = fragment.viewLifecycleOwner.lifecycleScope.launch {
-                val results = WeatherRepository.searchCities(query)
+                val results = WeatherRepository.searchCities(context, query)
                 busy(false)
                 when {
                     results == null ->

@@ -1,0 +1,121 @@
+package com.portal.tv.weather
+
+import java.time.LocalDate
+import java.time.OffsetDateTime
+
+/*
+ * What a weather source hands Portal, whoever it is. Portal's own screens, the screen saver, the weather
+ * backgrounds and the severe-alert watcher read only these types, never a service's own format, so a source can
+ * be replaced without touching them.
+ *
+ * Conditions are WMO weather interpretation codes (0 clear, 1-3 cloud, 45/48 fog, 51-57 drizzle, 61-67 rain,
+ * 71-77 snow, 80-86 showers, 95-99 thunderstorm), the same numbers Open-Meteo reports. A source that speaks
+ * another code maps it to the nearest of these.
+ */
+
+/** A place to fetch weather for. [city] is only a name to show; the forecast is for the coordinates. */
+data class WeatherPlace(val lat: Double, val lon: Double, val city: String?)
+
+data class WeatherHour(
+    val hour24: Int,
+    val tempC: Double,
+    val code: Int,
+    val isDay: Boolean,
+    /** Chance of rain or snow in this hour, percent, when the source gives one. */
+    val rainChance: Int? = null
+)
+
+data class WeatherDay(
+    val date: LocalDate,
+    val code: Int,
+    val highC: Double,
+    val lowC: Double,
+    val rainChance: Int,
+    /** Local sunrise and sunset as ISO times such as "2026-10-30T07:12". */
+    val sunrise: String? = null,
+    val sunset: String? = null,
+    val uvMax: Double? = null,
+    /** Total rain and snow melt expected, millimetres. */
+    val precipMm: Double? = null,
+    /** Strongest wind of the day, km/h, and snowfall, centimetres. */
+    val windMaxKmh: Double? = null,
+    val snowCm: Double? = null
+)
+
+data class WeatherReport(
+    val city: String?,
+    val tempC: Double,
+    val feelsLikeC: Double,
+    val humidity: Int,
+    val windKmh: Double,
+    val windDirection: Int,
+    val code: Int,
+    val isDay: Boolean,
+    val hours: List<WeatherHour>,
+    val days: List<WeatherDay>,
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    /** The place's offset from UTC, for turning local times into moments. */
+    val utcOffsetSeconds: Int = 0,
+    val gustKmh: Double? = null,
+    val pressureHpa: Double? = null,
+    val cloudCover: Int? = null,
+    val visibilityKm: Double? = null,
+    val uvIndex: Double? = null,
+    /** US air quality index; null when the source has none. */
+    val aqi: Int? = null
+)
+
+enum class AlertSeverity(val rank: Int, val label: String) {
+    EXTREME(4, "Extreme"), SEVERE(3, "Severe"), MODERATE(2, "Moderate"), MINOR(1, "Minor"), UNKNOWN(0, "")
+}
+
+data class WeatherAlert(
+    val id: String,
+    val event: String,
+    val severity: AlertSeverity,
+    val headline: String,
+    val description: String,
+    val instruction: String,
+    val area: String,
+    /** When it ends or expires, or null if the source didn't say. */
+    val ends: OffsetDateTime?,
+    /** When it begins, if it is not already in force. */
+    val onset: OffsetDateTime? = null,
+    /** Who issued it, for showing, such as "National Weather Service". */
+    val source: String = "",
+    /**
+     * Serious enough to cover whatever app is open, and be announced once. The source says so; for a source outside Portal
+     * this is only honoured when [severity] is Severe or Extreme (see [WeatherValidator]). Other alerts are shown in colour
+     * on the home screen but never cover an app.
+     */
+    val interrupts: Boolean = false
+) {
+    /** Warnings are the serious ones; watches and advisories rank below them. */
+    val isWarning get() = event.endsWith("Warning", ignoreCase = true)
+    val isWatch get() = event.endsWith("Watch", ignoreCase = true)
+
+    val isSevere get() = interrupts
+}
+
+/**
+ * One radar picture a source can draw: [time] is when it was taken (epoch seconds) and [ref] is whatever the source needs to draw
+ * it again later. Portal passes [ref] back untouched and never reads it, so it can hold anything (but is bounded and plain text).
+ */
+data class RadarFrame(val time: Long, val ref: String)
+
+/**
+ * What a source can show as radar for a place: the pictures it has (oldest first), how closely they are worth looking at and who
+ * to credit. [maxZoom] is the closest map level the radar is worth opening at, and [detailZoom] the closest level at which a
+ * picture has real detail (closer in, the picture is stretched). [refreshSeconds] says how soon to ask again.
+ */
+data class RadarIndex(
+    val credit: String,
+    val maxZoom: Int,
+    val detailZoom: Int,
+    val refreshSeconds: Int,
+    val frames: List<RadarFrame>
+)
+
+/** A place found by a city search, for choosing where the weather is for. [region] is such as a state and country, to tell two of a name apart. */
+data class WeatherCity(val name: String, val region: String?, val lat: Double, val lon: Double)

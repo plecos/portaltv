@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "Portal" is allowed in this name because the package is reserved for Portal's own apps: Portal only uses it
+         when Portal's own key signed it. Keep it short: it is a button in Settings, Weather. -->
+    <string name="app_name">Portal TV Weather</string>
+    <string name="ext_name">Portal TV Weather</string>
+    <string name="ext_description">The weather that comes with Portal: the weather page, the forecast from Open-Meteo, US alerts from the National Weather Service and radar.</string>
+</resources>

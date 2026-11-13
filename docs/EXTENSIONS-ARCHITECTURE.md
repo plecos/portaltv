@@ -227,6 +227,30 @@ in its history is the same as Portal's own (`ownSigners`). The same signer test 
 Portal" instead of an unlisted-extension warning. This is why Scenic Travel (`net.getportaltv.scenic`) has to be signed with Portal's
 release key to be usable.
 
+### 4.9 The extension that ships with Portal
+
+**Files:** `BundledExtension.kt`, `weather-extension/` (the extension), `weather-core/` (what it shares with Portal).
+
+Portal fetches no weather itself: Open-Meteo, the National Weather Service and city search live in `net.getportaltv.weather`, an
+ordinary extension. Its APK is built by Gradle and embedded in Portal's assets, and it is signed with Portal's release key. The
+rules above are not loosened for it, with two exceptions that are narrow on purpose:
+
+- **Installing.** Portal installs it through Android's own installer, so Android still shows its confirmation. Setup offers it
+  right after the first profile is created, with a plain explanation of what it is and what it is told, and an Install or Skip
+  choice. Skip is remembered: Portal does not offer again at each start, and Settings, Weather has an "Install weather" button for
+  whoever changes their mind. A Portal that finds it missing for any other reason (an update, say) offers it at most once for each
+  of its own versions.
+- **Allowing.** The first time Portal sees the package `net.getportaltv.weather` installed **and** signed with the same key as
+  Portal itself, it allows that one extension two capabilities, `weather-source` and `weather-page`, without the PIN, so weather works out of the box.
+  It is not a rule for "extensions signed by Portal": the package name is part of the test. It happens once; after that an adult
+  can turn it off and Portal never turns it back on. If the package is uninstalled, what was allowed is forgotten like any
+  extension's, and a fresh copy is allowed once again.
+
+Its package name is reserved, and a reserved name is only usable when signed by Portal's key (4.8), so another app can't take its
+place. Its name has no "Portal" in it, because Portal refuses any extension name that could pass for part of itself, its own too.
+
+---
+
 ---
 
 ## 5. Text and picture safety
@@ -313,6 +337,9 @@ Design points that matter for review:
 | `tile.update` | `tiles` | Badge (6 chars) and subtitle (24); only for the extension's own declared tile ids |
 | `items.set/remove/list` | `bar` or `clock` (by the `area` argument) | Change words of declared items, remove them, add text lines, within 2 per area |
 | `weather.get` | `weather` | Reads Portal's cached weather as numbers; never touches the network; location rounded to 0.1 degree; works on kid profiles |
+| `weather.radar`, `weather.radar_image` | `weather-page` | The list of radar pictures and one picture (PNG bytes) from the weather source in use. Portal checks the list, and that a picture is a PNG of exactly the size asked and under 400 KB, and keeps recent ones for a short while. They have a separate limit of 300 calls a minute. The source's own keys never leave it |
+| `weather.spot` | `weather-page` | Saves an exact spot as the place the weather is for; counted as a change; refused on a kid profile |
+| `weather.report`, `weather.alerts` | `weather-page` | The whole cached report (Portal's own JSON format, location rounded to 0.1 degree, with the city's name) and the alerts in force, for an extension that is the weather page; never touches the network; works on kid profiles |
 
 Limits live in `HostLimits` (50 reminders, 80/60/140 character caps, 120 calls and 20 changes per minute, 8 item changes kept, a
 reminder at most two years ahead). `RateLimiter` is a per-package sliding window kept in memory only, so a restart starts fresh.

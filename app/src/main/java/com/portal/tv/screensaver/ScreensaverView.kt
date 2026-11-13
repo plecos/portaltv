@@ -27,6 +27,8 @@ import com.portal.tv.ui.ShaderStyles
 import com.portal.tv.settings.BirthdayStore
 import com.portal.tv.ui.AlertStyle
 import com.portal.tv.ui.WeatherIcons
+import com.portal.tv.weather.WeatherAlert
+import com.portal.tv.weather.WeatherReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -539,7 +541,7 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
      * Shows the most serious weather alert beside the weather, as the home screen does. It only shows where the weather does
      * (the clock is on and the weather is turned on for the screen saver) and when this profile shows alerts.
      */
-    private fun bindAlerts(alerts: List<WeatherAlerts.Alert>) {
+    private fun bindAlerts(alerts: List<WeatherAlert>) {
         val show = alerts.isNotEmpty() && clockMode != ScreensaverSettings.CLOCK_OFF &&
             ScreensaverSettings.showWeather(context) && AppSettings.showWeatherAlerts(context)
         if (!show) {
@@ -553,7 +555,8 @@ class ScreensaverView(context: Context) : FrameLayout(context) {
         alertBadge.visibility = View.VISIBLE
     }
 
-    private fun bindWeather(r: WeatherRepository.Report) {
+    private fun bindWeather(r: WeatherReport) {
+        com.portal.tv.repo.MoonSky.where = com.portal.tv.repo.WeatherRepository.knownLocation(context)
         val metric = AppSettings.isMetric(context)
         val temp = if (metric) "${Math.round(r.tempC)}°C" else "${Math.round(r.tempC * 9.0 / 5.0 + 32.0)}°F"
         weatherIcon.removeAllViews()

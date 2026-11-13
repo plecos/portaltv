@@ -164,13 +164,13 @@ object CatalogInstaller {
     }
 
     /** Every certificate the app has been signed with, now or earlier (its rotation history), one hash each. */
-    private fun signersOf(info: android.content.pm.PackageInfo): Set<String> {
+    internal fun signersOf(info: android.content.pm.PackageInfo): Set<String> {
         val signing = info.signingInfo ?: return emptySet()
         val certs = if (signing.hasMultipleSigners()) signing.apkContentsSigners else signing.signingCertificateHistory
         return certs.orEmpty().map { ExtensionAccess.sha256Hex(it.toByteArray()) }.toSet()
     }
 
-    private fun signerOf(info: android.content.pm.PackageInfo): String? =
+    internal fun signerOf(info: android.content.pm.PackageInfo): String? =
         info.signingInfo?.apkContentsSigners?.takeIf { it.isNotEmpty() }
             ?.let { signers -> ExtensionAccess.combineSigners(signers.map { ExtensionAccess.sha256Hex(it.toByteArray()) }) }
 
@@ -204,6 +204,7 @@ object CatalogInstaller {
 
     internal fun report(context: Context, outcome: Outcome) {
         Log.d(TAG, "extension install: $outcome")
+        if (outcome is Outcome.Installed) BundledExtension.installed(context, outcome.packageName)
         // Whatever happened, the downloaded file is no longer needed (Android has its own copy once installed).
         File(context.cacheDir, "catalog_apks").listFiles()?.forEach { it.delete() }
         onOutcome?.invoke(outcome)

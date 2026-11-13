@@ -102,6 +102,8 @@ Anything wrong in the parts it does know is reported to the person looking at th
 | `reminders` | `<uses capability="reminders"/>` | Add and change reminders that belong to you. |
 | `cards` | `<uses capability="cards"/>` | Show cards over other apps. |
 | `weather` | `<uses capability="weather"/>` | Read the current weather and where the TV roughly is (to within about 10 km). |
+| `weather-source` | declaring `<weather-source>` | Be where Portal gets its weather, alerts and city search, when an adult chooses you under Settings, Weather. |
+| `weather-page` | declaring `<weather-page>` | Be the weather page that opens from the home screen, when an adult chooses you under Settings, Weather. You can read the full forecast and alerts, and where the TV roughly is, with the city's name. |
 
 A capability name Portal doesn't know is never granted. You can list one for a newer Portal and it is ignored by older ones.
 
@@ -197,6 +199,8 @@ nobody can act for you.
 | `items.remove` | `bar` or `clock` | `area`, `id` | |
 | `items.list` | `bar` or `clock` | `area` | `items`: a list of Bundles with `id`, `text`, `button` |
 | `weather.get` | `weather` | none | The weather as numbers; see below |
+| `weather.report` | `weather-page` | none | The whole report, for a weather page; see "Being the weather page" |
+| `weather.alerts` | `weather-page` | none | The alerts in force, for a weather page |
 
 **Weather** (`weather.get`) is what Portal already holds, from the forecast service it uses, as plain numbers, so you need no weather
 code of your own. It never touches the network, so asking is cheap and counts as a read; Portal keeps the weather up to date. The
@@ -227,6 +231,110 @@ there is no way to name them, and a call that tries gets `not_found`. If the hom
 you like (limited like other changes). Only your own declared tiles can be decorated; the badge shows in every layout (tiles, icons,
 list) and the line in the tiles and list layouts. Kid profiles don't see either, since it is text from another app. They are
 removed when `tiles` is turned off for you or you are uninstalled.
+
+## Supplying the weather
+
+Portal fetches no weather itself. Where it comes from is an extension: the one that ships inside Portal (`net.getportaltv.weather`,
+the forecast from Open-Meteo and US alerts from the National Weather Service), or yours, if an adult chooses it under Settings,
+Weather, Weather source. One source is used at a time, and none stands in for it: if the one in use can't answer, Portal keeps
+showing the last weather it had, marked as old. Portal asks on its own schedule, so you need no timer or background work; you
+only answer.
+
+Declare a service, and export it with the action `net.getportaltv.WEATHER_SOURCE`:
+
+```xml
+<weather-source service=".WeatherService" />
+```
+
+Portal binds to it for one question at a time. The question is a `Message` with `replyTo` set and a `Bundle` holding `lat` and `lon`
+(doubles, rounded to a tenth of a degree, about 10 km) and sometimes `city` (a name to show). `what` is `1` for the weather and `2`
+for the alerts. A third question, `4`, is a city search: the `Bundle` holds `query` (what the person typed, up to 80 characters)
+and you answer with a JSON array of up to ten `{name, region, lat, lon}` (`region`, such as a state and country, is optional), so
+the person can choose where the weather is for. Two more questions are about radar, with the same bundle keys: `5` is the list of
+radar pictures (the bundle has `lat` and `lon`) and `6` is one picture. You answer `5` with a JSON object
+`{credit, max_zoom, detail_zoom, refresh_s, frames: [{time, ref}]}`: `time` is when a picture was taken (epoch seconds) and `ref` is
+anything you need to draw it again (up to 150 plain characters; Portal passes it back untouched, and it travels by way of the
+weather page, so never build an address from it without checking it). Zoom levels are web-map levels (1 to 12): `max_zoom` is the
+closest worth opening and `detail_zoom` the closest at which a picture has real detail. For `6` the bundle has `ref`, `z` (the
+zoom), `x0` and `y0` (doubles: the top left of the window, in pixels of the whole world at that zoom, 256 to a tile) and `w` and
+`h` (the window's size in pixels, at most 2048); answer with `image`, the bytes of a PNG with transparency of exactly that size and
+under 400,000 bytes. Radar goes through Portal picture by picture so that a key for your radar service never leaves you. A source
+with no radar, or no city search, should still answer such a question, with an `error` such as `Not offered`, so Portal isn't
+left waiting. Answer with a `Message` whose `what` is `3` and whose `Bundle` holds `json` (the answer below) or `error` (a few
+words, at most 40 characters, saying why not). You have 40 seconds. `sample-extension` has a complete example, `WeatherService`.
+
+**The weather** (`what` = 1) is one JSON object. Temperatures are °C, speeds km/h, and every `code` is a WMO weather
+code (0 clear, 1 to 3 cloud, 45 and 48 fog, 51 to 57 drizzle, 61 to 67 rain, 71 to 77 snow, 80 to 86 showers, 95 to 99 thunderstorm).
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `temp_c`, `feels_like_c` | number | -90 to 70 |
+| `humidity` | int | 0 to 100 |
+| `wind_kmh`, `wind_dir` | number, int | direction in degrees the wind comes from |
+| `code`, `is_day` | int, boolean | now |
+| `hours` | array of `{h, temp_c, code, is_day, rain}` | 1 to 48 entries, starting now; `h` is the local hour, `rain` the chance in percent (optional) |
+| `days` | array of `{date, code, high_c, low_c, rain, sunrise, sunset}` | 1 to 16 entries, from today; `date` is `2026-11-12`, `sunrise` and `sunset` are local times like `2026-11-12T07:12` (optional); `uv_max`, `precip_mm`, `wind_max_kmh` and `snow_cm` are optional |
+| `utc_offset_s` | int | the place's offset from UTC, for turning local times into moments |
+| `gust_kmh`, `pressure_hpa`, `cloud_cover`, `visibility_km`, `uv_index`, `aqi` | optional | `aqi` is the US air quality index |
+
+**The alerts** (`what` = 2) are a JSON array, most serious first, of `{id, event, severity, headline, description, instruction,
+area, onset, ends, interrupts}`. `severity` is one of `EXTREME`, `SEVERE`, `MODERATE`, `MINOR`, `UNKNOWN`; `onset` and `ends` are
+ISO times with an offset (optional). An empty array means no alerts.
+
+Portal checks all of it before it uses any of it, and decides some things itself:
+
+- **A bad answer is not used.** Numbers outside what is possible, lists that are too long or empty, or more than 200,000 characters
+  refuse the whole weather. A bad alert (no id or event, text that can't be shown) is dropped and the rest kept; a bad field of an
+  alert (too long) is emptied. Line breaks in alert text become spaces. Text must be plain, as for names and cards.
+- **The place is Portal's.** Whatever you put for where the weather is, Portal shows the TV's place and its name.
+- **Alerts are shown as yours.** Each says "via" and your extension's name, whatever issuer you write, and its id is tied to your
+  package so it can't clash with another source's.
+- **Covering an app is limited.** An alert covers the app that is open (a red banner and a tone, once) only when you set
+  `interrupts` to true **and** its severity is `SEVERE` or `EXTREME`; at most three alerts at once can. All others show in colour on
+  the home screen and the weather page.
+
+An adult allows `weather-source` on the Extensions page, and sees that you will be told where the TV roughly is. Allowing it does not
+make you the source: they also choose you under Settings, Weather. A kid's Settings doesn't offer the choice.
+
+## Being the weather page
+
+An extension with `weather-page` allowed can be chosen under Settings, Weather, Weather page. When someone presses the time and
+weather panel on the home screen, your screen opens in place of Portal's own page. A page and a source are chosen separately, so a
+page works with whatever source Portal is using and needs no weather code of its own.
+
+```xml
+<weather-page activity=".WeatherPageActivity" />
+```
+
+Declare the activity, and export it. It is an ordinary screen of yours that Portal opens in a new task; the Back button returns to
+Portal's home screen. Portal re-checks every time that you are still installed, still signed by who was allowed and still allowed,
+and if not, or if the screen can't be opened, Portal's own page opens instead. A kid profile always gets Portal's own page.
+
+Your screen gets what it shows from two calls (see "Calling Portal"). Both are reads of what Portal already holds, never touch the
+network and work on any profile:
+
+- **`weather.report`** answers with `json`, the whole report in the format described under "Supplying the weather" (current
+  conditions, `hours`, `days`, `city`, `lat` and `lon`); `as_of_millis`; `stale` (more than three hours old); and `metric`
+  (whether the person shows °C and km/h). Follow `metric`, so your page matches the rest of Portal. The place is rounded to a
+  tenth of a degree (about 10 km); the city is the name the person chose or Portal worked out. If there is no weather yet the
+  answer is `unavailable`.
+- **`weather.alerts`** answers with `json`, an array in the format of an alert source, for the alerts still in force. Each is
+  already checked and says which source it came through.
+
+- **`weather.radar`** (with `lat` and `lon`, doubles) answers with `json`, the radar index from the weather source in use, and
+  **`weather.radar_image`** (with `ref`, `z`, `x0`, `y0`, `w`, `h` as above) with `image`, one picture as PNG bytes. Portal
+  fetches it from the source and checks that it is a PNG of exactly the size asked. Radar calls are counted on their own (300 a
+  minute): one radar view asks for a dozen pictures. If the source has no radar the answer is `unavailable`.
+- **`weather.spot`** (`lat`, `lon`) saves an exact spot, such as one picked on the radar, as the place the weather is for. It
+  changes a setting, so it is counted as a change and refused on a kid profile (`kid_profile`).
+
+`weather.report` and `weather.alerts` also take `refresh` (a boolean): Portal then asks its source for fresh weather and waits for
+it (up to 25 seconds) before answering. That counts as a change, so use it when your screen opens, not in a loop. `weather.report`
+also says `page_background` (the person wants a scene behind the page) and `show_alerts` (they want alerts shown), which you should
+follow.
+
+Ask again when your screen comes to the front; Portal keeps the weather up to date itself. `sample-extension` has a complete
+example, `WeatherPageActivity`.
 
 ## Drawing the home screen background
 

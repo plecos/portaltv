@@ -34,6 +34,8 @@ import com.portal.tv.settings.AppSettings
 import com.portal.tv.settings.BackgroundSettings
 import com.portal.tv.settings.HomeLayout
 import android.util.Log
+import com.portal.tv.weather.WeatherAlert
+import com.portal.tv.weather.WeatherReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -157,12 +159,16 @@ class HomeFragment : Fragment() {
                 .commit()
         }
 
-        // The time and weather panel opens the weather page.
+        // The time and weather panel opens the weather page: the extension's that ships with Portal, or the one an adult chose.
         view.findViewById<View>(R.id.panel_weather).setOnClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.container, WeatherFragment())
-                .addToBackStack("weather")
-                .commit()
+            viewLifecycleOwner.lifecycleScope.launch {
+                val chosen = withContext(Dispatchers.IO) { com.portal.tv.weather.WeatherPage.intent(requireContext()) }
+                if (chosen == null || runCatching { startActivity(chosen) }.isFailure) {
+                    android.widget.Toast.makeText(
+                        requireContext(), "The weather page isn't available. See Settings, Weather.", android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
 
         // Kids get the settings button too, with only the background, app layout and weather units in it.
@@ -961,6 +967,12 @@ class HomeFragment : Fragment() {
     private fun fetchWeather() {
         if (weatherJob?.isActive == true) return
         val context = context ?: return
+        // No weather provider installed: no weather, no badge, nothing old. Settings, Weather says what to do.
+        if (!com.portal.tv.weather.WeatherSource.installed(context)) {
+            showNoWeather()
+            return
+        }
+        weatherRow?.visibility = View.VISIBLE
         weatherJob = lifecycleScope.launch {
             alertBadge?.let { badge ->
                 if (AppSettings.showWeatherAlerts(context)) {
@@ -1011,7 +1023,7 @@ class HomeFragment : Fragment() {
             badge.visibility = View.GONE
             return
         }
-        fun show(alerts: List<com.portal.tv.repo.WeatherAlerts.Alert>) {
+        fun show(alerts: List<WeatherAlert>) {
             showSevere(alerts.firstOrNull { it.isSevere }, alerts.count { it.isSevere })
             if (alerts.isEmpty()) {
                 badge.visibility = View.GONE
@@ -1028,7 +1040,7 @@ class HomeFragment : Fragment() {
     }
 
     /** The red banner for the most serious severe alert, or hidden when none is active. */
-    private fun showSevere(alert: com.portal.tv.repo.WeatherAlerts.Alert?, count: Int) {
+    private fun showSevere(alert: WeatherAlert?, count: Int) {
         val root = view ?: return
         val banner = root.findViewById<View>(R.id.severe_banner)
         val birthday = root.findViewById<View>(R.id.tv_birthday)
@@ -1047,9 +1059,11 @@ class HomeFragment : Fragment() {
         (birthday.layoutParams as? FrameLayout.LayoutParams)?.let { it.topMargin = (118 * d).toInt(); birthday.layoutParams = it }
     }
 
-    private fun bindWeather(r: WeatherRepository.Report, stale: Boolean) {
+    private fun bindWeather(r: WeatherReport, stale: Boolean) {
         val context = context ?: return
         setWeatherErrorVisible(false)
+        // The moon in the icon is turned to match the sky at the weather's place.
+        com.portal.tv.repo.MoonSky.where = com.portal.tv.repo.WeatherRepository.knownLocation(context)
         val metric = AppSettings.isMetric(context)
         val tempDisplay = if (metric) "${Math.round(r.tempC)}°C"
         else "${Math.round(r.tempC * 9.0 / 5.0 + 32.0)}°F"
@@ -1067,6 +1081,22 @@ class HomeFragment : Fragment() {
         weatherRow?.alpha = if (stale) 0.6f else 1f
         showingWeather = true
         weatherNeedsRefresh = stale
+    }
+
+    /** Hides the weather line and the alert badge: there is no provider to ask, and nothing kept is shown in its place. */
+    private fun showNoWeather() {
+        showingWeather = false
+        weatherNeedsRefresh = false
+        weatherError = false
+        weatherProgress?.visibility = View.GONE
+        weatherRetry?.visibility = View.GONE
+        weatherTextView?.text = ""
+        windArrowView?.visibility = View.GONE
+        windTextView?.visibility = View.GONE
+        (celestialView?.parent as? View)?.visibility = View.GONE
+        alertBadge?.visibility = View.GONE
+        weatherRow?.visibility = View.GONE
+        syncClockPanel()
     }
 
     private fun showWeatherError(message: String) {
@@ -1155,6 +1185,8 @@ class HomeFragment : Fragment() {
         applySearchLevel()
         refreshUpdateButton()
         refreshExtensionItems()
+        // An upgraded Portal explains the weather extension once and asks whether to install it.
+        activity?.let { WeatherOffer.checkAndShow(it) }
         com.portal.tv.extensions.HostEvents.onItemsChanged = { refreshExtensionItems() }
         com.portal.tv.extensions.HostEvents.onTilesChanged = { loadApps() }
         // Once a day, if the person hasn't turned it off, look for a newer version of Portal.
