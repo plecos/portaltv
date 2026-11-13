@@ -70,28 +70,29 @@ seed() {   # active profile id, signer to record, capabilities (comma separated,
   restart_portal
 }
 
-# A saved weather report (made-up numbers for a well-known city), so weather.get has something to answer with.
+# A saved weather report (made-up numbers for a well-known city), in the form Portal keeps it in, so weather.get has something to
+# answer with. Portal shows and serves a saved report only while the chosen weather source is installed, so the source is set to
+# an app that is (the misbehaving extension: it is never asked for weather, only the saved report is read).
 seed_weather() {
   local body
   body="$(python3 - <<'PY'
-import json, time, datetime
+import json, datetime
 today = datetime.date.today()
-hours = [f"{today}T{h:02d}:00" for h in range(24)]
 doc = {
-  "latitude": 47.6062, "longitude": -122.3321, "utc_offset_seconds": -28800,
-  "current": {"time": f"{today}T12:00", "temperature_2m": 9.5, "apparent_temperature": 8.0, "relative_humidity_2m": 85,
-              "weather_code": 63, "wind_speed_10m": 14.0, "wind_direction_10m": 225, "wind_gusts_10m": 30.0,
-              "pressure_msl": 1008.0, "cloud_cover": 95, "is_day": 1},
-  "hourly": {"time": hours, "temperature_2m": [9.0]*24, "weather_code": [63]*24, "is_day": [1]*24,
-             "precipitation_probability": [70]*24, "uv_index": [1.0]*24, "visibility": [8000.0]*24},
-  "daily": {"time": [str(today)], "weather_code": [63], "temperature_2m_max": [11.0], "temperature_2m_min": [6.0],
-            "precipitation_probability_max": [80], "sunrise": [f"{today}T07:10"], "sunset": [f"{today}T16:40"]},
+  "city": None, "temp_c": 9.5, "feels_like_c": 8.0, "humidity": 85, "wind_kmh": 14.0, "wind_dir": 225,
+  "code": 63, "is_day": True, "lat": 47.6062, "lon": -122.3321, "utc_offset_s": -28800,
+  "gust_kmh": 30.0, "pressure_hpa": 1008.0, "cloud_cover": 95, "visibility_km": 8.0, "uv_index": 1.0, "aqi": None,
+  "hours": [{"h": h, "temp_c": 9.0, "code": 63, "is_day": True, "rain": 70} for h in range(24)],
+  "days": [{"date": str(today), "code": 63, "high_c": 11.0, "low_c": 6.0, "rain": 80,
+            "sunrise": f"{today}T07:10", "sunset": f"{today}T16:40", "uv_max": None, "precip_mm": None,
+            "wind_max_kmh": None, "snow_cm": None}],
 }
-print(json.dumps(doc).replace('"', '&quot;'))
+print(json.dumps({k: v for k, v in doc.items() if v is not None}).replace('"', '&quot;'))
 PY
 )"
   put_prefs portal_weather '<long name="body_time" value="'"$(( $(date +%s) * 1000 ))"'" />
-<string name="body">'"$body"'</string>'
+<string name="report_json">'"$body"'</string>'
+  put_prefs portal_weather_source '<string name="package">'"$ROGUE"'</string>'
 }
 
 # Preferences are read once when Portal starts, so it is restarted to read new ones, and to forget the rate limits. It is the
