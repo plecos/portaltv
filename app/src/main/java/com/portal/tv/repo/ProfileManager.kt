@@ -155,6 +155,7 @@ object ProfileManager {
         com.portal.tv.screensaver.ScreensaverSettings.clearForProfile(context, id)
         com.portal.tv.search.SearchSettings.clearForProfile(context, id)
         ProfileCode.clear(context, id)
+        com.portal.tv.settings.ProfilePrefs.clear(context, "portal_pin_remember", id)
         com.portal.tv.reminders.ReminderStore.clearForProfile(context, id)
         profile?.photoFile?.let { photoDir(context).resolve(it).delete() }
         val p = prefs(context)
@@ -167,6 +168,8 @@ object ProfileManager {
     fun setActive(context: Context, id: Int) {
         // A parent's "skip bedtime tonight" belongs to the profile that was loaded, so it ends with it.
         KidsSchedule.endBedtimeSkips(context)
+        // The PIN remembered for the old profile isn't remembered for the new one.
+        ParentUnlock.clear()
         prefs(context).edit().putInt(KEY_ACTIVE_ID, id).apply()
     }
 
