@@ -66,4 +66,19 @@ class ExtensionLabelsTest {
         // One it doesn't know is shown as written.
         assertEquals("teleport", ExtensionLabels.shortName("teleport"))
     }
+
+    @Test
+    fun permissionLevelSaysHowMuchOfWhatItAsksForIsAllowed() {
+        val asked = linkedSetOf("tiles", "cards", "bar")
+        val level = { state: ExtensionState, granted: Set<String> -> ExtensionLabels.permissionLevel(state, asked, granted) }
+        assertEquals(ExtensionLabels.PermissionLevel.NONE, level(ExtensionState.NOT_ALLOWED, emptySet()))
+        assertEquals(ExtensionLabels.PermissionLevel.NONE, level(ExtensionState.SIGNER_CHANGED, emptySet()))
+        assertEquals(ExtensionLabels.PermissionLevel.PARTIAL, level(ExtensionState.ALLOWED, linkedSetOf("tiles")))
+        assertEquals(ExtensionLabels.PermissionLevel.ALL, level(ExtensionState.ALLOWED, asked))
+        // Nothing to show for one that is withdrawn, unusable or too new, or that asks for nothing at all.
+        assertEquals(ExtensionLabels.PermissionLevel.NOT_APPLICABLE, level(ExtensionState.REVOKED, emptySet()))
+        assertEquals(ExtensionLabels.PermissionLevel.NOT_APPLICABLE, level(ExtensionState.INVALID, emptySet()))
+        assertEquals(ExtensionLabels.PermissionLevel.NOT_APPLICABLE, level(ExtensionState.UNSUPPORTED, emptySet()))
+        assertEquals(ExtensionLabels.PermissionLevel.NOT_APPLICABLE, ExtensionLabels.permissionLevel(ExtensionState.ALLOWED, emptySet(), emptySet()))
+    }
 }

@@ -179,8 +179,19 @@ class ExtensionsPage(
             })
             return
         }
+        var anyNone = false
+        var anyPartial = false
         all.forEach { ext ->
-            // Columns that line up from one row to the next: its picture, its name, its version, and what needs attention.
+            val asked = ext.manifest?.capabilities.orEmpty()
+            val level = ExtensionLabels.permissionLevel(ext.state, asked, ext.granted)
+            if (level == ExtensionLabels.PermissionLevel.NONE) anyNone = true
+            if (level == ExtensionLabels.PermissionLevel.PARTIAL) anyPartial = true
+            val permissionNote = when (level) {
+                ExtensionLabels.PermissionLevel.NONE -> " Nothing it asks for is allowed yet."
+                ExtensionLabels.PermissionLevel.PARTIAL -> " Only ${ext.granted.count { it in asked }} of the ${asked.size} things it asks for are allowed."
+                else -> ""
+            }
+            // Columns that line up from one row to the next: its picture, its name, its version, what is allowed, and what needs attention.
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -189,7 +200,7 @@ class ExtensionsPage(
                 setBackgroundResource(R.drawable.bg_settings_tile)
                 isFocusable = true
                 isClickable = true
-                contentDescription = "${ext.name}, ${ExtensionLabels.status(ext.state, ext.granted)}. Select for details."
+                contentDescription = "${ext.name}, ${ExtensionLabels.status(ext.state, ext.granted)}.$permissionNote Select for details."
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                     .apply { bottomMargin = px(8) }
                 setOnClickListener { showDetail(ext) }
@@ -215,6 +226,16 @@ class ExtensionsPage(
             })
             row.addView(cell(ext.name, 220, primary))
             row.addView(cell(ext.versionName.orEmpty(), 70, secondary))
+            // What is allowed, as a small shield (the space stays when there is none, so the columns after it line up).
+            row.addView(ImageView(context).apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                when (level) {
+                    ExtensionLabels.PermissionLevel.NONE -> setImageResource(R.drawable.ic_perm_none)
+                    ExtensionLabels.PermissionLevel.PARTIAL -> setImageResource(R.drawable.ic_perm_partial)
+                    else -> Unit
+                }
+                layoutParams = LinearLayout.LayoutParams(px(24), px(24)).apply { marginEnd = px(14) }
+            })
             val note = when {
                 ext.state == ExtensionState.REVOKED -> "Withdrawn"
                 updates.containsKey(ext.packageName) -> "Update available"
@@ -223,6 +244,18 @@ class ExtensionsPage(
             if (note.isNotEmpty()) row.addView(cell(note, 150, if (ext.state == ExtensionState.REVOKED) Color.rgb(255, 120, 120) else Color.rgb(140, 230, 160), 15f))
             list.addView(row)
             if (ext.packageName == focusPackage) row.post { row.requestFocus() }
+        }
+        // Said once, in words, so the shields mean something at a glance. One short line each, because the list is only as wide as its rows.
+        listOfNotNull(
+            if (anyNone) "Solid shield: nothing it asks for is allowed yet" else null,
+            if (anyPartial) "Half shield: only some of what it asks for is allowed" else null
+        ).forEach { line ->
+            list.addView(TextView(context).apply {
+                text = line
+                textSize = 14f
+                setTextColor(context.resources.getColor(R.color.text_secondary, null))
+                setPadding(px(4), px(2), 0, px(2))
+            })
         }
     }
 

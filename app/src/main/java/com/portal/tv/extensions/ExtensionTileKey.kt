@@ -38,6 +38,27 @@ object ExtensionLabels {
         else -> capability
     }
 
+    /** How much of what an extension asks for has been allowed, for the icon in the list. */
+    enum class PermissionLevel {
+        /** It asks for things and none are allowed yet. */
+        NONE,
+        /** Some of what it asks for is allowed, not all. */
+        PARTIAL,
+        /** Everything it asks for is allowed. */
+        ALL,
+        /** Nothing to show: it asks for nothing, or it can't be used or has been withdrawn (the list says so itself). */
+        NOT_APPLICABLE
+    }
+
+    /** [asked] is what it declares and this Portal knows; [granted] what is allowed now (a subset of it). */
+    fun permissionLevel(state: ExtensionState, asked: Set<String>, granted: Set<String>): PermissionLevel = when {
+        state == ExtensionState.REVOKED || state == ExtensionState.INVALID || state == ExtensionState.UNSUPPORTED -> PermissionLevel.NOT_APPLICABLE
+        asked.isEmpty() -> PermissionLevel.NOT_APPLICABLE
+        granted.none { it in asked } -> PermissionLevel.NONE
+        asked.all { it in granted } -> PermissionLevel.ALL
+        else -> PermissionLevel.PARTIAL
+    }
+
     fun status(state: ExtensionState, granted: Set<String>): String = when (state) {
         ExtensionState.NOT_ALLOWED -> "Needs your permission"
         ExtensionState.ALLOWED -> "Allowed: " + granted.joinToString(", ") { shortName(it) }.ifEmpty { "nothing" }
