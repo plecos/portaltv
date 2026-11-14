@@ -50,6 +50,20 @@ internal class OpenMeteoSource(private val base: String = DEFAULT_BASE) {
         private fun org.json.JSONArray?.number(i: Int): Double? =
             this?.optDouble(i, Double.NaN)?.takeIf { !it.isNaN() }
 
+        /** The hour (0 to 23) on [date] with the highest chance of rain or snow, the earliest if tied; null if none is above zero. */
+        internal fun rainPeakHour(times: org.json.JSONArray, chances: org.json.JSONArray?, date: String): Int? {
+            if (chances == null) return null
+            var best = 0.0
+            var hour: Int? = null
+            for (i in 0 until minOf(times.length(), chances.length())) {
+                val t = times.getString(i)
+                if (!t.startsWith(date)) continue
+                val c = chances.optDouble(i, Double.NaN)
+                if (!c.isNaN() && c > best) { best = c; hour = t.substring(11, 13).toInt() }
+            }
+            return hour
+        }
+
         internal fun parse(root: JSONObject, city: String?): WeatherReport {
             val cur = root.getJSONObject("current")
             val hourly = root.getJSONObject("hourly")
@@ -62,17 +76,21 @@ internal class OpenMeteoSource(private val base: String = DEFAULT_BASE) {
             for (i in 0 until times.length()) {
                 if (times.getString(i).startsWith(nowHour)) { start = i; break }
             }
+            // The first hour is "Now", so it shows the current conditions: the hourly value for the top of the hour can be
+            // up to an hour old and disagree (clouds in the strip under a clear sky, or night just after sunrise).
             val hours = (start until minOf(start + 12, times.length())).map { i ->
+                val now = i == start
                 WeatherHour(
                     hour24 = times.getString(i).substring(11, 13).toInt(),
-                    tempC = hourly.getJSONArray("temperature_2m").getDouble(i),
-                    code = hourly.getJSONArray("weather_code").getInt(i),
-                    isDay = hourly.getJSONArray("is_day").getInt(i) == 1,
+                    tempC = if (now) cur.getDouble("temperature_2m") else hourly.getJSONArray("temperature_2m").getDouble(i),
+                    code = if (now) cur.getInt("weather_code") else hourly.getJSONArray("weather_code").getInt(i),
+                    isDay = (if (now) cur.optInt("is_day", 1) else hourly.getJSONArray("is_day").getInt(i)) == 1,
                     rainChance = hourly.optJSONArray("precipitation_probability").number(i)?.toInt()
                 )
             }
 
             val dates = daily.getJSONArray("time")
+            val chances = hourly.optJSONArray("precipitation_probability")
             val days = (0 until dates.length()).map { i ->
                 WeatherDay(
                     date = LocalDate.parse(dates.getString(i)),
@@ -85,7 +103,8 @@ internal class OpenMeteoSource(private val base: String = DEFAULT_BASE) {
                     uvMax = daily.optJSONArray("uv_index_max").number(i),
                     precipMm = daily.optJSONArray("precipitation_sum").number(i),
                     windMaxKmh = daily.optJSONArray("wind_speed_10m_max").number(i),
-                    snowCm = daily.optJSONArray("snowfall_sum").number(i)
+                    snowCm = daily.optJSONArray("snowfall_sum").number(i),
+                    rainPeakHour = rainPeakHour(times, chances, dates.getString(i))
                 )
             }
 

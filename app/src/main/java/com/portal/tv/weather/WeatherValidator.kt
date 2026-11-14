@@ -52,6 +52,7 @@ object WeatherValidator {
             if (d.precipMm?.let { !between(it, 0.0, 2000.0) } == true) return null
             if (d.windMaxKmh?.let { !between(it, 0.0, 500.0) } == true) return null
             if (d.snowCm?.let { !between(it, 0.0, 1000.0) } == true) return null
+            if (d.rainPeakHour?.let { it !in 0..23 } == true) return null
             d.copy(sunrise = d.sunrise?.takeIf { LOCAL_TIME.matches(it) }, sunset = d.sunset?.takeIf { LOCAL_TIME.matches(it) })
         }
         return r.copy(city = place.city, latitude = place.lat, longitude = place.lon, days = days)

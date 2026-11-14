@@ -31,4 +31,32 @@ class GeocoderTest {
         assertEquals(emptyList<Any>(), Geocoder.parse("{}"))
         assertEquals(emptyList<Any>(), Geocoder.parse("""{"results":[]}"""))
     }
+
+    @Test
+    fun aUsZipOrCanadianPostalCodeIsLookedUpByItself() {
+        assertEquals("us/97205", Geocoder.postalPath("97205"))
+        assertEquals("us/97205", Geocoder.postalPath(" 97205-1234 "))
+        assertEquals("ca/V6B", Geocoder.postalPath("v6b 1a1"))
+        assertNull(Geocoder.postalPath("Portland"))
+        assertNull(Geocoder.postalPath("9720"))
+        assertNull(Geocoder.postalPath("Portland 97205"))
+    }
+
+    @Test
+    fun aZipBecomesThePlaceOfThatZipWithItsNumberInTheRegion() {
+        val c = Geocoder.parseZip(
+            """{"post code":"97205","country abbreviation":"US","places":[
+                {"place name":"Portland","longitude":"-122.6888","state":"Oregon","latitude":"45.5207"}]}"""
+        )!!
+        assertEquals("Portland", c.name)
+        assertEquals("Oregon, US (97205)", c.region)
+        assertEquals(45.5207, c.lat, 0.0)
+        assertEquals(-122.6888, c.lon, 0.0)
+    }
+
+    @Test
+    fun aZipAnswerWithNoPlacesIsNothing() {
+        assertNull(Geocoder.parseZip("{}"))
+        assertNull(Geocoder.parseZip("""{"places":[]}"""))
+    }
 }

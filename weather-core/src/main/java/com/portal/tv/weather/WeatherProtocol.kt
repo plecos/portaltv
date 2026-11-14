@@ -5,7 +5,7 @@ package com.portal.tv.weather
  * service (action [ACTION]) for one question at a time, sends a message and waits for one reply. Portal does the asking on
  * its own schedule; the extension only answers, so it needs no timer or background work of its own.
  *
- * Request ([MSG_REPORT] or [MSG_ALERTS], `replyTo` set): [KEY_LAT], [KEY_LON] (rounded to a tenth of a degree) and, when Portal
+ * Request ([MSG_REPORT] or [MSG_ALERTS], `replyTo` set): [KEY_LAT], [KEY_LON] (rounded to a hundredth of a degree) and, when Portal
  * has one, [KEY_CITY]. Reply ([MSG_REPLY]): [KEY_JSON], the answer in the format of [WeatherJson], or [KEY_ERROR], a few words
  * saying why not. Nothing else in the message is read.
  *
@@ -54,6 +54,6 @@ object WeatherProtocol {
     /** The longest reason from an extension that Portal will show. */
     const val MAX_ERROR = 40
 
-    /** Where the TV is, as far as a source outside Portal is told: a tenth of a degree, about 10 km. */
-    fun rounded(degrees: Double): Double = Math.round(degrees * 10.0) / 10.0
+    /** Where the TV is, as far as a source outside Portal is told: a hundredth of a degree, about 1 km: fine enough to pick the right neighbourhood or hillside for a forecast, not enough to find a house. */
+    fun rounded(degrees: Double): Double = Math.round(degrees * 100.0) / 100.0
 }

@@ -45,7 +45,7 @@ object WeatherOffer {
             .setMessage(
                 "Portal's weather now comes from an extension that ships with Portal: Portal TV Weather. It gets the forecast from " +
                     "Open-Meteo and US alerts from the National Weather Service, and is told roughly where your TV is (to within about " +
-                    "10 km). Without it there is no weather on the home screen.\n\nAndroid will ask you to confirm the install, and may " +
+                    "1 km). Without it there is no weather on the home screen.\n\nAndroid will ask you to confirm the install, and may " +
                     "first ask you to let Portal install apps (it calls them \"unknown apps\" because they don't come from the Play Store). " +
                     "You can install it later from Settings, Weather."
             )

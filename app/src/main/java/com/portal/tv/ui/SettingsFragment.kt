@@ -1320,7 +1320,7 @@ class SettingsFragment : Fragment() {
                     chosen == bundled && usable -> "Comes with Portal: the forecast from Open-Meteo and US alerts from the National Weather Service."
                     chosen == bundled -> "Portal's weather isn't installed here, or isn't allowed. Choose Install weather and confirm on the screen Android shows. Until then the weather won't update."
                     !usable -> "The source you chose isn't available (removed, switched off or not allowed). The weather won't update until you pick another."
-                    else -> "An extension you chose. It is told where this TV roughly is (to within about 10 km) and Portal shows what it answers, including alerts."
+                    else -> "An extension you chose. It is told where this TV roughly is (to within about 1 km) and Portal shows what it answers, including alerts."
                 }
             },
             extraTile = { available -> if (bundled in available) null else "Install weather" to installAction },

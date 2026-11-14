@@ -87,7 +87,7 @@ class WeatherEffectView @JvmOverloads constructor(
             else -> {}
         }
         val cloudCount = when (kind) {
-            Kind.PARTLY_CLOUDY -> 4
+            Kind.PARTLY_CLOUDY -> 5
             Kind.OVERCAST, Kind.RAIN, Kind.SNOW -> 7
             Kind.STORM -> 8
             Kind.FOG -> 0
@@ -96,13 +96,13 @@ class WeatherEffectView @JvmOverloads constructor(
         repeat(cloudCount) {
             clouds += Cloud(
                 x = random.nextFloat() * w,
-                // Partly cloudy skies keep their clouds high, where the sun or moon is.
-                y = random.nextFloat() * h * (if (kind == Kind.PARTLY_CLOUDY) 0.3f else 0.45f),
+                // Partly cloudy skies keep their clouds in the upper half, spread out so some pass in front of the sun or moon.
+                y = random.nextFloat() * h * (if (kind == Kind.PARTLY_CLOUDY) 0.5f else 0.45f),
                 scale = (0.8f + random.nextFloat() * 1.0f) * d,
                 speed = (6f + random.nextFloat() * 14f) * d,
                 alpha = when {
-                    kind == Kind.PARTLY_CLOUDY && !isDay -> 95
-                    kind == Kind.CLEAR || kind == Kind.PARTLY_CLOUDY -> 55
+                    kind == Kind.PARTLY_CLOUDY -> if (isDay) 150 else 110 // clearly clouds, not a haze
+                    kind == Kind.CLEAR -> 55
                     else -> 80
                 }
             )

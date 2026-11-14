@@ -248,7 +248,7 @@ Declare a service, and export it with the action `net.getportaltv.WEATHER_SOURCE
 ```
 
 Portal binds to it for one question at a time. The question is a `Message` with `replyTo` set and a `Bundle` holding `lat` and `lon`
-(doubles, rounded to a tenth of a degree, about 10 km) and sometimes `city` (a name to show). `what` is `1` for the weather and `2`
+(doubles, rounded to a hundredth of a degree, about 1 km) and sometimes `city` (a name to show). `what` is `1` for the weather and `2`
 for the alerts. A third question, `4`, is a city search: the `Bundle` holds `query` (what the person typed, up to 80 characters)
 and you answer with a JSON array of up to ten `{name, region, lat, lon}` (`region`, such as a state and country, is optional), so
 the person can choose where the weather is for. Two more questions are about radar, with the same bundle keys: `5` is the list of

@@ -39,7 +39,9 @@ data class WeatherDay(
     val precipMm: Double? = null,
     /** Strongest wind of the day, km/h, and snowfall, centimetres. */
     val windMaxKmh: Double? = null,
-    val snowCm: Double? = null
+    val snowCm: Double? = null,
+    /** The hour of the day (0 to 23, local) when the chance of rain or snow is highest, if known. */
+    val rainPeakHour: Int? = null
 )
 
 data class WeatherReport(

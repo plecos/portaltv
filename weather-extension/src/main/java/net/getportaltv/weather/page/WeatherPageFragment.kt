@@ -58,19 +58,25 @@ class WeatherPageFragment : Fragment() {
         val status = view.findViewById<TextView>(R.id.weather_status)
         val scroll = view.findViewById<ScrollView>(R.id.weather_scroll)
         val retry = view.findViewById<TextView>(R.id.weather_retry)
+        val refreshButton = view.findViewById<TextView>(R.id.weather_refresh)
         val updated = view.findViewById<TextView>(R.id.weather_updated)
         var showing = false
+        var lastAsOf = 0L
 
         fun show(data: HostClient.PageData) {
             metric = data.metric
             showAlerts = data.showAlerts
             pageBackground = data.pageBackground
             val report = data.report
+            lastAsOf = data.asOfMillis
             status.visibility = View.GONE
             retry.visibility = View.GONE
             scroll.visibility = View.VISIBLE
             if (!showing) scroll.requestFocus()
             showing = true
+            refreshButton.visibility = View.VISIBLE
+            refreshButton.isEnabled = true
+            refreshButton.text = "Refresh"
             bind(view, report)
             applyBackground(view, report)
             loadAlerts(view)
@@ -80,6 +86,8 @@ class WeatherPageFragment : Fragment() {
 
         fun refresh() {
             retry.visibility = View.GONE
+            refreshButton.isEnabled = false
+            refreshButton.text = "Refreshing…"
             viewLifecycleOwner.lifecycleScope.launch {
                 // What Portal has now is shown straight away, then Portal is asked to fetch fresh weather.
                 if (!showing) {
@@ -98,11 +106,17 @@ class WeatherPageFragment : Fragment() {
                     status.text = "Couldn't load the weather: ${result.error ?: "error"}"
                     retry.visibility = View.VISIBLE
                     retry.requestFocus()
+                } else {
+                    // Still showing the last report: say the refresh didn't work and let it be tried again.
+                    refreshButton.isEnabled = true
+                    refreshButton.text = "Refresh"
+                    updated.text = "Updated ${ago(lastAsOf)} · couldn't refresh"
                 }
             }
         }
 
         retry.setOnClickListener { refresh() }
+        refreshButton.setOnClickListener { refresh() }
         refreshWeather = ::refresh
         refresh()
     }
@@ -133,9 +147,16 @@ class WeatherPageFragment : Fragment() {
         view.findViewById<TextView>(R.id.weather_detail_humidity).text = "Humidity ${r.humidity}%"
         view.findViewById<TextView>(R.id.weather_detail_wind).text =
             "Wind ${wind(r.windKmh)} ${compass(r.windDirection)}"
-        r.days.firstOrNull()?.let {
-            view.findViewById<TextView>(R.id.weather_detail_range).text =
-                "High ${temp(it.highC)}  ·  Low ${temp(it.lowC)}"
+        val today = r.days.firstOrNull()
+        val middle = view.findViewById<View>(R.id.weather_range_bar).parent as View
+        middle.visibility = if (today == null) View.INVISIBLE else View.VISIBLE
+        today?.let {
+            view.findViewById<TextView>(R.id.weather_today_summary).text =
+                DayNote.precipitation(it, WeatherIcons.describe(it.code).lowercase(), metric)
+                    ?: DayNote.of(it, metric)
+                    ?: "No rain or snow expected today"
+            view.findViewById<TempRangeView>(R.id.weather_range_bar)
+                .set(it.lowC, it.highC, r.tempC, temp(it.lowC), temp(it.highC))
         }
 
         val hourly = view.findViewById<LinearLayout>(R.id.weather_hourly)

@@ -34,7 +34,7 @@ object WeatherJson {
             JSONObject().put("date", d.date.toString()).put("code", d.code).put("high_c", d.highC)
                 .put("low_c", d.lowC).put("rain", d.rainChance).put("sunrise", d.sunrise).put("sunset", d.sunset)
                 .put("uv_max", d.uvMax).put("precip_mm", d.precipMm).put("wind_max_kmh", d.windMaxKmh)
-                .put("snow_cm", d.snowCm)
+                .put("snow_cm", d.snowCm).put("rain_hour", d.rainPeakHour)
         }))
         .toString()
 
@@ -62,7 +62,8 @@ object WeatherJson {
                     date = LocalDate.parse(d.getString("date")), code = d.getInt("code"),
                     highC = d.getDouble("high_c"), lowC = d.getDouble("low_c"), rainChance = d.optInt("rain", 0),
                     sunrise = d.text("sunrise"), sunset = d.text("sunset"), uvMax = d.number("uv_max"),
-                    precipMm = d.number("precip_mm"), windMaxKmh = d.number("wind_max_kmh"), snowCm = d.number("snow_cm")
+                    precipMm = d.number("precip_mm"), windMaxKmh = d.number("wind_max_kmh"), snowCm = d.number("snow_cm"),
+                    rainPeakHour = d.number("rain_hour")?.toInt()
                 )
             },
             latitude = o.optDouble("lat", 0.0), longitude = o.optDouble("lon", 0.0),

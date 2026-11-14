@@ -76,6 +76,6 @@ class WeatherSourceManifestTest {
     @Test
     fun theCapabilityIsKnownAndDescribed() {
         assertTrue(Capability.WEATHER_SOURCE in Capability.known)
-        assertTrue(Capability.describe(Capability.WEATHER_SOURCE).contains("10 km"))
+        assertTrue(Capability.describe(Capability.WEATHER_SOURCE).contains("1 km"))
     }
 }

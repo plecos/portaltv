@@ -3,6 +3,7 @@ package com.portal.tv.repo
 import android.content.Context
 import android.util.Log
 import com.portal.tv.weather.ProviderResult
+import com.portal.tv.weather.IpLocation
 import com.portal.tv.weather.WeatherHttp
 import com.portal.tv.weather.WeatherJson
 import com.portal.tv.weather.WeatherPlace
@@ -46,7 +47,8 @@ object WeatherRepository {
     /** Where the saved report is kept, in Portal's own format (the older "body" key held one service's raw answer). */
     private const val REPORT_KEY = "report_json"
 
-    private var cachedPlace: WeatherPlace? = null
+    /** How long a location found from the connection is kept before it is looked up again. */
+    private const val AUTO_LOCATION_TTL_MS = 24L * 60 * 60 * 1000
 
     /** Short reason the last location lookup failed, e.g. "No connection". */
     private var lastFailure: String? = null
@@ -97,6 +99,7 @@ object WeatherRepository {
     fun useAutomaticLocation(context: Context) {
         prefs(context).edit()
             .remove("manual_name").remove("manual_city").remove("manual_lat").remove("manual_lon")
+            .remove("auto_time") // look the connection up afresh rather than reuse an old guess
             .remove(REPORT_KEY)
             .apply()
     }
@@ -170,30 +173,25 @@ object WeatherRepository {
             return WeatherPlace(
                 p.getFloat("manual_lat", 0f).toDouble(),
                 p.getFloat("manual_lon", 0f).toDouble(),
-                p.getString("manual_city", null)
+                // The full name as picked ("Portland, Oregon, US (97205)"), so the weather page says which Portland.
+                it
             )
         }
-        cachedPlace?.let { return it }
-        val response = WeatherHttp.get("https://ipapi.co/json/")
-        lastFailure = response.failure
-        val json = response.body
-        val fresh = try {
-            val obj = JSONObject(json ?: "{}")
-            val lat = obj.optDouble("latitude", 0.0)
-            val lon = obj.optDouble("longitude", 0.0)
-            if (json == null || (lat == 0.0 && lon == 0.0)) null
-            else WeatherPlace(lat, lon, obj.optString("city").takeIf { it.isNotEmpty() })
-        } catch (e: Exception) {
-            null
-        }
+        // A lookup from the last day is still good (an IP address doesn't move), so there is no need to ask again.
+        val saved = if (p.contains("auto_lat")) WeatherPlace(p.getFloat("auto_lat", 0f).toDouble(),
+            p.getFloat("auto_lon", 0f).toDouble(), p.getString("auto_city", null)) else null
+        val now = System.currentTimeMillis()
+        if (saved != null && now - p.getLong("auto_time", 0L) < AUTO_LOCATION_TTL_MS) return saved
+        val fresh = IpLocation.lookup({ url ->
+            WeatherHttp.get(url).also { lastFailure = it.failure }.body
+        })
         if (fresh != null) {
-            cachedPlace = fresh
+            lastFailure = null
             p.edit().putFloat("auto_lat", fresh.lat.toFloat()).putFloat("auto_lon", fresh.lon.toFloat())
-                .putString("auto_city", fresh.city).apply()
+                .putString("auto_city", fresh.city).putLong("auto_time", now).apply()
             return fresh
         }
-        if (!p.contains("auto_lat")) return null
-        return WeatherPlace(p.getFloat("auto_lat", 0f).toDouble(), p.getFloat("auto_lon", 0f).toDouble(),
-            p.getString("auto_city", null))
+        // Every service failed: an older location is better than none.
+        return saved
     }
 }

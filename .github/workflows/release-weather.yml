@@ -1,0 +1,97 @@
+name: Release weather extension
+
+# Releases only the Portal TV Weather extension, without a new Portal. Like the main release it is made by hand:
+# Actions, Release weather extension, Run workflow, with main selected. Merging does not release.
+# The extension is tested and linted, then built, signed and published as a GitHub release tagged weather-vN, with
+# the one file portal-weather-N.apk. N is MAJOR.MINOR from gradle.properties plus the number of commits after the
+# first, the same way release.yml and weather-extension/build.gradle.kts work it out, so it is the version the APK reports.
+#
+# This does not update the catalog. TVs get the extension from the signed site/extensions/catalog.json, so after a
+# release its entry there still has to be pointed at the new APK, and the catalog re-signed (see docs/CATALOG.md).
+
+on:
+  workflow_dispatch:   # the Run workflow button
+
+# The same group as release.yml, so the two never run at once (they would both be making a release from main).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release-weather:
+    # Only the repository owner, and only from main, so a release can't be started by anyone else or from a stray branch.
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # the version number is the commit count
+
+      - name: Work out the version
+        run: |
+          major_minor=$(grep '^VERSION_MAJOR_MINOR=' gradle.properties | cut -d= -f2)
+          echo "VERSION=$major_minor.$(( $(git rev-list --count HEAD) - 1 ))" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25   # gradle/gradle-daemon-jvm.properties pins this
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Only what the extension is made of: weather-core is shared with Portal, so its tests run here too.
+      - name: Unit tests and lint
+        run: ./gradlew :weather-core:test :weather-extension:testDebugUnitTest :weather-extension:lintDebug
+
+      # No Google credentials here on purpose: an APK can't keep a secret, and releases are public. The extension must be
+      # signed with Portal's release key, or Portal won't trust it as its own weather.
+      - name: Build the signed release APK
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_B64" ]; then
+            echo "::error::The RELEASE_KEYSTORE_B64 secret is not set, so the APK can't be signed."
+            exit 1
+          fi
+          echo "$RELEASE_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/portal-release.jks"
+          export RELEASE_STORE_FILE="$RUNNER_TEMP/portal-release.jks"
+          ./gradlew :weather-extension:assembleRelease
+          rm -f "$RUNNER_TEMP/portal-release.jks"
+          cp weather-extension/build/outputs/apk/release/weather-extension-release.apk "portal-weather-$VERSION.apk"
+
+      # An unsigned build (no key) would still produce an APK, so check it really is signed, and not debuggable.
+      - name: The APK must be signed and not debuggable
+        run: |
+          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          apk="portal-weather-$VERSION.apk"
+          if "$build_tools/aapt2" dump badging "$apk" | grep -q "application-debuggable"; then
+            echo "::error::$apk is debuggable."
+            exit 1
+          fi
+          "$build_tools/apksigner" verify "$apk" || { echo "::error::$apk is not signed."; exit 1; }
+
+      # --latest=false matters: Portal's own update check and the site's download buttons use GitHub's "latest release", and
+      # that must stay the last Portal release, not an extension-only one.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "weather-v$VERSION" "portal-weather-$VERSION.apk" \
+            --target "$GITHUB_SHA" --title "Portal TV Weather $VERSION" --generate-notes --latest=false
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: weather-reports
+          path: |
+            weather-extension/build/reports/tests
+            weather-extension/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
