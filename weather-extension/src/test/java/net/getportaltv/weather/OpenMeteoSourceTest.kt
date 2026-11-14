@@ -67,7 +67,10 @@ class OpenMeteoSourceTest {
         val r = OpenMeteoSource.parse(sample("2026-10-30T13:00"), null)
         assertEquals(12, r.hours.size)
         assertEquals(13, r.hours.first().hour24)
-        assertEquals(10.0 + 13, r.hours.first().tempC, 0.001)
+        // The first hour is "Now": the current conditions, not the hourly value for the top of the hour.
+        assertEquals(21.4, r.hours.first().tempC, 0.001)
+        assertEquals(3, r.hours.first().code)
+        assertEquals(10.0 + 14, r.hours[1].tempC, 0.001)
         // 13:00 through 23:00 and then midnight, crossing into the next day.
         assertEquals((13..23).toList() + listOf(0), r.hours.map { it.hour24 })
     }

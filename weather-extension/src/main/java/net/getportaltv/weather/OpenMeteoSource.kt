@@ -62,12 +62,15 @@ internal class OpenMeteoSource(private val base: String = DEFAULT_BASE) {
             for (i in 0 until times.length()) {
                 if (times.getString(i).startsWith(nowHour)) { start = i; break }
             }
+            // The first hour is "Now", so it shows the current conditions: the hourly value for the top of the hour can be
+            // up to an hour old and disagree (clouds in the strip under a clear sky, or night just after sunrise).
             val hours = (start until minOf(start + 12, times.length())).map { i ->
+                val now = i == start
                 WeatherHour(
                     hour24 = times.getString(i).substring(11, 13).toInt(),
-                    tempC = hourly.getJSONArray("temperature_2m").getDouble(i),
-                    code = hourly.getJSONArray("weather_code").getInt(i),
-                    isDay = hourly.getJSONArray("is_day").getInt(i) == 1,
+                    tempC = if (now) cur.getDouble("temperature_2m") else hourly.getJSONArray("temperature_2m").getDouble(i),
+                    code = if (now) cur.getInt("weather_code") else hourly.getJSONArray("weather_code").getInt(i),
+                    isDay = (if (now) cur.optInt("is_day", 1) else hourly.getJSONArray("is_day").getInt(i)) == 1,
                     rainChance = hourly.optJSONArray("precipitation_probability").number(i)?.toInt()
                 )
             }
