@@ -4,6 +4,9 @@ name: Release
 # The build is tested and linted, then built, signed and published as a GitHub release.
 # The version is MAJOR.MINOR from gradle.properties plus the number of commits after the first, e.g. v1.0.42
 # (the first commit is v1.0.0). app/build.gradle.kts works it out the same way.
+# This releases Portal only. The weather extension is built into the Portal APK (it is installed from there at first run),
+# but is not published as a file of its own here: it has its own workflow, release-weather.yml, which publishes weather-vN
+# for the catalog to point at.
 
 on:
   workflow_dispatch:   # the Run workflow button
@@ -78,28 +81,25 @@ jobs:
           fi
           echo "$RELEASE_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/portal-release.jks"
           export RELEASE_STORE_FILE="$RUNNER_TEMP/portal-release.jks"
-          ./gradlew assembleRelease
+          ./gradlew :app:assembleRelease
           rm -f "$RUNNER_TEMP/portal-release.jks"
           cp app/build/outputs/apk/release/app-release.apk "portal-$VERSION.apk"
-          # The weather extension that ships inside Portal, as a file of its own too: the catalog installs and updates it from here.
-          cp weather-extension/build/outputs/apk/release/weather-extension-release.apk "portal-weather-$VERSION.apk"
 
       # Debug builds trust a test catalog key whose private half is public, so a debuggable APK must never be published.
       - name: The APK must not be debuggable
         run: |
           aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
-          for apk in "portal-$VERSION.apk" "portal-weather-$VERSION.apk"; do
-            if "$aapt2" dump badging "$apk" | grep -q "application-debuggable"; then
-              echo "::error::$apk is debuggable."
-              exit 1
-            fi
-          done
+          apk="portal-$VERSION.apk"
+          if "$aapt2" dump badging "$apk" | grep -q "application-debuggable"; then
+            echo "::error::$apk is debuggable."
+            exit 1
+          fi
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v$VERSION" "portal-$VERSION.apk" "portal-weather-$VERSION.apk" \
+          gh release create "v$VERSION" "portal-$VERSION.apk" \
             --target "$GITHUB_SHA" --title "Portal $VERSION" --generate-notes
 
       - name: Keep the reports
