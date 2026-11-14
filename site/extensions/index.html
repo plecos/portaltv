@@ -6,36 +6,73 @@
 <title>Portal extensions</title>
 <meta name="description" content="Extensions are apps that add tiles, buttons, backgrounds, reminders and the weather to Portal, most made by other people. Browse the list here, or on your TV under Settings, Extensions.">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0f0f1a">
+<meta name="theme-color" content="#120d0a">
 <link rel="canonical" href="https://getportaltv.net/extensions/">
 <link rel="icon" type="image/png" href="../img/favicon.png">
 <style>
-  :root { --bg:#0f0f1a; --raised:#171728; --tile:#1c1c30; --line:#2a2a44; --text:#f2f2fa; --muted:#a9a9c4; --accent:#6c63ff; --gold:#ffc94d; }
+  /* Same type and colours as the home page: Inter, self-hosted, and the warm dark of a room with the TV on. */
+  @font-face { font-family: "Inter"; src: url("../fonts/inter-latin.woff2") format("woff2"); font-weight: 300 750; font-display: swap; }
+  :root {
+    --room: #120d0a; --room-raised: #1c140f; --paper: #fbf4ea; --ash: #cfc1b3; --ember: #f4a15d;
+    --glass: rgba(20, 13, 9, .6); --rim: rgba(255, 255, 255, .72);
+    --gutter: clamp(20px, 5vw, 72px);
+  }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  .wrap { max-width:960px; margin:0 auto; padding:0 20px; }
-  a { color:#9d97ff; }
-  header { border-bottom:1px solid var(--line); padding:18px 0; }
-  header a { color:var(--text); text-decoration:none; font-weight:600; }
-  h1 { font-size:34px; margin:40px 0 8px; }
-  h2 { font-size:22px; margin:40px 0 12px; }
-  p.lead { color:var(--muted); margin:0 0 16px; max-width:70ch; }
-  .note { background:var(--raised); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:20px 0; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
-  .card { background:var(--tile); border:1px solid var(--line); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:6px; }
-  .card h3 { margin:0; font-size:19px; }
-  .card .by { color:var(--muted); font-size:15px; }
-  .card .price { color:var(--gold); font-size:15px; }
-  .card p { margin:4px 0; font-size:15px; }
-  .tags span { display:inline-block; font-size:13px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:0 10px; margin:0 6px 6px 0; }
-  input[type=search] { width:100%; max-width:420px; background:var(--raised); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font:inherit; }
-  #status { color:var(--muted); margin:12px 0; }
-  footer { border-top:1px solid var(--line); margin-top:56px; padding:28px 0 48px; color:var(--muted); font-size:15px; }
+  body { margin: 0; background: var(--room); color: var(--paper); font: 400 18px/1.6 "Inter", system-ui, sans-serif; font-feature-settings: "ss01", "cv11"; -webkit-font-smoothing: antialiased; }
+  a { color: var(--ember); text-underline-offset: .2em; }
+  a:hover { color: var(--paper); }
+  :focus-visible { outline: 3px solid var(--paper); outline-offset: 4px; border-radius: 6px; }
+  img { display: block; max-width: 100%; height: auto; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px var(--gutter); }
+  .brand { display: flex; align-items: center; gap: 12px; color: var(--paper); text-decoration: none; font-weight: 700; font-size: 21px; letter-spacing: -.01em; }
+  .brand img { width: 34px; height: 34px; border-radius: 10px; }
+  header nav { display: flex; gap: 6px; padding: 6px; background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 999px; }
+  header nav a { color: var(--paper); text-decoration: none; font-size: 16px; font-weight: 550; padding: 8px 16px; border-radius: 999px; }
+  header nav a:hover, header nav a[aria-current] { background: rgba(255, 255, 255, .16); }
+
+  main { padding: clamp(40px, 6vw, 88px) var(--gutter) 0; max-width: 1180px; }
+  h1 { margin: 0 0 16px; font-size: clamp(38px, 5vw, 64px); line-height: 1.02; font-weight: 750; letter-spacing: -.03em; }
+  h2 { margin: clamp(56px, 8vw, 96px) 0 14px; font-size: clamp(26px, 3vw, 38px); line-height: 1.1; font-weight: 720; letter-spacing: -.025em; }
+  p.lead { margin: 0 0 16px; color: var(--ash); max-width: 40em; }
+
+  /* The warning about other people's extensions is the most important thing on the page, so it is a panel, like on the home page. */
+  .note { margin: 28px 0 0; padding: clamp(20px, 2.6vw, 32px); max-width: 44em; background: var(--glass); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(255, 255, 255, .16); border-radius: 28px; color: var(--ash); }
+  .note strong { color: var(--paper); font-weight: 650; }
+
+  input[type=search] { width: 100%; max-width: 440px; margin: 6px 0 0; padding: 13px 18px; background: var(--room-raised); color: var(--paper); border: 1.5px solid rgba(255, 255, 255, .28); border-radius: 20px; font: inherit; }
+  input[type=search]::placeholder { color: var(--ash); opacity: .8; }
+  input[type=search]:focus-visible { outline: none; border-color: var(--rim); box-shadow: 0 0 0 3px rgba(255, 255, 255, .22); }
+  #status { color: var(--ash); margin: 14px 0 8px; }
+
+  #list { display: grid; gap: 40px; margin-top: 24px; max-width: 52em; }
+  .ext { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 20px; }
+  .ext:not(:has(> img)) { grid-template-columns: minmax(0, 1fr); }
+  .ext img { width: 64px; height: 64px; border-radius: 16px; }
+  .ext h3 { margin: 0; font-size: 24px; font-weight: 680; letter-spacing: -.02em; line-height: 1.2; }
+  .ext .by { color: var(--ash); font-size: 16px; }
+  .ext .price { color: var(--paper); font-size: 16px; font-weight: 600; }
+  .ext p { margin: 8px 0 0; }
+  .ext p.by { margin: 6px 0 0; }
+  .ext .desc { color: var(--paper); font-size: 17px; }
+  .ext a { display: inline-block; margin-top: 10px; }
+
+  footer { margin-top: clamp(80px, 11vw, 150px); padding: 32px var(--gutter) 48px; color: var(--ash); font-size: 15.5px; border-top: 1px solid rgba(255, 255, 255, .1); }
+  footer a { color: var(--ash); }
+  footer a:hover { color: var(--paper); }
+  @media (max-width: 760px) { header nav { display: none; } .ext { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; } .ext img { width: 48px; height: 48px; border-radius: 12px; } }
 </style>
 </head>
 <body>
-<header><div class="wrap"><a href="../">Portal</a> &nbsp;/&nbsp; Extensions</div></header>
-<main class="wrap">
+<header>
+  <a class="brand" href="../"><img src="../img/icon.png" width="34" height="34" alt="">Portal</a>
+  <nav aria-label="Main">
+    <a href="../">Home</a>
+    <a href="./" aria-current="page">Extensions</a>
+    <a href="https://github.com/plecos/portaltv">GitHub</a>
+  </nav>
+</header>
+<main>
   <h1>Extensions</h1>
   <p class="lead">Extensions are separate apps that add things to Portal: a tile, a button in the top bar, a settings page, an animated background, reminders, or where the weather comes from. Most are made by other people; Portal TV Weather, which comes with Portal, is made by Portal. You find them on your TV under <strong>Settings, Extensions, Browse extensions</strong>. This page shows the same list.</p>
   <div class="note"><strong>Extensions made by other people are not covered by Portal's no-ads, no-tracking promise.</strong> They are third-party apps. A listing means someone read the entry and checked its source link; it is not a security audit. Nothing an extension asks for happens until an adult allows it, and kid profiles get no extensions unless a parent says so.</div>
@@ -43,7 +80,7 @@
   <h2>Listed extensions</h2>
   <input id="q" type="search" placeholder="Search by name, description or tag" aria-label="Search extensions">
   <div id="status">Loading the list…</div>
-  <div id="list" class="grid"></div>
+  <div id="list"></div>
 
   <h2>Add yours</h2>
   <p class="lead">Write an extension in any language: it is an ordinary Android TV app with a small manifest. Start with the <a href="https://github.com/plecos/portaltv/blob/main/docs/EXTENSIONS-QUICKSTART.md">quickstart</a>, then read the <a href="https://github.com/plecos/portaltv/blob/main/docs/EXTENSIONS.md">full contract</a>. To be listed here and in Portal's Browse page, send a pull request to the catalogue repository. The review checklist is in its README.</p>
@@ -51,7 +88,7 @@
   <h2>What this page sends</h2>
   <p class="lead">Your browser fetches one file, <a href="catalog.json">catalog.json</a>, and the small pictures it names, all from this site. Nothing else is requested, and the page keeps no record of you. Portal on your TV checks the file's signature before it reads it; this page does not, so treat it as a preview.</p>
 </main>
-<footer><div class="wrap"><a href="../">Back to Portal</a></div></footer>
+<footer><a href="../">Back to Portal</a></footer>
 <script>
 (function () {
   var list = document.getElementById('list'), status = document.getElementById('status'), q = document.getElementById('q');
@@ -59,23 +96,22 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
   function safeLink(u) { try { var x = new URL(u); return x.protocol === 'https:' ? x.href : null; } catch (e) { return null; } }
   function card(x) {
-    var c = el('div', 'card');
+    var c = el('article', 'ext');
     // A listing's small picture is a file next to catalog.json (icons/name.png), never an address on someone else's server.
     if (typeof x.icon === 'string' && /^icons\/[A-Za-z0-9._-]+\.png$/.test(x.icon)) {
-      var pic = el('img'); pic.src = x.icon; pic.alt = ''; pic.width = 48; pic.height = 48;
-      pic.style.cssText = 'float:right;border-radius:10px;margin:0 0 8px 12px';
+      var pic = el('img'); pic.src = x.icon; pic.alt = ''; pic.width = 64; pic.height = 64;
       c.appendChild(pic);
     }
-    c.appendChild(el('h3', '', x.name));
-    c.appendChild(el('div', 'by', 'by ' + x.author + (x.license ? ' · ' + x.license : '')));
-    c.appendChild(el('div', 'price', x.price || (x.distribution === 'play' ? 'On Google Play' : 'Free')));
-    c.appendChild(el('p', '', x.description));
-    if (x.capabilities && x.capabilities.length) c.appendChild(el('p', 'by', 'Asks to: ' + x.capabilities.join(', ')));
-    var tags = el('div', 'tags');
-    (x.tags || []).forEach(function (t) { tags.appendChild(el('span', '', t)); });
-    c.appendChild(tags);
+    var body = el('div', 'body');
+    body.appendChild(el('h3', '', x.name));
+    body.appendChild(el('div', 'by', 'By ' + x.author + (x.license ? ', ' + x.license : '')));
+    body.appendChild(el('div', 'price', x.price || (x.distribution === 'play' ? 'On Google Play' : 'Free')));
+    body.appendChild(el('p', 'desc', x.description));
+    if (x.capabilities && x.capabilities.length) body.appendChild(el('p', 'by', 'Asks to: ' + x.capabilities.join(', ')));
+    if (x.tags && x.tags.length) body.appendChild(el('p', 'by', 'Tags: ' + x.tags.join(', ')));
     var href = safeLink(x.source);
-    if (href) { var a = el('a', '', 'Source'); a.href = href; a.rel = 'noopener'; c.appendChild(a); }
+    if (href) { var a = el('a', '', 'Source'); a.href = href; a.rel = 'noopener'; body.appendChild(a); }
+    c.appendChild(body);
     return c;
   }
   function render() {
