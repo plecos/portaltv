@@ -6,7 +6,7 @@
 <title>Portal: a home screen launcher for Android TV and Google TV</title>
 <meta name="description" content="Portal is a home screen launcher for Android TV and Google TV: live video backgrounds, profiles, kid time limits, weather and radar, reminders, a screen saver, and search with your own AI. No ads, no tracking.">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0f0f1a">
+<meta name="theme-color" content="#120d0a">
 <link rel="canonical" href="https://getportaltv.net/">
 <link rel="icon" type="image/png" href="img/favicon.png">
 <meta property="og:type" content="website">
@@ -36,117 +36,184 @@
 }
 </script>
 <style>
-  :root {
-    --bg: #0f0f1a;
-    --bg-raised: #171728;
-    --bg-tile: #1c1c30;
-    --line: #2a2a44;
-    --text: #f2f2fa;
-    --muted: #a9a9c4;
-    --accent: #6c63ff;
-    --accent-hover: #8077ff;
-    --cyan: #44d9ff;
-    --violet: #8a5cff;
-    --pink: #ff5fa8;
-    --radius: 16px;
-    --max: 1120px;
+  /* Inter is the typeface of Portal's own screens. Self-hosted (a 53 KB Latin subset, weights 300 to 750), so the page
+     makes no request to anyone else. */
+  @font-face {
+    font-family: "Inter";
+    src: url("fonts/inter-latin.woff2") format("woff2");
+    font-weight: 300 750;
+    font-display: swap;
   }
+
+  :root {
+    /* Colours come from the screens themselves: the fire, the dark room around a TV, the frosted panels. */
+    --room: #120d0a;          /* the room with the TV on */
+    --room-raised: #1c140f;
+    --paper: #fbf4ea;         /* text: the warm white of the app's clock */
+    --ash: #cfc1b3;           /* secondary text */
+    --ember: #f4a15d;         /* links and numerals: the fire */
+    --glass: rgba(20, 13, 9, .6);
+    --rim: rgba(255, 255, 255, .72);
+    --gutter: clamp(20px, 5vw, 72px);
+    --panel-radius: 28px;
+    --shot-radius: 14px;
+  }
+
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--room);
+    color: var(--paper);
+    font: 400 18px/1.6 "Inter", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--cyan); }
-  a:hover { color: #8be9ff; }
-  :focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; border-radius: 4px; }
-  img { max-width: 100%; height: auto; display: block; }
-  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
-  .skip { position: absolute; left: -999px; top: 8px; background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 10; }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: var(--ember); text-underline-offset: .2em; }
+  a:hover { color: var(--paper); }
+  :focus-visible { outline: 3px solid var(--paper); outline-offset: 4px; border-radius: 6px; }
+
+  .skip { position: absolute; left: -999px; top: 8px; background: var(--paper); color: var(--room); padding: 8px 14px; border-radius: 8px; z-index: 20; }
   .skip:focus { left: 8px; }
 
-  /* header */
-  header.top { position: sticky; top: 0; z-index: 5; background: rgba(15, 15, 26, .86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 650; font-size: 20px; }
-  .brand img { width: 32px; height: 32px; border-radius: 8px; }
-  nav ul { display: flex; gap: 22px; list-style: none; margin: 0; padding: 0; }
-  nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
-  nav a:hover { color: var(--text); }
+  /* ---------- header: sits on the picture, like the app's own top bar ---------- */
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px var(--gutter);
+    background: var(--room);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; color: var(--paper); text-decoration: none; font-weight: 700; font-size: 21px; letter-spacing: -.01em; }
+  .brand img { width: 34px; height: 34px; border-radius: 10px; }
+  .top nav { display: flex; gap: 6px; padding: 6px; background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 999px; }
+  .top nav a { color: var(--paper); text-decoration: none; font-size: 16px; font-weight: 550; padding: 8px 16px; border-radius: 999px; }
+  .top nav a:hover { background: rgba(255, 255, 255, .16); color: var(--paper); }
 
-  /* hero */
-  .hero { padding: 72px 0 40px; text-align: center; background:
-    radial-gradient(60% 50% at 50% 0%, rgba(138, 92, 255, .28), transparent 70%),
-    radial-gradient(40% 40% at 85% 10%, rgba(68, 217, 255, .12), transparent 70%); }
-  .hero h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.02em; }
-  .hero h1 span { background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .hero p.lead { font-size: clamp(18px, 2.4vw, 22px); color: var(--muted); max-width: 680px; margin: 0 auto 28px; }
-  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-  .btn { display: inline-block; padding: 13px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid transparent; }
-  .btn.primary { background: var(--accent); color: #fff; }
-  .btn.primary:hover { background: var(--accent-hover); color: #fff; }
-  .btn.ghost { border-color: var(--line); color: var(--text); background: var(--bg-raised); }
-  .btn.ghost:hover { border-color: var(--accent); color: var(--text); }
-  .pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; list-style: none; padding: 0; margin: 26px 0 0; }
-  .pills li { padding: 7px 18px; border-radius: 999px; font-weight: 650; font-size: 16px; border: 1px solid transparent; background: linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box, linear-gradient(90deg, var(--cyan), var(--violet), var(--pink)) border-box; }
-  .fine { color: var(--muted); font-size: 14px; margin-top: 14px; }
-  .tv { margin: 44px auto 0; max-width: 940px; border-radius: 18px; padding: 10px; background: #05050b; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 80px rgba(108, 99, 255, .2); }
-  .tv img { border-radius: 10px; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; width: 100%; }
+  /* ---------- hero: the real home screen, full width ---------- */
+  .hero { position: relative; background: #000; }
+  .hero > img {
+    width: 100%;
+    height: min(56.25vw, calc(100svh - 68px));
+    min-height: 520px;
+    object-fit: cover;
+    object-position: 20% 50%;
+  }
+  .hero::after { /* darkens only the bottom edge, so the page below grows out of the picture */
+    content: ""; position: absolute; inset: auto 0 0 0; height: 36%;
+    background: linear-gradient(to bottom, transparent, var(--room));
+    pointer-events: none;
+  }
+  .panel {
+    position: absolute; z-index: 2; right: var(--gutter); bottom: clamp(32px, 8vw, 96px);
+    width: min(560px, calc(100% - 2 * var(--gutter)));
+    padding: clamp(24px, 3vw, 40px);
+    background: var(--glass);
+    backdrop-filter: blur(22px) saturate(1.2); -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: var(--panel-radius);
+  }
+  .panel h1 { margin: 0 0 14px; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.04; font-weight: 750; letter-spacing: -.03em; text-wrap: balance; }
+  .panel p { margin: 0 0 22px; color: var(--ash); font-size: 18px; }
+  .panel p.fine { margin: 18px 0 0; font-size: 15.5px; }
 
-  /* sections */
-  section { padding: 72px 0; }
-  section.alt { background: var(--bg-raised); border-block: 1px solid var(--line); }
-  h2 { font-size: clamp(26px, 4vw, 38px); line-height: 1.2; margin: 0 0 12px; letter-spacing: -.01em; }
-  .sub { color: var(--muted); max-width: 640px; margin: 0 0 40px; }
-  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-  .card { background: var(--bg-tile); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
-  .card h3 { margin: 0 0 8px; font-size: 19px; }
-  .card p { margin: 0; color: var(--muted); font-size: 16px; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; margin-bottom: 14px; background: linear-gradient(135deg, var(--cyan), var(--violet) 55%, var(--pink)); }
-
-  /* screenshots */
-  .shots { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
-  figure { margin: 0; }
-  figure img { border-radius: 12px; border: 1px solid var(--line); width: 100%; }
-  figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; }
-
-  /* split blocks */
-  .split { display: grid; gap: 40px; grid-template-columns: 1fr 1fr; align-items: center; }
-  .split ul { padding-left: 20px; margin: 0; color: var(--muted); }
-  .split li { margin: 8px 0; }
-  .split li strong { color: var(--text); }
-
-  /* faq */
-  .faq { max-width: 780px; display: grid; gap: 10px; }
-  .faq details { background: var(--bg-tile); border: 1px solid var(--line); border-radius: 12px; padding: 0 20px; }
-  .faq summary { cursor: pointer; font-weight: 600; padding: 16px 0; list-style-position: outside; }
-  .faq details[open] summary { color: var(--cyan); }
-  .faq p { margin: 0 0 18px; color: var(--muted); font-size: 16px; }
-
-  /* install */
-  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0 0 28px; display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  ol.steps li { counter-increment: step; background: var(--bg-tile); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 24px 24px 24px; }
-  ol.steps li::before { content: counter(step); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); font-weight: 700; margin-bottom: 12px; }
-  ol.steps strong { display: block; margin-bottom: 4px; }
-  ol.steps span { color: var(--muted); font-size: 16px; }
-  code { background: #0a0a14; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: .9em; }
-
-  footer { border-top: 1px solid var(--line); padding: 40px 0 56px; color: var(--muted); font-size: 15px; }
-  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
-  footer ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; }
-  footer a { color: var(--muted); }
-  footer a:hover { color: var(--text); }
+  /* The button is drawn the way Portal draws what you've selected: frosted, with a bright rim. */
+  .select {
+    display: inline-block; text-decoration: none; color: var(--paper); font-weight: 650; font-size: 18px;
+    padding: 14px 26px; border-radius: 20px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, .34), rgba(255, 255, 255, .12));
+    border: 1.5px solid var(--rim);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
+  }
+  .select:hover { color: var(--paper); background: linear-gradient(to bottom, rgba(255, 255, 255, .44), rgba(255, 255, 255, .2)); }
 
   @media (max-width: 760px) {
-    nav { display: none; }
-    .split { grid-template-columns: 1fr; }
-    section { padding: 52px 0; }
-    .hero { padding-top: 48px; }
+    .hero > img { height: 56.25vw; min-height: 0; }
+    .hero::after { display: none; }
+    .panel { position: static; width: auto; margin: 0; border-radius: 0; border: 0; background: var(--room-raised); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    .top nav { display: none; }
   }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  /* ---------- shelves: rows of screens, the way a TV lays things out ---------- */
+  .shelf { padding: clamp(56px, 8vw, 104px) 0 0; }
+  .shelf-head { padding: 0 var(--gutter); max-width: 760px; }
+  .shelf h2 { margin: 0 0 10px; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.1; font-weight: 720; letter-spacing: -.025em; }
+  .shelf-head p { margin: 0; color: var(--ash); }
+  .row {
+    display: flex; gap: clamp(18px, 2.4vw, 32px);
+    margin: 28px 0 0; padding: 18px var(--gutter) 28px;
+    overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter);
+    scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .25) transparent;
+  }
+  .tile { flex: 0 0 clamp(280px, 38vw, 560px); scroll-snap-align: start; margin: 0; border-radius: var(--shot-radius); outline: none; }
+  .tile img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--shot-radius); background: #000; transition: transform .18s ease, box-shadow .18s ease; }
+  .tile:hover img, .tile:focus-visible img {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 2px var(--rim), 0 22px 48px rgba(0, 0, 0, .55);
+  }
+  .tile figcaption { padding: 14px 4px 0; color: var(--ash); font-size: 16.5px; line-height: 1.5; }
+  .tile figcaption strong { display: block; color: var(--paper); font-size: 19px; font-weight: 650; letter-spacing: -.01em; margin-bottom: 2px; }
+
+  /* ---------- the rest, as plain text ---------- */
+  .more { padding: clamp(64px, 9vw, 120px) var(--gutter) 0; }
+  .more h2 { margin: 0 0 40px; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.1; font-weight: 720; letter-spacing: -.025em; max-width: 760px; }
+  dl.list { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px clamp(32px, 6vw, 96px); max-width: 1180px; }
+  dl.list div { max-width: 34em; }
+  dl.list dt { font-weight: 650; font-size: 20px; letter-spacing: -.01em; margin-bottom: 6px; }
+  dl.list dd { margin: 0; color: var(--ash); font-size: 17px; }
+
+  /* ---------- privacy ---------- */
+  .private { padding: clamp(72px, 10vw, 140px) var(--gutter) 0; }
+  .private .inner { max-width: 1180px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(32px, 6vw, 96px); }
+  .private h2 { margin: 0 0 18px; font-size: clamp(34px, 4.6vw, 60px); line-height: 1.02; font-weight: 750; letter-spacing: -.03em; text-wrap: balance; }
+  .private .intro { color: var(--ash); margin: 0; max-width: 28em; }
+  .private .facts p { margin: 0 0 22px; color: var(--ash); max-width: 36em; }
+  .private .facts strong { color: var(--paper); font-weight: 650; }
+
+  /* ---------- install: a real sequence, so it is numbered ---------- */
+  .install { padding: clamp(72px, 10vw, 140px) var(--gutter) 0; }
+  .install h2 { margin: 0 0 10px; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.1; font-weight: 720; letter-spacing: -.025em; }
+  .install .sub { margin: 0 0 40px; color: var(--ash); max-width: 38em; }
+  ol.steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px clamp(24px, 4vw, 64px); max-width: 1180px; }
+  ol.steps li { counter-increment: step; }
+  ol.steps li::before { content: counter(step); display: block; font-size: 72px; line-height: 1; font-weight: 300; letter-spacing: -.04em; color: var(--ember); margin-bottom: 10px; }
+  ol.steps strong { display: block; font-size: 20px; font-weight: 650; margin-bottom: 4px; }
+  ol.steps span { color: var(--ash); font-size: 17px; }
+  code { font: .88em ui-monospace, "SF Mono", Menlo, monospace; background: var(--room-raised); padding: 2px 7px; border-radius: 6px; }
+  .install .script { margin: 40px 0 0; color: var(--ash); max-width: 44em; }
+
+
+  /* ---------- questions ---------- */
+  .faq { padding: clamp(72px, 10vw, 140px) var(--gutter) 0; }
+  .faq h2 { margin: 0 0 10px; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.1; font-weight: 720; letter-spacing: -.025em; }
+  .faq .sub { margin: 0 0 32px; color: var(--ash); }
+  .faq details { max-width: 52em; border-top: 1px solid rgba(255, 255, 255, .12); }
+  .faq details:last-of-type { border-bottom: 1px solid rgba(255, 255, 255, .12); }
+  .faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: 24px; padding: 20px 0; font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; flex: none; color: var(--ember); font-weight: 400; font-size: 26px; line-height: 1; }
+  .faq details[open] summary::after { content: "\2212"; }
+  .faq details p { margin: 0 0 22px; color: var(--ash); max-width: 40em; }
+
+  /* ---------- licence ---------- */
+  .license { padding: clamp(72px, 10vw, 140px) var(--gutter) 0; }
+  .license .inner { max-width: 1180px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(32px, 6vw, 96px); }
+  .license h2 { margin: 0 0 14px; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.1; font-weight: 720; letter-spacing: -.025em; }
+  .license p { margin: 0 0 18px; color: var(--ash); max-width: 36em; }
+  .license .inner > div:first-child p { margin: 0; }
+
+  footer { margin-top: clamp(80px, 11vw, 150px); padding: 32px var(--gutter) 48px; color: var(--ash); font-size: 15.5px; display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, .1); }
+  footer ul { display: flex; flex-wrap: wrap; gap: 8px 24px; list-style: none; margin: 0; padding: 0; }
+  footer a { color: var(--ash); }
+  footer a:hover { color: var(--paper); }
+
+  @media (max-width: 860px) {
+    dl.list, ol.steps, .private .inner, .license .inner { grid-template-columns: 1fr; }
+  }
+  @media (hover: none) { .keys-hint { display: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .tile img { transition: none; }
+  }
 </style>
 <script type="application/ld+json">
 {
@@ -225,180 +292,166 @@
 <a class="skip" href="#main">Skip to the content</a>
 
 <header class="top">
-  <div class="wrap">
-    <a class="brand" href="#top"><img src="img/icon.png" alt="" width="32" height="32">Portal</a>
-    <nav aria-label="Main">
-      <ul>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#private">No ads, no tracking</a></li>
-        <li><a href="#install">Install</a></li>
-        <li><a href="#faq">Questions</a></li>
-        <li><a href="https://github.com/plecos/portaltv">GitHub</a></li>
-      </ul>
-    </nav>
-  </div>
+  <a class="brand" href="#top"><img src="img/icon.png" width="34" height="34" alt="">Portal</a>
+  <nav aria-label="Main">
+    <a href="#features">Features</a>
+    <a href="#private">No ads, no tracking</a>
+    <a href="#install">Install</a>
+    <a href="#faq">Questions</a>
+    <a href="https://github.com/plecos/portaltv">GitHub</a>
+  </nav>
 </header>
 
 <main id="main">
-  <div class="hero" id="top">
-    <div class="wrap">
-      <h1>A home screen <span>for your TV</span></h1>
-      <p class="lead">Portal replaces the stock launcher on Android TV and Google TV with a quiet, good-looking home screen: live video backgrounds, your apps, the weather, and a profile for everyone in the house.</p>
-      <div class="buttons">
-        <a class="btn primary" href="https://github.com/plecos/portaltv/releases/latest">Download the latest release</a>
-        <a class="btn ghost" href="#install">How to install</a>
-      </div>
-      <ul class="pills" aria-label="Portal's promises">
-        <li>No ads</li>
-        <li>No tracking</li>
-        <li>No account</li>
-      </ul>
-      <p class="fine">Unlike most stock TV launchers. Free for personal use &middot; Android 14 or newer</p>
-      <div class="tv">
-        <img src="img/home.jpg" width="1280" height="720" alt="Portal's home screen: a fireplace video plays behind the time and weather, a profile chip, and a list of apps.">
-      </div>
-    </div>
-  </div>
-
-  <section id="features">
-    <div class="wrap">
-      <h2>What you get</h2>
-      <p class="sub">Everything runs on the TV. Set it up with your remote.</p>
-      <div class="grid">
-        <div class="card"><div class="dot"></div><h3>Live video backgrounds</h3><p>Fireplaces, space, aquariums and more behind your apps, or an animated color shader. Pick one, or let Portal choose a new video each day.</p></div>
-        <div class="card"><div class="dot"></div><h3>Holidays and birthdays</h3><p>Halloween, Thanksgiving, Christmas and New Year's videos play on the right days. Add holidays of your own, give each as many videos as you like, and set a video for birthdays.</p></div>
-        <div class="card"><div class="dot"></div><h3>Profiles for everyone</h3><p>Each person gets their own apps, background and settings, and can sign in with their Google account using a QR code.</p></div>
-        <div class="card"><div class="dot"></div><h3>Kid profiles</h3><p>Only the apps a parent allows, a daily time limit and a bedtime, a countdown for the last minute, and a parent PIN to leave the profile.</p></div>
-        <div class="card"><div class="dot"></div><h3>Weather and radar</h3><p>Current conditions, 12 hours and 7 days, sunrise and sunset, air quality and the moon, with a looping radar map. In the US, severe weather alerts show right on the home screen. It comes from Portal TV Weather, an extension that comes with Portal and that you can replace.</p></div>
-        <div class="card"><div class="dot"></div><h3>A screen saver that moves</h3><p>Your videos fade through while the time and weather bounce around the screen like the logo on an old DVD player. It can dim or go dark at night.</p></div>
-        <div class="card"><div class="dot"></div><h3>Search with your own AI</h3><p>Find apps as you type or by voice. Connect any OpenAI-compatible server, a hosted one or one on your own network, and ask it questions, have it open apps or manage your reminders for you.</p></div>
-        <div class="card"><div class="dot"></div><h3>Reminders</h3><p>Set a reminder for a show, a call or a chore, in Settings or by asking the AI, which can also list, change and delete them. When it's due, a card with the name and picture of whoever set it shows over whatever is playing. Pick a tone for each one, let the card go by itself or wait for you, and add a Snooze button. One that came due while the TV was off can show later or be skipped.</p></div>
-        <div class="card"><div class="dot"></div><h3>Updates from the TV</h3><p>Portal looks for a new version once a day. Select the Update button to see what's new, then download and install it from the couch. Nothing installs without you.</p></div>
-        <div class="card" style="grid-column:1/-1"><div class="dot"></div><h3>Extensions</h3><p>Other people can add tiles, buttons, a settings page or an animated background, or replace where the weather comes from and the weather page itself. Nothing happens until an adult allows each thing, and kids don't get extensions unless a parent says so. <a href="extensions/">See the list</a>.</p></div>
-      </div>
+  <section class="hero" id="top">
+    <img src="img/home.jpg" width="1280" height="720" alt="Portal's home screen: a fireplace video plays behind the time and weather, a profile chip, and a list of apps.">
+    <div class="panel">
+      <h1>A quieter home screen for your TV</h1>
+      <p>Portal replaces the stock launcher on Android TV and Google TV with live video backgrounds, your apps, the weather, and a profile for everyone in the house.</p>
+      <a class="select" href="https://github.com/plecos/portaltv/releases/latest">Download the latest release</a>
+      <p class="fine">Free for personal use, on Android 14 or newer. No ads, no tracking and no account.</p>
     </div>
   </section>
 
-  <section class="alt" id="look">
-    <div class="wrap">
-      <h2>A look around</h2>
-      <p class="sub">Screenshots of Portal running on Android TV.</p>
-      <div class="shots">
-        <figure>
-          <img src="img/weather.jpg" width="1280" height="720" loading="lazy" alt="The weather page: 49 degrees and overcast, with humidity, wind, high and low, and the next 12 hours.">
-          <figcaption>Current conditions, the next 12 hours and the week ahead, with radar and alerts.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/profiles.jpg" width="1280" height="720" loading="lazy" alt="The Who's watching screen on a starry background, with three profiles (Portal, Guest and a kid's profile called Kids) and an Add New button.">
-          <figcaption>Choose who's watching. Hold OK on a profile to rename it, change its avatar, set a code or delete it.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/settings-videos.jpg" width="1280" height="720" loading="lazy" alt="Settings, Videos: a Random tile, the video in use and a Select button, with Search/Manage Videos and Holidays buttons below.">
-          <figcaption>Pick a video, or a new one each day, and set up holiday videos. Add more from NASA or Pixabay.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/settings-video-select.jpg" width="1280" height="720" loading="lazy" alt="A window titled Choose a video with a grid of six video thumbnails, a check on the one in use and a speaker on the two that have sound.">
-          <figcaption>Browse every video on the TV. A speaker marks the ones with sound.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/settings-shaders.jpg" width="1280" height="720" loading="lazy" alt="A window titled Background shader with eleven animated styles shown in blue, fifteen color swatches, and a color cycling switch.">
-          <figcaption>Prefer color to video? Pick an animated shader and see every style move in the color you choose.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/settings-apps.jpg" width="1280" height="720" loading="lazy" alt="Settings, Apps: choose icon and title, icon only or list, and whether to group frequently used apps. Each settings category has an icon.">
-          <figcaption>Show apps as tiles, icons or a list, and group the ones you use most.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/reminder-card.jpg" width="1280" height="720" loading="lazy" alt="Portal's home screen with a card across the top: a sun avatar, KEN and REMINDER, and the text The baking show premiere is starting.">
-          <figcaption>A reminder shows over whatever you're watching, with the name and picture of whoever set it.</figcaption>
-        </figure>
-        <figure>
-          <img src="img/settings-reminders.jpg" width="1280" height="720" loading="lazy" alt="Settings, Reminders: three reminders with their dates (one repeating every week), an Add reminder button, and a choice for reminders that came due while the TV was off.">
-          <figcaption>Set reminders in Settings, or ask the AI to set one. You confirm it before it's saved.</figcaption>
-        </figure>
-      </div>
+  <section class="shelf" id="features" aria-labelledby="shelf-home">
+    <div class="shelf-head">
+      <h2 id="shelf-home">On the home screen</h2>
+      <p>What you see and what shows up while you watch. <span class="keys-hint">Use the arrow keys to move along a row.</span></p>
+    </div>
+    <div class="row" data-row>
+      <figure class="tile" tabindex="0">
+        <img src="img/weather.jpg" width="1280" height="720" loading="lazy" alt="The weather page: 49 degrees and overcast, with humidity, wind, high and low, and the next 12 hours.">
+        <figcaption><strong>Weather and radar</strong>Current conditions, the next 12 hours and the week ahead, with radar and alerts.</figcaption>
+      </figure>
+      <figure class="tile" tabindex="0">
+        <img src="img/reminder-card.jpg" width="1280" height="720" loading="lazy" alt="Portal's home screen with a card across the top: a sun avatar, KEN and REMINDER, and the text The baking show premiere is starting.">
+        <figcaption><strong>Reminders over anything</strong>A reminder shows over whatever you're watching, with the name and picture of whoever set it.</figcaption>
+      </figure>
+      <figure class="tile" tabindex="0">
+        <img src="img/profiles.jpg" width="1280" height="720" loading="lazy" alt="The Who's watching screen on a starry background, with three profiles (Portal, Guest and a kid's profile called Kids) and an Add New button.">
+        <figcaption><strong>Who's watching</strong>Hold OK on a profile to rename it, change its avatar, set a code or delete it.</figcaption>
+      </figure>
     </div>
   </section>
 
-  <section id="private">
-    <div class="wrap split">
+  <section class="shelf" aria-labelledby="shelf-own">
+    <div class="shelf-head">
+      <h2 id="shelf-own">Make it yours</h2>
+      <p>Everything is set up from the couch, with the remote.</p>
+    </div>
+    <div class="row" data-row>
+      <figure class="tile" tabindex="0">
+        <img src="img/settings-video-select.jpg" width="1280" height="720" loading="lazy" alt="A window titled Choose a video with a grid of six video thumbnails, a check on the one in use and a speaker on the two that have sound.">
+        <figcaption><strong>Pick a video</strong>Browse every video on the TV. A speaker marks the ones with sound.</figcaption>
+      </figure>
+      <figure class="tile" tabindex="0">
+        <img src="img/settings-shaders.jpg" width="1280" height="720" loading="lazy" alt="A window titled Background shader with eleven animated styles shown in blue, fifteen color swatches, and a color cycling switch.">
+        <figcaption><strong>Or an animated color</strong>Prefer color to video? Pick an animated shader and see every style move in the color you choose.</figcaption>
+      </figure>
+      <figure class="tile" tabindex="0">
+        <img src="img/settings-apps.jpg" width="1280" height="720" loading="lazy" alt="Settings, Apps: choose icon and title, icon only or list, and whether to group frequently used apps. Each settings category has an icon.">
+        <figcaption><strong>Arrange your apps</strong>Show apps as tiles, icons or a list, and group the ones you use most.</figcaption>
+      </figure>
+      <figure class="tile" tabindex="0">
+        <img src="img/settings-videos.jpg" width="1280" height="720" loading="lazy" alt="Settings, Videos: a Random tile, the video in use and a Select button, with Search/Manage Videos and Holidays buttons below.">
+        <figcaption><strong>A new video each day</strong>Pick one, or let Portal choose, and set up holiday videos. Add more from NASA or Pixabay.</figcaption>
+      </figure>
+      <figure class="tile" tabindex="0">
+        <img src="img/settings-reminders.jpg" width="1280" height="720" loading="lazy" alt="Settings, Reminders: three reminders with their dates (one repeating every week), an Add reminder button, and a choice for reminders that came due while the TV was off.">
+        <figcaption><strong>Set reminders</strong>In Settings, or ask the AI to set one. You confirm it before it's saved.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="more" aria-labelledby="more-h">
+    <h2 id="more-h">What's in it</h2>
+    <dl class="list">
+      <div><dt>Live video backgrounds</dt><dd>Fireplaces, space, aquariums and more behind your apps, or an animated color shader. Pick one, or let Portal choose a new video each day.</dd></div>
+      <div><dt>Weather and radar</dt><dd>Current conditions, 12 hours and 7 days, sunrise and sunset, air quality and the moon, with a looping radar map. In the US, severe weather alerts show right on the home screen. It comes from Portal TV Weather, an extension that comes with Portal and that you can replace.</dd></div>
+      <div><dt>Reminders</dt><dd>Set a reminder for a show, a call or a chore, in Settings or by asking the AI, which can also list, change and delete them. When it's due, a card with the name and picture of whoever set it shows over whatever is playing. Pick a tone for each one, let the card go by itself or wait for you, and add a Snooze button. One that came due while the TV was off can show later or be skipped.</dd></div>
+      <div><dt>Holidays and birthdays</dt><dd>Halloween, Thanksgiving, Christmas and New Year's videos play on the right days. Add holidays of your own, give each as many videos as you like, and set a video for birthdays.</dd></div>
+      <div><dt>Profiles for everyone</dt><dd>Each person gets their own apps, background and settings, and can sign in with their Google account using a QR code.</dd></div>
+      <div><dt>Kid profiles</dt><dd>Only the apps a parent allows, a daily time limit and a bedtime, a countdown for the last minute, and a parent PIN to leave the profile.</dd></div>
+      <div><dt>A screen saver that moves</dt><dd>Your videos fade through while the time and weather bounce around the screen like the logo on an old DVD player. It can dim or go dark at night.</dd></div>
+      <div><dt>Search with your own AI</dt><dd>Find apps as you type or by voice. Connect any OpenAI-compatible server, a hosted one or one on your own network, and ask it questions, have it open apps or manage your reminders for you.</dd></div>
+      <div><dt>Updates from the TV</dt><dd>Portal looks for a new version once a day. Select the Update button to see what's new, then download and install it from the couch. Nothing installs without you.</dd></div>
+      <div><dt>Extensions</dt><dd>Other people can add tiles, buttons, a settings page or an animated background, or replace where the weather comes from and the weather page itself. Nothing happens until an adult allows each thing, and kids don't get extensions unless a parent says so. <a href="extensions/">See the list</a>.</dd></div>
+    </dl>
+  </section>
+
+  <section class="private" id="private" aria-labelledby="private-h">
+    <div class="inner">
       <div>
-        <h2>No ads. No tracking.</h2>
-        <p class="sub" style="margin-bottom:0">Many stock TV launchers fill the home screen with sponsored rows and recommendations, and keep track of what you watch. Portal does neither. Your TV is in your living room, and Portal treats it that way.</p>
+        <h2 id="private-h">No ads. No tracking.</h2>
+        <p class="intro">Many stock TV launchers fill the home screen with sponsored rows and recommendations, and keep track of what you watch. Portal does neither. Your TV is in your living room, and Portal treats it that way.</p>
       </div>
-      <ul>
-        <li><strong>No ads.</strong> No sponsored rows, no promoted apps, no banners. Not now, not later.</li>
-        <li><strong>No tracking.</strong> There are no analytics and no Portal account.</li>
-        <li><strong>Your data stays on the TV.</strong> Profiles, settings and watch history are saved on the device, and API keys are stored encrypted.</li>
-        <li><strong>You choose what it talks to.</strong> Portal reaches out only for features you use, such as weather (through Portal TV Weather, made by Portal, which asks Open-Meteo and the US National Weather Service about a place rounded to about 1 km; to find that place it looks up your connection&#x27;s address on a free lookup service, or looks up a ZIP code you type on Zippopotam.us), video downloads, or the AI server you set up. It also asks GitHub once a day whether a new version is out; you can turn that off.</li>
-        <li><strong>Extensions made by other people are not covered by this promise.</strong> If you add one, Portal shows who made it and what it asks for, and nothing is turned on until you allow it.</li>
-        <li><strong>Read the code.</strong> The whole app is on GitHub.</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="alt" id="install">
-    <div class="wrap">
-      <h2>Install it</h2>
-      <p class="sub">Portal needs Android 14 or newer on an Android TV or Google TV. It installs like any app you load yourself.</p>
-      <ol class="steps">
-        <li><strong>Get the APK</strong><span>Download <code>portal-*-release.apk</code> from the <a href="https://github.com/plecos/portaltv/releases/latest">latest release</a>.</span></li>
-        <li><strong>Put it on the TV</strong><span>Install it with <code>adb</code> from a computer, or with a file manager app on the TV.</span></li>
-        <li><strong>Open Portal</strong><span>The first-run setup walks you through making Portal your home screen, right from the TV.</span></li>
-      </ol>
-      <p>Prefer a script? The <a href="https://github.com/plecos/portaltv#quick-install">install guide</a> has a one-step script for macOS, Linux and Windows, plus the manual steps, and how to put your TV's own home screen back.</p>
-    </div>
-  </section>
-
-  <section id="faq">
-    <div class="wrap">
-      <h2>Questions</h2>
-      <p class="sub">Short answers to what people ask first.</p>
-      <div class="faq">
-        <details>
-          <summary>Does Portal work on Google TV?</summary>
-          <p>Yes. Portal runs on Android TV and Google TV, on Android 14 or newer. It has been tested on a TCL Google TV, including one set up as a Basic TV.</p>
-        </details>
-        <details>
-          <summary>What does Portal cost?</summary>
-          <p>Nothing. Portal is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0. Using it in a business or on products needs a commercial license, which you can ask for at license@getportaltv.net.</p>
-        </details>
-        <details>
-          <summary>Is Portal open source?</summary>
-          <p>It is source-available, not open source. You can read, build and change the code for noncommercial use, and the whole app is on GitHub.</p>
-        </details>
-        <details>
-          <summary>Does Portal show ads or track me?</summary>
-          <p>No. Portal has no ads, no analytics and no account of its own. Your profiles, settings and watch history stay on the TV. It contacts a service only for features you use, such as weather, video downloads, or an AI server you set up. It also asks GitHub once a day whether a newer version is out, which you can turn off.</p>
-        </details>
-        <details>
-          <summary>How do I install Portal?</summary>
-          <p>Download the APK from the latest GitHub release and install it on the TV with adb from a computer, or with a file manager app on the TV. Open Portal, and its first-run setup walks you through making it your home screen. There is also a one-step install script for macOS, Linux and Windows. After that, Portal can update itself from Settings, System, Updates.</p>
-        </details>
-        <details>
-          <summary>How do I go back to my TV&#x27;s own home screen?</summary>
-          <p>Open Portal&#x27;s Settings, then System, then Restore the TV&#x27;s own home screen. That undoes the launcher and screen saver changes Portal made.</p>
-        </details>
-        <details>
-          <summary>Does Portal have parental controls?</summary>
-          <p>Yes. A kid profile shows only the apps a parent allows, and has a daily time limit, a bedtime and a parent PIN to leave the profile. On an adult profile the PIN isn&#x27;t asked again for a few minutes after you enter it, if you leave that on (it is a setting of each profile). The limits count apps opened from Portal, so opening an app by voice through the TV&#x27;s assistant can bypass them.</p>
-        </details>
-        <details>
-          <summary>Which AI does Portal use?</summary>
-          <p>None is built in. Search can talk to any OpenAI-compatible chat server that you set up, either a hosted service or one on your own network, such as llama.cpp, Ollama or LM Studio. With no server set, search only finds your apps.</p>
-        </details>
+      <div class="facts">
+        <p><strong>No ads.</strong> No sponsored rows, no promoted apps, no banners. Not now, not later.</p>
+        <p><strong>No tracking.</strong> There are no analytics and no Portal account.</p>
+        <p><strong>Your data stays on the TV.</strong> Profiles, settings and watch history are saved on the device, and API keys are stored encrypted.</p>
+        <p><strong>You choose what it talks to.</strong> Portal reaches out only for features you use, such as weather (through Portal TV Weather, made by Portal, which asks Open-Meteo and the US National Weather Service about a place rounded to about 1 km; to find that place it looks up your connection's address on a free lookup service, or looks up a ZIP code you type on Zippopotam.us), video downloads, or the AI server you set up. It also asks GitHub once a day whether a new version is out; you can turn that off.</p>
+        <p>Extensions made by other people are not covered by this promise. If you add one, Portal shows who made it and what it asks for, and nothing is turned on until you allow it.</p>
+        <p><strong>Read the code.</strong> The whole app is on <a href="https://github.com/plecos/portaltv">GitHub</a>.</p>
       </div>
     </div>
   </section>
 
-  <section id="license">
-    <div class="wrap split">
+  <section class="install" id="install" aria-labelledby="install-h">
+    <h2 id="install-h">Install it</h2>
+    <p class="sub">Portal needs Android 14 or newer on an Android TV or Google TV. It installs like any app you load yourself.</p>
+    <ol class="steps">
+      <li><strong>Get the APK</strong><span>Download <code>portal-*-release.apk</code> from the <a href="https://github.com/plecos/portaltv/releases/latest">latest release</a>.</span></li>
+      <li><strong>Put it on the TV</strong><span>Install it with <code>adb</code> from a computer, or with a file manager app on the TV.</span></li>
+      <li><strong>Open Portal</strong><span>The first-run setup walks you through making Portal your home screen, right from the TV.</span></li>
+    </ol>
+    <p class="script">Prefer a script? The <a href="https://github.com/plecos/portaltv#quick-install">install guide</a> has a one-step script for macOS, Linux and Windows, plus the manual steps, and how to put your TV's own home screen back.</p>
+  </section>
+
+  <section class="faq" id="faq" aria-labelledby="faq-h">
+    <h2 id="faq-h">Questions</h2>
+    <p class="sub">Short answers to what people ask first.</p>
+    <details>
+      <summary>Does Portal work on Google TV?</summary>
+      <p>Yes. Portal runs on Android TV and Google TV, on Android 14 or newer. It has been tested on a TCL Google TV, including one set up as a Basic TV.</p>
+    </details>
+    <details>
+      <summary>What does Portal cost?</summary>
+      <p>Nothing. Portal is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0. Using it in a business or on products needs a commercial license, which you can ask for at license@getportaltv.net.</p>
+    </details>
+    <details>
+      <summary>Is Portal open source?</summary>
+      <p>It is source-available, not open source. You can read, build and change the code for noncommercial use, and the whole app is on GitHub.</p>
+    </details>
+    <details>
+      <summary>Does Portal show ads or track me?</summary>
+      <p>No. Portal has no ads, no analytics and no account of its own. Your profiles, settings and watch history stay on the TV. It contacts a service only for features you use, such as weather, video downloads, or an AI server you set up. It also asks GitHub once a day whether a newer version is out, which you can turn off.</p>
+    </details>
+    <details>
+      <summary>How do I install Portal?</summary>
+      <p>Download the APK from the latest GitHub release and install it on the TV with adb from a computer, or with a file manager app on the TV. Open Portal, and its first-run setup walks you through making it your home screen. There is also a one-step install script for macOS, Linux and Windows. After that, Portal can update itself from Settings, System, Updates.</p>
+    </details>
+    <details>
+      <summary>How do I go back to my TV's own home screen?</summary>
+      <p>Open Portal's Settings, then System, then Restore the TV's own home screen. That undoes the launcher and screen saver changes Portal made.</p>
+    </details>
+    <details>
+      <summary>Does Portal have parental controls?</summary>
+      <p>Yes. A kid profile shows only the apps a parent allows, and has a daily time limit, a bedtime and a parent PIN to leave the profile. On an adult profile the PIN isn't asked again for a few minutes after you enter it, if you leave that on (it is a setting of each profile). The limits count apps opened from Portal, so opening an app by voice through the TV's assistant can bypass them.</p>
+    </details>
+    <details>
+      <summary>Which AI does Portal use?</summary>
+      <p>None is built in. Search can talk to any OpenAI-compatible chat server that you set up, either a hosted service or one on your own network, such as llama.cpp, Ollama or LM Studio. With no server set, search only finds your apps.</p>
+    </details>
+  </section>
+
+  <section class="license" id="license" aria-labelledby="license-h">
+    <div class="inner">
       <div>
-        <h2>Free to use, open to read</h2>
-        <p class="sub" style="margin-bottom:0">Portal is source-available under the PolyForm Noncommercial License 1.0.0. It is free for personal and other noncommercial use. It is not open source.</p>
+        <h2 id="license-h">Free to use, open to read</h2>
+        <p>Portal is source-available under the PolyForm Noncommercial License 1.0.0. It is free for personal and other noncommercial use. It is not open source.</p>
       </div>
       <div>
-        <p style="margin-top:0">Want to use Portal in a business or ship it on products? Write to <a href="mailto:license@getportaltv.net">license@getportaltv.net</a> for a commercial license.</p>
+        <p>Want to use Portal in a business or ship it on products? Write to <a href="mailto:license@getportaltv.net">license@getportaltv.net</a> for a commercial license.</p>
         <p>Found a bug or want a feature? <a href="https://github.com/plecos/portaltv/issues">Open an issue</a>. If Portal is useful to you, you can <a href="https://buymeacoffee.com/portal.tv">buy me a coffee</a>.</p>
       </div>
     </div>
@@ -406,16 +459,31 @@
 </main>
 
 <footer>
-  <div class="wrap">
-    <div>Copyright 2026 Portal TV</div>
-    <ul>
-      <li><a href="https://github.com/plecos/portaltv">Source on GitHub</a></li>
-      <li><a href="https://github.com/plecos/portaltv/releases">Releases</a></li>
-      <li><a href="https://github.com/plecos/portaltv/blob/main/LICENSE">License</a></li>
-      <li><a href="https://github.com/plecos/portaltv/blob/main/SECURITY.md">Security</a></li>
-      <li><a href="https://github.com/plecos/portaltv/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
-    </ul>
-  </div>
+  <span>Copyright 2026 Portal TV</span>
+  <ul>
+    <li><a href="https://github.com/plecos/portaltv">Source on GitHub</a></li>
+    <li><a href="https://github.com/plecos/portaltv/releases">Releases</a></li>
+    <li><a href="https://github.com/plecos/portaltv/blob/main/LICENSE">License</a></li>
+    <li><a href="https://github.com/plecos/portaltv/blob/main/SECURITY.md">Security</a></li>
+    <li><a href="https://github.com/plecos/portaltv/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
+  </ul>
 </footer>
+
+<script>
+  // Left and right move along a row, like the remote does on the TV. Everything works without this.
+  document.querySelectorAll('[data-row]').forEach(function (row) {
+    row.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var tiles = Array.prototype.slice.call(row.querySelectorAll('.tile'));
+      var i = tiles.indexOf(document.activeElement);
+      if (i < 0) return;
+      var next = tiles[i + (e.key === 'ArrowRight' ? 1 : -1)];
+      if (!next) return;
+      e.preventDefault();
+      next.focus({ preventScroll: true });
+      next.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+    });
+  });
+</script>
 </body>
 </html>
