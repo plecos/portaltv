@@ -88,7 +88,7 @@ class ExtensionWeatherProvider(
         }
     }
 
-    /** Where the TV is, as far as a source outside Portal is told: a tenth of a degree, about 10 km. */
+    /** Where the TV is, as far as a source outside Portal is told: a hundredth of a degree, about 1 km. */
     private fun Bundle.putPlace(place: WeatherPlace) {
         putDouble(WeatherProtocol.KEY_LAT, WeatherProtocol.rounded(place.lat))
         putDouble(WeatherProtocol.KEY_LON, WeatherProtocol.rounded(place.lon))

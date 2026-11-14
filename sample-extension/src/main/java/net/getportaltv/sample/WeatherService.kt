@@ -18,7 +18,7 @@ import java.time.OffsetDateTime
  * sends one question (the weather, or the alerts, for a place) and waits for one reply. This one answers with made-up weather
  * and one plainly made-up alert; a real source would look the place up on its own service and answer with what it found.
  *
- * The question carries "lat" and "lon" (rounded to about 10 km) and sometimes "city". The reply carries "json" (the answer, in
+ * The question carries "lat" and "lon" (rounded to about 1 km) and sometimes "city". The reply carries "json" (the answer, in
  * the format described in docs/EXTENSIONS.md) or "error" (a few words saying why not). Portal checks every number and word
  * before it uses any of it, and decides for itself where the TV is and what is allowed to cover an app.
  */

@@ -6,7 +6,7 @@
     label="@string/ext_name"
     description="@string/ext_description">
 
-    <!-- Where Portal gets its weather, alerts, city search and radar: Open-Meteo, the US National Weather Service and RainViewer. -->
+    <!-- Where Portal gets its weather, alerts, city search and radar: Open-Meteo, the US National Weather Service and RainViewer, plus Zippopotam.us to find a ZIP or postal code. -->
     <weather-source service=".WeatherService" />
 
     <!-- The weather page that opens from the home screen. It asks Portal for everything it shows. -->

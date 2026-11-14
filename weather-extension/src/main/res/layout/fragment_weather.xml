@@ -28,26 +28,57 @@
         android:paddingBottom="24dp">
 
 
-    <TextView
-        android:id="@+id/weather_title"
-        android:layout_width="wrap_content"
+    <!-- The title and when it was fetched, with the Refresh button at the right -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Weather"
-        android:textSize="32sp"
-        android:textStyle="bold"
-        android:fontFamily="@font/inter"
-        android:textColor="@color/text_primary"
-        android:layout_marginBottom="4dp" />
+        android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/weather_updated"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:fontFamily="@font/inter"
-        android:textColor="@color/text_secondary"
-        android:layout_marginBottom="20dp"
-        android:visibility="gone" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/weather_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Weather"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/inter"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/weather_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:fontFamily="@font/inter"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="20dp"
+            android:visibility="gone" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/weather_refresh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Refresh"
+            android:textSize="18sp"
+            android:fontFamily="@font/inter"
+            android:textColor="@color/text_primary"
+            android:background="@drawable/bg_app_tile"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:focusable="true"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/weather_status"

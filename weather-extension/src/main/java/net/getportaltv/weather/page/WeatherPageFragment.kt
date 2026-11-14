@@ -58,19 +58,25 @@ class WeatherPageFragment : Fragment() {
         val status = view.findViewById<TextView>(R.id.weather_status)
         val scroll = view.findViewById<ScrollView>(R.id.weather_scroll)
         val retry = view.findViewById<TextView>(R.id.weather_retry)
+        val refreshButton = view.findViewById<TextView>(R.id.weather_refresh)
         val updated = view.findViewById<TextView>(R.id.weather_updated)
         var showing = false
+        var lastAsOf = 0L
 
         fun show(data: HostClient.PageData) {
             metric = data.metric
             showAlerts = data.showAlerts
             pageBackground = data.pageBackground
             val report = data.report
+            lastAsOf = data.asOfMillis
             status.visibility = View.GONE
             retry.visibility = View.GONE
             scroll.visibility = View.VISIBLE
             if (!showing) scroll.requestFocus()
             showing = true
+            refreshButton.visibility = View.VISIBLE
+            refreshButton.isEnabled = true
+            refreshButton.text = "Refresh"
             bind(view, report)
             applyBackground(view, report)
             loadAlerts(view)
@@ -80,6 +86,8 @@ class WeatherPageFragment : Fragment() {
 
         fun refresh() {
             retry.visibility = View.GONE
+            refreshButton.isEnabled = false
+            refreshButton.text = "Refreshing…"
             viewLifecycleOwner.lifecycleScope.launch {
                 // What Portal has now is shown straight away, then Portal is asked to fetch fresh weather.
                 if (!showing) {
@@ -98,11 +106,17 @@ class WeatherPageFragment : Fragment() {
                     status.text = "Couldn't load the weather: ${result.error ?: "error"}"
                     retry.visibility = View.VISIBLE
                     retry.requestFocus()
+                } else {
+                    // Still showing the last report: say the refresh didn't work and let it be tried again.
+                    refreshButton.isEnabled = true
+                    refreshButton.text = "Refresh"
+                    updated.text = "Updated ${ago(lastAsOf)} · couldn't refresh"
                 }
             }
         }
 
         retry.setOnClickListener { refresh() }
+        refreshButton.setOnClickListener { refresh() }
         refreshWeather = ::refresh
         refresh()
     }
