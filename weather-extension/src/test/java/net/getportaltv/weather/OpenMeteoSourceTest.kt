@@ -122,10 +122,22 @@ class OpenMeteoSourceTest {
         assertEquals(24.0, r.visibilityKm!!, 0.001)
         assertEquals(1.3, r.uvIndex!!, 0.001)               // the 13:00 row
         assertEquals(13, r.hours.first().rainChance)
+        assertEquals(23, r.days[0].rainPeakHour) // the chances rise through the day: 23% at 23:00
         assertEquals("2026-10-30T07:12", r.days[0].sunrise)
         assertEquals("2026-10-30T17:58", r.days[0].sunset)
         assertEquals(3.4, r.days[0].uvMax!!, 0.001)
         assertEquals(5.5, r.days[1].precipMm!!, 0.001)
+    }
+
+    @Test
+    fun theRainPeakIsTheEarliestHighestHourOfThatDayOrNone() {
+        val times = JSONArray(listOf("2026-11-14T20:00", "2026-11-14T21:00", "2026-11-14T22:00", "2026-11-14T23:00", "2026-11-15T00:00"))
+        val chances = JSONArray(listOf(23, 83, 83, 52, 99))
+        assertEquals(21, OpenMeteoSource.rainPeakHour(times, chances, "2026-11-14"))
+        assertEquals(0, OpenMeteoSource.rainPeakHour(times, chances, "2026-11-15"))
+        assertEquals(null, OpenMeteoSource.rainPeakHour(times, JSONArray(listOf(0, 0, 0, 0, 0)), "2026-11-14"))
+        assertEquals(null, OpenMeteoSource.rainPeakHour(times, null, "2026-11-14"))
+        assertEquals(null, OpenMeteoSource.rainPeakHour(times, chances, "2026-11-20"))
     }
 
     @Test

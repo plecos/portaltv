@@ -19,7 +19,7 @@ class WeatherJsonTest {
         days = listOf(
             WeatherDay(
                 LocalDate.of(2026, 11, 12), 61, 13.0, 7.0, 60, "2026-11-12T07:12", "2026-11-12T16:40",
-                uvMax = 1.5, precipMm = 4.2, windMaxKmh = 30.0, snowCm = 0.0
+                uvMax = 1.5, precipMm = 4.2, windMaxKmh = 30.0, snowCm = 0.0, rainPeakHour = 22
             ),
             WeatherDay(LocalDate.of(2026, 11, 13), 3, 12.0, 6.0, 20)
         ),

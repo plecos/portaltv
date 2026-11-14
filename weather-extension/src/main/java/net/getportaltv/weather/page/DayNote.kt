@@ -16,6 +16,12 @@ object DayNote {
     private const val TRACE_MM = 0.2
     private const val TRACE_CM = 0.3
 
+    /** Below this chance a time of day isn't worth giving. */
+    private const val PEAK_MIN_CHANCE = 30
+
+    /** An hour of the day as it is said: 0 is "12 AM", 15 is "3 PM". */
+    fun hourLabel(h: Int): String = "${if (h % 12 == 0) 12 else h % 12} ${if (h < 12) "AM" else "PM"}"
+
     /** True for the weather codes of drizzle, rain, snow, showers and thunderstorms: a day with precipitation in it. */
     fun wet(code: Int): Boolean = code in 51..67 || code in 71..77 || code in 80..86 || code in 95..99
 
@@ -28,7 +34,9 @@ object DayNote {
      */
     fun precipitation(day: WeatherDay, kind: String, metric: Boolean): String? {
         if (!wet(day.code)) return null
-        val chance = if (day.rainChance > 0) "${day.rainChance}% chance of $kind" else kind.replaceFirstChar { it.uppercase() }
+        var chance = if (day.rainChance > 0) "${day.rainChance}% chance of $kind" else kind.replaceFirstChar { it.uppercase() }
+        // The daily chance is the highest of the day's hours, so say when that is: it may be tonight, not now.
+        day.rainPeakHour?.takeIf { day.rainChance >= PEAK_MIN_CHANCE }?.let { chance += " around ${hourLabel(it)}" }
         val amount = if (snowy(day.code)) snow(day.snowCm, metric) else rain(day.precipMm, metric)
         return if (amount == null) chance else "$chance, about $amount"
     }

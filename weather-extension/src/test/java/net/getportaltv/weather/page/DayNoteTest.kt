@@ -9,11 +9,27 @@ import java.time.LocalDate
 class DayNoteTest {
 
     private fun day(
-        code: Int = 3, rain: Int = 0, mm: Double? = 0.0, wind: Double? = 10.0, snow: Double? = 0.0, uv: Double? = 2.0
+        code: Int = 3, rain: Int = 0, mm: Double? = 0.0, wind: Double? = 10.0, snow: Double? = 0.0, uv: Double? = 2.0,
+        peak: Int? = null
     ) = WeatherDay(
         date = LocalDate.of(2026, 11, 1), code = code, highC = 12.0, lowC = 4.0, rainChance = rain,
-        uvMax = uv, precipMm = mm, windMaxKmh = wind, snowCm = snow
+        uvMax = uv, precipMm = mm, windMaxKmh = wind, snowCm = snow, rainPeakHour = peak
     )
+
+    @Test fun `a likely wet day says when the chance peaks`() {
+        val d = day(code = 61, rain = 83, mm = 4.0, peak = 22)
+        assertEquals("83% chance of light rain around 10 PM, about 0.16 in", DayNote.precipitation(d, "light rain", false))
+        assertEquals("12 AM", DayNote.hourLabel(0))
+        assertEquals("12 PM", DayNote.hourLabel(12))
+        assertEquals("9 AM", DayNote.hourLabel(9))
+    }
+
+    @Test fun `a time is left off when the chance is low or the hour unknown`() {
+        assertEquals("20% chance of light rain, about 0.16 in",
+            DayNote.precipitation(day(code = 61, rain = 20, mm = 4.0, peak = 22), "light rain", false))
+        assertEquals("83% chance of light rain, about 0.16 in",
+            DayNote.precipitation(day(code = 61, rain = 83, mm = 4.0, peak = null), "light rain", false))
+    }
 
     @Test fun `a dry day has no precipitation sentence, whatever the chance`() {
         assertNull(DayNote.precipitation(day(code = 3, rain = 40, mm = 0.5), "overcast", true))

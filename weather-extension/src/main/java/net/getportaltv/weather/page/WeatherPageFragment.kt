@@ -147,9 +147,16 @@ class WeatherPageFragment : Fragment() {
         view.findViewById<TextView>(R.id.weather_detail_humidity).text = "Humidity ${r.humidity}%"
         view.findViewById<TextView>(R.id.weather_detail_wind).text =
             "Wind ${wind(r.windKmh)} ${compass(r.windDirection)}"
-        r.days.firstOrNull()?.let {
-            view.findViewById<TextView>(R.id.weather_detail_range).text =
-                "High ${temp(it.highC)}  ·  Low ${temp(it.lowC)}"
+        val today = r.days.firstOrNull()
+        val middle = view.findViewById<View>(R.id.weather_range_bar).parent as View
+        middle.visibility = if (today == null) View.INVISIBLE else View.VISIBLE
+        today?.let {
+            view.findViewById<TextView>(R.id.weather_today_summary).text =
+                DayNote.precipitation(it, WeatherIcons.describe(it.code).lowercase(), metric)
+                    ?: DayNote.of(it, metric)
+                    ?: "No rain or snow expected today"
+            view.findViewById<TempRangeView>(R.id.weather_range_bar)
+                .set(it.lowC, it.highC, r.tempC, temp(it.lowC), temp(it.highC))
         }
 
         val hourly = view.findViewById<LinearLayout>(R.id.weather_hourly)
