@@ -7,3 +7,6 @@
 
 # Portal's release key (it signs Portal and the weather extension that ships with it).
 5362c877bbfc9723a1b54d20add69f202cd5245a2c15df2ae9170c29e59d51ca
+
+# Scenic Travel (Play app signing key, Salter Diaz Solutions LLC).
+0c4cdca0506e8a74ea81637c67e5e87a3560b5b671deb33a2b263ff89fa2a74a
