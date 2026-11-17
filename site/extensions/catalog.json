@@ -1,9 +1,30 @@
 {
-  "serial": 4,
-  "updated": "2026-11-14",
-  "expires": "2027-05-13",
+  "serial": 5,
+  "updated": "2026-11-17",
+  "expires": "2027-05-16",
   "format": 1,
   "extensions": [
+    {
+      "package": "net.getportaltv.scenic",
+      "name": "Scenic Travel",
+      "description": "A countryside journey that follows the real sky, sun, moon and weather. Free: 8-bit style, 3 places, 10-minute daily journey. Full version: all 10 styles and 6 places, no limit.",
+      "author": "Salter Diaz Solutions LLC",
+      "source": "https://play.google.com/store/apps/details?id=net.getportaltv.scenic",
+      "license": "Proprietary",
+      "capabilities": [
+        "weather",
+        "settings",
+        "background"
+      ],
+      "tags": [
+        "background",
+        "weather"
+      ],
+      "icon": "icons/scenic-travel.png",
+      "signer": "0c4cdca0506e8a74ea81637c67e5e87a3560b5b671deb33a2b263ff89fa2a74a",
+      "distribution": "play",
+      "price": "Free to try, with a paid upgrade"
+    },
     {
       "package": "net.getportaltv.weather",
       "name": "Portal TV Weather",
@@ -27,14 +48,6 @@
           "apk": "https://github.com/plecos/portaltv/releases/download/v2.1.135/portal-weather-2.1.135.apk",
           "sha256": "5d5054da056c5a989798a2c5bd5039a01a9b3227f83dcba03180462950c80019",
           "size": 8403482,
-          "contract": 1
-        },
-        {
-          "version_code": 279,
-          "version_name": "2.1.158",
-          "apk": "https://github.com/plecos/portaltv/releases/download/weather-v2.1.158/portal-weather-2.1.158.apk",
-          "sha256": "2c4b2767c84dabe280fd6782693fe7412d2ab58e55649b0ddecc5e3f872292de",
-          "size": 8410518,
           "contract": 1
         }
       ]
