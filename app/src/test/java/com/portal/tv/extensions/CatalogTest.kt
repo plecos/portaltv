@@ -235,6 +235,15 @@ class CatalogFileTest {
     }
 
     @Test
+    fun theFirstPartySignersBuiltIntoPortalAreInTheList() {
+        // The list also has Portal's own release key, which Portal knows from itself; everything else in it must be built in.
+        val listed = firstPartySigners()
+        assertTrue("first-party-signers.txt is missing", listed.isNotEmpty())
+        assertTrue("Every built-in first-party signer must be in docs/catalog/first-party-signers.txt", listed.containsAll(CatalogPolicy.FIRST_PARTY_SIGNERS))
+        assertTrue("Every signer in first-party-signers.txt other than Portal's own key must be in CatalogPolicy.FIRST_PARTY_SIGNERS", listed.size - CatalogPolicy.FIRST_PARTY_SIGNERS.size <= 1)
+    }
+
+    @Test
     fun theSampleCatalogIsValid() {
         // Unit tests run in the app folder; the sample is in the repository's docs.
         check(File("../docs/catalog/sample-catalog.json"))

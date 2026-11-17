@@ -228,7 +228,7 @@ object ExtensionRegistry {
         val pkg = app.packageName
         val f = facts(pm, app)
         // A package name that looks like Portal's own is for Portal's own apps: one signed by anyone else is not used.
-        val reserved = Impersonation.isReservedPackage(pkg) && f.signers.none { it in ownSigners(context, pm) }
+        val reserved = Impersonation.isReservedPackage(pkg) && f.signers.none { it in ownSigners(context, pm) || it in CatalogPolicy.FIRST_PARTY_SIGNERS }
         val parsed = if (reserved) ManifestParser.Result.Invalid("Its package name is reserved for Portal's own apps.") else f.parsed
         // What it has changed while running (new words, taken away, lines it added) is applied on top.
         val items = if (parsed is ManifestParser.Result.Ok) ItemOverrides.apply(f.usableItems, ExtensionItemStore.get(context, pkg)) else emptyList()
