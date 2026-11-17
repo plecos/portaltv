@@ -222,6 +222,10 @@ Travel") are Portal's own, so two things differ from a listing by someone else:
   `signer` is one of the fingerprints in [`catalog/first-party-signers.txt`](catalog/first-party-signers.txt). Add the release
   key there before listing the first one. Portal itself reads a signed catalog without that check: the signature is what says the
   maintainer put the listing there.
+- **On the TV**, Portal also refuses to use a package name that looks like its own unless the app is signed with Portal's key or
+  one built into `CatalogPolicy.FIRST_PARTY_SIGNERS`. A key that is only in `first-party-signers.txt` is not enough: add it to
+  both (a test checks they match), and release Portal before the extension can be used. Scenic Travel is signed by Google Play, so
+  it needs the second.
 
 ## Signing
 

@@ -12,6 +12,15 @@ object CatalogPolicy {
      */
     const val MIN_SERIAL = 5L
 
+    /**
+     * Signing keys of Portal's own extensions besides Portal's release key (which Portal knows from itself): an app signed
+     * with one of these may use a package name reserved for Portal's own apps. Keep in step with docs/catalog/first-party-signers.txt
+     * (a test checks they match). Scenic Travel is signed by Google Play's app signing key, so Portal's key isn't its signer.
+     */
+    val FIRST_PARTY_SIGNERS = setOf(
+        "0c4cdca0506e8a74ea81637c67e5e87a3560b5b671deb33a2b263ff89fa2a74a", // Scenic Travel (Play app signing key)
+    )
+
     /** The most a catalog may say it is good for, counted from now. The signing tool's default is half of this. */
     const val MAX_VALIDITY_DAYS = 365L
 
