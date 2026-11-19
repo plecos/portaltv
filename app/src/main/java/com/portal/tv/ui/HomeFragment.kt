@@ -964,6 +964,17 @@ class HomeFragment : Fragment() {
 
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
+    private var weatherRetryDelayMs = WEATHER_RETRY_FIRST_MS
+
+    /** Tries the weather again after a short wait that doubles each time, up to the normal refresh interval. */
+    private fun scheduleWeatherRetry() {
+        val delay = weatherRetryDelayMs
+        weatherRetryDelayMs = (delay * 2).coerceAtMost(WEATHER_RETRY_MAX_MS)
+        weatherHandler.postDelayed({
+            if (isAdded && weatherNeedsRefresh) fetchWeather()
+        }, delay)
+    }
+
     private fun fetchWeather() {
         if (weatherJob?.isActive == true) return
         val context = context ?: return
@@ -986,10 +997,7 @@ class HomeFragment : Fragment() {
                     }
                 }
             }
-            // Show the last saved weather straight away, dimmed, while the refresh runs.
-            if (!showingWeather) {
-                WeatherRepository.cached(context)?.report?.let { bindWeather(it, stale = true) }
-            }
+            // The home screen never shows weather kept from an earlier download (the weather page does, with its age).
             if (!showingWeather) {
                 // Nothing to show yet: a loading bar until the first result.
                 setWeatherErrorVisible(false)
@@ -1001,8 +1009,16 @@ class HomeFragment : Fragment() {
             try {
                 val outcome = WeatherRepository.load(context)
                 val report = outcome.report
-                if (report != null) bindWeather(report, stale = outcome.stale)
-                else showWeatherError(outcome.error ?: "Weather error")
+                if (report != null && !outcome.stale) bindWeather(report, stale = false)
+                else if (report != null && showingWeather) {
+                    // The refresh failed: what is already on screen is from this run, so it stays, dimmed.
+                    weatherRow?.alpha = 0.6f
+                    weatherNeedsRefresh = true
+                } else showWeatherError(outcome.error ?: "Weather error")
+                // Just after the TV starts the network (and the weather extension) may not be ready, so a failed
+                // refresh is tried again soon rather than waiting for the next five-minute refresh.
+                if (outcome.error == null) weatherRetryDelayMs = WEATHER_RETRY_FIRST_MS
+                else scheduleWeatherRetry()
             } finally {
                 weatherProgress?.visibility = View.GONE
             }
@@ -1130,6 +1146,14 @@ class HomeFragment : Fragment() {
                     if (isAdded && weatherNeedsRefresh) fetchWeather()
                 }, 2000)
             }
+
+            // At start-up a network is "available" well before it can reach the internet; this fires once it can.
+            override fun onCapabilitiesChanged(network: Network, caps: android.net.NetworkCapabilities) {
+                if (!caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
+                weatherHandler.post {
+                    if (isAdded && weatherNeedsRefresh) fetchWeather()
+                }
+            }
         }
         try {
             cm.registerDefaultNetworkCallback(callback)
@@ -1231,6 +1255,8 @@ class HomeFragment : Fragment() {
     }
 
     private companion object {
+        const val WEATHER_RETRY_FIRST_MS = 15_000L
+        const val WEATHER_RETRY_MAX_MS = 5 * 60 * 1000L
         /** What the intro waits for before it opens: the background showing, and the apps listed. */
         const val BACKGROUND_READY = "background"
         const val APPS_READY = "apps"
