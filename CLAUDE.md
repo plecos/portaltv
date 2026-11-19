@@ -40,3 +40,4 @@ scripts/validate-catalog.sh path/to/catalog.json           # check a catalog wit
 
 - There is no installed base yet, so skip migrations and backward-compatibility work.
 - Never install debug builds on the user's real TV; use the emulator.
+- Real TV ip address is 192.168.10.11 with adb port 5555
