@@ -1,7 +1,7 @@
 {
-  "serial": 5,
-  "updated": "2026-11-17",
-  "expires": "2027-05-16",
+  "serial": 6,
+  "updated": "2026-11-19",
+  "expires": "2027-05-18",
   "format": 1,
   "extensions": [
     {
@@ -48,6 +48,14 @@
           "apk": "https://github.com/plecos/portaltv/releases/download/v2.1.135/portal-weather-2.1.135.apk",
           "sha256": "5d5054da056c5a989798a2c5bd5039a01a9b3227f83dcba03180462950c80019",
           "size": 8403482,
+          "contract": 1
+        },
+        {
+          "version_code": 305,
+          "version_name": "2.1.184",
+          "apk": "https://github.com/plecos/portaltv/releases/download/weather-v2.1.184/portal-weather-2.1.184.apk",
+          "sha256": "6b1dbf35c24a0ee6d252b254dde5a7ef13231033f2014287d4455b2a5b300a9c",
+          "size": 8410518,
           "contract": 1
         }
       ]
