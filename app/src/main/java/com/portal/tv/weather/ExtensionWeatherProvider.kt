@@ -10,6 +10,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
+import android.os.SystemClock
+import android.util.Log
 import com.portal.tv.extensions.Capability
 import com.portal.tv.extensions.ExtensionRegistry
 import com.portal.tv.extensions.TextSafety
@@ -114,8 +116,12 @@ class ExtensionWeatherProvider(
     private suspend fun exchange(service: String, what: Int, fill: Bundle.() -> Unit): ProviderResult<Reply> =
         suspendCancellableCoroutine { cont ->
             var connection: ServiceConnection? = null
+            // Timing only, so a slow start of the extension can be told from a slow answer.
+            val started = SystemClock.elapsedRealtime()
+            fun since() = SystemClock.elapsedRealtime() - started
             fun finish(result: ProviderResult<Reply>) {
                 if (!cont.isActive) return
+                Log.i(LOG, "weather question $what finished after ${since()} ms: " + if (result is ProviderResult.Ok) "answered" else (result as ProviderResult.Failed).reason)
                 connection?.let { runCatching { app.unbindService(it) } }
                 cont.resume(result)
             }
@@ -137,6 +143,7 @@ class ExtensionWeatherProvider(
             })
             val conn = object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                    Log.i(LOG, "weather service connected after ${since()} ms")
                     val request = Message.obtain(null, what).apply {
                         replyTo = replies
                         data = Bundle().apply(fill)
@@ -149,6 +156,7 @@ class ExtensionWeatherProvider(
             }
             connection = conn
             cont.invokeOnCancellation { runCatching { app.unbindService(conn) } }
+            Log.i(LOG, "weather question $what: binding")
             val bound = runCatching {
                 app.bindService(Intent(WeatherProtocol.ACTION).setComponent(ComponentName(packageName, service)), conn, Context.BIND_AUTO_CREATE)
             }.getOrDefault(false)
@@ -157,5 +165,6 @@ class ExtensionWeatherProvider(
 
     private companion object {
         const val UNUSABLE = "Its weather couldn't be used"
+        const val LOG = "PortalWeatherHost"
     }
 }
