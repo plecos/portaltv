@@ -10,7 +10,7 @@ object CatalogPolicy {
      * No catalog with a lower serial is read. Raised with each Portal release to the serial current at the time, so a
      * freshly installed Portal (which has seen no catalog yet) can't be shown a catalog older than its own release.
      */
-    const val MIN_SERIAL = 5L
+    const val MIN_SERIAL = 6L
 
     /**
      * Signing keys of Portal's own extensions besides Portal's release key (which Portal knows from itself): an app signed

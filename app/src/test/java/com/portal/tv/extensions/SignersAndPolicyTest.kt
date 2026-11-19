@@ -92,18 +92,18 @@ class SignersAndPolicyTest {
     @Test
     fun aCatalogNeedsASerialAndAnExpiryNotTooFarAway() {
         val now = at("2026-11-06")
-        assertNull(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2027-05-05"), now))
+        assertNull(CatalogPolicy.check(parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2027-05-05"), now))
         assertTrue(CatalogPolicy.check(parsed("expires" to "2027-05-05"), now)!!.contains("serial"))
-        assertTrue(CatalogPolicy.check(parsed("serial" to 5), now)!!.contains("expiry"))
-        assertTrue(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2099-01-01"), now)!!.contains("more than a year"))
+        assertTrue(CatalogPolicy.check(parsed("serial" to CatalogPolicy.MIN_SERIAL), now)!!.contains("expiry"))
+        assertTrue(CatalogPolicy.check(parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2099-01-01"), now)!!.contains("more than a year"))
         // The most it may claim is a year.
-        assertNull(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2027-11-05"), now))
+        assertNull(CatalogPolicy.check(parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2027-11-05"), now))
     }
 
     @Test
     fun aCatalogAlreadyPastItsExpiryIsStillUsableForListing() {
         // Past expiry is not a refusal here: it keeps its withdrawals; only installing is paused (see CatalogLabels.expired).
-        assertNull(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2020-01-01"), at("2026-11-06")))
+        assertNull(CatalogPolicy.check(parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2020-01-01"), at("2026-11-06")))
     }
 
     @Test
@@ -118,20 +118,20 @@ class SignersAndPolicyTest {
 
     @Test
     fun expiryIsJudgedByThatTime() {
-        val c = parsed("serial" to 5, "expires" to "2026-12-31")
+        val c = parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2026-12-31")
         assertTrue(!CatalogLabels.expired(c, CatalogPolicy.effectiveNow(0, at("2026-12-31"))))
         assertTrue(CatalogLabels.expired(c, CatalogPolicy.effectiveNow(0, at("2027-01-01"))))
     }
 
     @Test
     fun aCatalogKnowsTheDayItWasPublished() {
-        assertEquals(at("2026-11-06"), parsed("serial" to 5, "expires" to "2027-05-05", "updated" to "2026-11-06").updatedAtMs)
-        assertEquals(0L, parsed("serial" to 5, "expires" to "2027-05-05", "updated" to "soon").updatedAtMs)
+        assertEquals(at("2026-11-06"), parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2027-05-05", "updated" to "2026-11-06").updatedAtMs)
+        assertEquals(0L, parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2027-05-05", "updated" to "soon").updatedAtMs)
     }
 
     @Test
     fun aCatalogPublishedAfterItExpiresIsRefused() {
-        val text = JSONObject().put("format", 1).put("serial", 5).put("updated", "2062-01-01").put("expires", "2027-05-05").put("extensions", JSONArray()).toString()
+        val text = JSONObject().put("format", 1).put("serial", CatalogPolicy.MIN_SERIAL).put("updated", "2062-01-01").put("expires", "2027-05-05").put("extensions", JSONArray()).toString()
         assertTrue(CatalogParser.parse(text) is CatalogParser.Result.Invalid)
     }
 
@@ -140,9 +140,9 @@ class SignersAndPolicyTest {
         val now = at("2026-11-06")
         // Dated 2062 in every field, as a catalog signed some other way could be: the expiry rule refuses it, and the floor
         // is raised only for a catalog the rules let through.
-        val far = parsed("serial" to 5, "updated" to "2062-01-01", "expires" to "2062-06-01")
+        val far = parsed("serial" to CatalogPolicy.MIN_SERIAL, "updated" to "2062-01-01", "expires" to "2062-06-01")
         assertTrue(CatalogPolicy.check(far, now)!!.contains("more than a year"))
-        val fine = parsed("serial" to 5, "updated" to "2026-11-06", "expires" to "2027-05-05")
+        val fine = parsed("serial" to CatalogPolicy.MIN_SERIAL, "updated" to "2026-11-06", "expires" to "2027-05-05")
         assertNull(CatalogPolicy.check(fine, now))
         assertTrue(fine.updatedAtMs < now + 366L * 24 * 60 * 60 * 1000)
     }
@@ -150,6 +150,6 @@ class SignersAndPolicyTest {
     @Test
     fun theMinimumSerialIsAtLeastOne() {
         assertTrue(CatalogPolicy.MIN_SERIAL >= 1)
-        assertTrue(CatalogPolicy.check(parsed("serial" to 5, "expires" to "2027-05-05"), at("2026-11-06")) == null)
+        assertTrue(CatalogPolicy.check(parsed("serial" to CatalogPolicy.MIN_SERIAL, "expires" to "2027-05-05"), at("2026-11-06")) == null)
     }
 }
