@@ -21,3 +21,26 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
 }
+
+// Android lint runs from its own tool classpath in each module, which the buildscript constraints above don't reach. It
+// pulls in the same libraries with security advisories, so pin them for every module. Build-time only, not in the APKs.
+// Drop an entry when the Android Gradle plugin ships a version at or above it.
+val lintToolFixes = mapOf(
+    "com.google.guava:guava" to "33.7.2-jre",
+    "org.bouncycastle:bcprov-jdk18on" to "1.85",
+    "org.bouncycastle:bcpkix-jdk18on" to "1.85",
+    "org.apache.commons:commons-lang3" to "3.18.0",
+    "org.apache.httpcomponents:httpclient" to "4.5.14",
+)
+subprojects {
+    configurations.configureEach {
+        if (name == "androidLintTool") {
+            resolutionStrategy.eachDependency {
+                lintToolFixes["${requested.group}:${requested.name}"]?.let {
+                    useVersion(it)
+                    because("security advisories in the older version the lint tool brings")
+                }
+            }
+        }
+    }
+}
